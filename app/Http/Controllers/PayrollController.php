@@ -73,8 +73,12 @@ class PayrollController extends Controller
             'total_work_minutes'     => $items->sum('total_work_minutes'),
             'total_days_decimal'     => $items->sum('total_days_decimal'),
             'total_late_minutes'     => $items->sum('total_late_minutes'),
+            'total_early_minutes'    => $items->sum('total_early_minutes'),
             'total_overtime_minutes' => $items->sum('total_overtime_minutes'),
             'base_pay'               => $items->sum('base_pay'),
+            'late_deduction'         => $items->sum('late_deduction'),
+            'early_deduction'        => $items->sum('early_deduction'),
+            'ot_pay'                 => $items->sum('ot_pay'),
             'adjustments'            => $items->sum('adjustments'),
             'final_pay'              => $items->sum('final_pay'),
         ];
@@ -116,17 +120,26 @@ class PayrollController extends Controller
             ->firstOrFail();
 
         $adjustments = (float) $request->adjustments;
-        $finalPay = round((float) $item->base_pay + $adjustments, 2);
+
+        // Final Pay = Base Pay - Late Deduction - Early Deduction + OT Pay + Adjustments
+        $finalPay = round(
+            (float) $item->base_pay
+            - (float) $item->late_deduction
+            - (float) $item->early_deduction
+            + (float) $item->ot_pay
+            + $adjustments,
+            2
+        );
 
         $item->update([
             'adjustments' => $adjustments,
-            'final_pay'   => $finalPay,
+            'final_pay'   => max(0, $finalPay),
             'notes'       => $request->notes,
         ]);
 
         return response()->json([
             'success'   => true,
-            'final_pay' => number_format($finalPay, 2),
+            'final_pay' => number_format(max(0, $finalPay), 2),
         ]);
     }
 
@@ -145,8 +158,10 @@ class PayrollController extends Controller
         return response()->streamDownload(function () use ($items) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Employee', 'Work Minutes', 'Days', 'Late Min', 'OT Min',
-                'Base Pay', 'Adjustments', 'Final Pay', 'Notes',
+                'Employee', 'Work Minutes', 'Days',
+                'Late Min', 'Early Min', 'OT Min',
+                'Base Pay', 'Late Deduction', 'Early Deduction', 'OT Pay',
+                'Adjustments', 'Final Pay', 'Notes',
             ]);
 
             foreach ($items as $item) {
@@ -155,8 +170,12 @@ class PayrollController extends Controller
                     $item->total_work_minutes,
                     number_format($item->total_days_decimal, 4),
                     $item->total_late_minutes,
+                    $item->total_early_minutes ?? 0,
                     $item->total_overtime_minutes,
                     number_format($item->base_pay, 2),
+                    number_format($item->late_deduction ?? 0, 2),
+                    number_format($item->early_deduction ?? 0, 2),
+                    number_format($item->ot_pay ?? 0, 2),
                     number_format($item->adjustments, 2),
                     number_format($item->final_pay, 2),
                     $item->notes ?? '',
@@ -180,9 +199,12 @@ class PayrollController extends Controller
             ->get();
 
         $totals = [
-            'base_pay'    => $items->sum('base_pay'),
-            'adjustments' => $items->sum('adjustments'),
-            'final_pay'   => $items->sum('final_pay'),
+            'base_pay'        => $items->sum('base_pay'),
+            'late_deduction'  => $items->sum('late_deduction'),
+            'early_deduction' => $items->sum('early_deduction'),
+            'ot_pay'          => $items->sum('ot_pay'),
+            'adjustments'     => $items->sum('adjustments'),
+            'final_pay'       => $items->sum('final_pay'),
         ];
 
         return view('payroll.pdf', compact('run', 'items', 'totals'));

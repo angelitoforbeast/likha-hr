@@ -19,6 +19,16 @@ class PayrollService
     protected int $standardDays = 26;
 
     /**
+     * Standard working hours per day (used for deduction/OT computation).
+     */
+    protected int $standardHoursPerDay = 8;
+
+    /**
+     * OT pay multiplier (1.25 = 125% of hourly rate).
+     */
+    protected float $otMultiplier = 1.25;
+
+    /**
      * Compute payroll items for a payroll run.
      */
     public function computePayroll(PayrollRun $run): void
@@ -55,6 +65,7 @@ class PayrollService
 
         $totalWorkMinutes = $days->sum('payable_work_minutes');
         $totalLateMinutes = $days->sum('computed_late_minutes');
+        $totalEarlyMinutes = $days->sum('computed_early_minutes');
         $totalOvertimeMinutes = $days->sum('computed_overtime_minutes');
 
         // Determine required work minutes per day from the shift active at the start of cutoff
@@ -66,24 +77,88 @@ class PayrollService
 
         // Calculate base pay using daily rate from employee_rates table
         $basePay = $this->calculateBasePayFromRates($employee, $days, $start, $end);
+        $avgDailyRate = $this->getAverageDailyRate($employee, $days);
 
         // If no employee_rates found, fall back to legacy pay_rates table
         if ($basePay === null) {
             $payRate = $this->getLegacyPayRate($employee, $start, $end);
             $basePay = $this->calculateLegacyBasePay($payRate, $totalWorkMinutes, $totalDaysDecimal);
+            $avgDailyRate = $payRate ? (float) $payRate->amount : 0;
         }
 
+        // Compute deductions and OT pay using formula: (minutes / 60 / 8) × daily_rate
+        $lateDeduction = $this->computeMinuteBasedAmount($totalLateMinutes, $avgDailyRate);
+        $earlyDeduction = $this->computeMinuteBasedAmount($totalEarlyMinutes, $avgDailyRate);
+        $otPay = $this->computeOtPay($totalOvertimeMinutes, $avgDailyRate);
+
+        // Final Pay = Base Pay - Late Deduction - Early Deduction + OT Pay + Adjustments
+        $finalPay = round($basePay - $lateDeduction - $earlyDeduction + $otPay, 2);
+
         PayrollItem::create([
-            'payroll_run_id'       => $run->id,
-            'employee_id'          => $employee->id,
-            'total_work_minutes'   => $totalWorkMinutes,
-            'total_days_decimal'   => $totalDaysDecimal,
-            'total_late_minutes'   => $totalLateMinutes,
+            'payroll_run_id'         => $run->id,
+            'employee_id'            => $employee->id,
+            'total_work_minutes'     => $totalWorkMinutes,
+            'total_days_decimal'     => $totalDaysDecimal,
+            'total_late_minutes'     => $totalLateMinutes,
+            'total_early_minutes'    => $totalEarlyMinutes,
             'total_overtime_minutes' => $totalOvertimeMinutes,
-            'base_pay'             => $basePay,
-            'adjustments'          => 0,
-            'final_pay'            => $basePay,
+            'base_pay'               => $basePay,
+            'late_deduction'         => $lateDeduction,
+            'early_deduction'        => $earlyDeduction,
+            'ot_pay'                 => $otPay,
+            'adjustments'            => 0,
+            'final_pay'              => max(0, $finalPay),
         ]);
+    }
+
+    /**
+     * Compute a minute-based deduction/amount.
+     * Formula: (minutes / 60 / 8) × daily_rate
+     */
+    protected function computeMinuteBasedAmount(int $minutes, float $dailyRate): float
+    {
+        if ($minutes <= 0 || $dailyRate <= 0) {
+            return 0;
+        }
+
+        return round(($minutes / 60 / $this->standardHoursPerDay) * $dailyRate, 2);
+    }
+
+    /**
+     * Compute OT pay.
+     * Formula: (ot_minutes / 60 / 8) × daily_rate × ot_multiplier
+     */
+    protected function computeOtPay(int $otMinutes, float $dailyRate): float
+    {
+        if ($otMinutes <= 0 || $dailyRate <= 0) {
+            return 0;
+        }
+
+        return round(($otMinutes / 60 / $this->standardHoursPerDay) * $dailyRate * $this->otMultiplier, 2);
+    }
+
+    /**
+     * Get the average daily rate for an employee across the attendance days.
+     * Used for deduction/OT computation.
+     */
+    protected function getAverageDailyRate(Employee $employee, $days): float
+    {
+        $totalRate = 0;
+        $count = 0;
+
+        foreach ($days as $day) {
+            $dateStr = $day->work_date instanceof Carbon
+                ? $day->work_date->format('Y-m-d')
+                : (string) $day->work_date;
+
+            $rate = $employee->getRateForDate($dateStr);
+            if ($rate !== null && $rate > 0) {
+                $totalRate += $rate;
+                $count++;
+            }
+        }
+
+        return $count > 0 ? round($totalRate / $count, 2) : 0;
     }
 
     /**

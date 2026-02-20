@@ -38,15 +38,19 @@
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" style="font-size: 0.85rem;">
+            <table class="table table-hover table-sm mb-0" style="font-size: 0.82rem;">
                 <thead class="table-light">
                     <tr>
                         <th>Employee</th>
                         <th class="text-center">Work Min</th>
                         <th class="text-center">Days</th>
                         <th class="text-center">Late Min</th>
+                        <th class="text-center">Early Min</th>
                         <th class="text-center">OT Min</th>
                         <th class="text-end">Base Pay</th>
+                        <th class="text-end text-danger">Late Ded.</th>
+                        <th class="text-end text-danger">Early Ded.</th>
+                        <th class="text-end text-success">OT Pay</th>
                         <th class="text-end">Adjustments</th>
                         <th class="text-end fw-bold">Final Pay</th>
                         <th>Notes</th>
@@ -64,10 +68,22 @@
                         <td class="text-center {{ $item->total_late_minutes > 0 ? 'text-danger' : '' }}">
                             {{ $item->total_late_minutes }}
                         </td>
+                        <td class="text-center {{ ($item->total_early_minutes ?? 0) > 0 ? 'text-danger' : '' }}">
+                            {{ $item->total_early_minutes ?? 0 }}
+                        </td>
                         <td class="text-center {{ $item->total_overtime_minutes > 0 ? 'text-success' : '' }}">
                             {{ $item->total_overtime_minutes }}
                         </td>
                         <td class="text-end">{{ number_format($item->base_pay, 2) }}</td>
+                        <td class="text-end {{ ($item->late_deduction ?? 0) > 0 ? 'text-danger' : '' }}">
+                            {{ number_format($item->late_deduction ?? 0, 2) }}
+                        </td>
+                        <td class="text-end {{ ($item->early_deduction ?? 0) > 0 ? 'text-danger' : '' }}">
+                            {{ number_format($item->early_deduction ?? 0, 2) }}
+                        </td>
+                        <td class="text-end {{ ($item->ot_pay ?? 0) > 0 ? 'text-success' : '' }}">
+                            {{ number_format($item->ot_pay ?? 0, 2) }}
+                        </td>
                         <td class="text-end adj-cell" id="adj-{{ $item->id }}">
                             {{ number_format($item->adjustments, 2) }}
                         </td>
@@ -88,7 +104,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $run->isFinal() ? 9 : 10 }}" class="text-center text-muted py-4">
+                        <td colspan="{{ $run->isFinal() ? 13 : 14 }}" class="text-center text-muted py-4">
                             No payroll items found.
                         </td>
                     </tr>
@@ -101,8 +117,12 @@
                         <td class="text-center">{{ number_format($totals['total_work_minutes']) }}</td>
                         <td class="text-center">{{ number_format($totals['total_days_decimal'], 2) }}</td>
                         <td class="text-center">{{ $totals['total_late_minutes'] }}</td>
+                        <td class="text-center">{{ $totals['total_early_minutes'] ?? 0 }}</td>
                         <td class="text-center">{{ $totals['total_overtime_minutes'] }}</td>
                         <td class="text-end">{{ number_format($totals['base_pay'], 2) }}</td>
+                        <td class="text-end text-danger">{{ number_format($totals['late_deduction'] ?? 0, 2) }}</td>
+                        <td class="text-end text-danger">{{ number_format($totals['early_deduction'] ?? 0, 2) }}</td>
+                        <td class="text-end text-success">{{ number_format($totals['ot_pay'] ?? 0, 2) }}</td>
                         <td class="text-end">{{ number_format($totals['adjustments'], 2) }}</td>
                         <td class="text-end">{{ number_format($totals['final_pay'], 2) }}</td>
                         <td></td>
@@ -114,6 +134,17 @@
                 @endif
             </table>
         </div>
+    </div>
+</div>
+
+{{-- Formula Reference --}}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body small text-muted">
+        <strong>Computation Reference:</strong><br>
+        Late Deduction = (Late Min ÷ 60 ÷ 8) × Daily Rate &nbsp;|&nbsp;
+        Early Deduction = (Early Min ÷ 60 ÷ 8) × Daily Rate &nbsp;|&nbsp;
+        OT Pay = (OT Min ÷ 60 ÷ 8) × Daily Rate × 1.25 &nbsp;|&nbsp;
+        <strong>Final Pay = Base Pay − Late Ded. − Early Ded. + OT Pay + Adjustments</strong>
     </div>
 </div>
 
@@ -190,11 +221,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('adjModal')).hide();
-                // Update cells
                 document.getElementById('adj-' + itemId).textContent = parseFloat(adjustments).toFixed(2);
                 document.getElementById('final-' + itemId).textContent = data.final_pay;
                 document.getElementById('notes-' + itemId).textContent = notes;
-                // Update button data
                 const btn = document.querySelector(`.edit-adj-btn[data-item-id="${itemId}"]`);
                 btn.dataset.adj = adjustments;
                 btn.dataset.notes = notes;

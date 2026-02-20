@@ -80,6 +80,28 @@ class AttendanceComputeService
     }
 
     /**
+     * Round a Carbon time UP to the next whole minute (ceil).
+     * 10:00:00 stays 10:00, 10:00:01 becomes 10:01, 10:00:31 becomes 10:01.
+     */
+    protected function ceilToMinute(Carbon $time): Carbon
+    {
+        $rounded = $time->copy()->second(0);
+        if ($time->second > 0) {
+            $rounded->addMinute();
+        }
+        return $rounded;
+    }
+
+    /**
+     * Round a Carbon time DOWN to the current whole minute (floor).
+     * 18:59:59 becomes 18:59, 19:00:00 stays 19:00.
+     */
+    protected function floorToMinute(Carbon $time): Carbon
+    {
+        return $time->copy()->second(0);
+    }
+
+    /**
      * Compute a single attendance day for an employee.
      */
     public function computeDay(
@@ -95,9 +117,13 @@ class AttendanceComputeService
         // Sort punches by time
         $sorted = $punches->sortBy('punched_at')->values();
 
-        // time_in = first punch, time_out = last punch
-        $timeIn = Carbon::parse($sorted->first()->punched_at);
-        $timeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
+        // time_in = first punch (raw), time_out = last punch (raw)
+        $rawTimeIn = Carbon::parse($sorted->first()->punched_at);
+        $rawTimeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
+
+        // For computation: round UP time_in (ceil), round DOWN time_out (floor)
+        $computeTimeIn = $this->ceilToMinute($rawTimeIn);
+        $computeTimeOut = $rawTimeOut ? $this->floorToMinute($rawTimeOut) : null;
 
         $lunchOut = null;
         $lunchIn = null;
@@ -119,10 +145,10 @@ class AttendanceComputeService
             $notes[] = 'Lunch punches could not be inferred.';
         }
 
-        // Compute work minutes, late, early, overtime
-        $computed = $this->computeMetrics($timeIn, $timeOut, $lunchOut, $lunchIn, $shift, $workDate);
+        // Compute work minutes, late, early, overtime using rounded times
+        $computed = $this->computeMetrics($computeTimeIn, $computeTimeOut, $lunchOut, $lunchIn, $shift, $workDate);
 
-        // Upsert attendance_days
+        // Upsert attendance_days — store raw times for display, computed values use rounded
         $day = AttendanceDay::updateOrCreate(
             [
                 'employee_id' => $employee->id,
@@ -130,10 +156,10 @@ class AttendanceComputeService
             ],
             [
                 'shift_id'                  => $shift?->id,
-                'time_in'                   => $timeIn,
+                'time_in'                   => $rawTimeIn,
                 'lunch_out'                 => $lunchOut,
                 'lunch_in'                  => $lunchIn,
-                'time_out'                  => $timeOut,
+                'time_out'                  => $rawTimeOut,
                 'computed_work_minutes'     => $computed['work_minutes'],
                 'computed_late_minutes'     => $computed['late_minutes'],
                 'computed_early_minutes'    => $computed['early_minutes'],
@@ -154,9 +180,14 @@ class AttendanceComputeService
     public function recomputeDay(AttendanceDay $day): AttendanceDay
     {
         $shift = $day->shift;
+
+        // Apply same rounding: ceil for time_in, floor for time_out
+        $computeTimeIn = $day->time_in ? $this->ceilToMinute(Carbon::parse($day->time_in)) : null;
+        $computeTimeOut = $day->time_out ? $this->floorToMinute(Carbon::parse($day->time_out)) : null;
+
         $computed = $this->computeMetrics(
-            $day->time_in ? Carbon::parse($day->time_in) : null,
-            $day->time_out ? Carbon::parse($day->time_out) : null,
+            $computeTimeIn,
+            $computeTimeOut,
             $day->lunch_out ? Carbon::parse($day->lunch_out) : null,
             $day->lunch_in ? Carbon::parse($day->lunch_in) : null,
             $shift,
@@ -212,6 +243,7 @@ class AttendanceComputeService
 
     /**
      * Compute work minutes, late, early, overtime using overlap method.
+     * Expects time_in already rounded UP (ceil) and time_out rounded DOWN (floor).
      */
     protected function computeMetrics(
         ?Carbon $timeIn,
@@ -249,21 +281,24 @@ class AttendanceComputeService
 
         $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);
 
-        // Late minutes
+        // Late minutes: time_in is already ceiled, so compare directly to shift start
+        // Grace period from shift (0 means no grace — any second late counts)
         $graceDeadline = $shiftStart->copy()->addMinutes($shift->grace_in_minutes);
         if ($timeIn->gt($graceDeadline)) {
-            $result['late_minutes'] = (int) $timeIn->diffInMinutes($shiftStart);
+            // Late minutes = difference from shift start (not from grace deadline)
+            $result['late_minutes'] = (int) $shiftStart->diffInMinutes($timeIn);
         }
 
-        // Early out minutes
+        // Early out minutes: time_out is already floored, so compare directly to shift end
         if ($timeOut) {
             $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
             if ($timeOut->lt($earlyDeadline)) {
+                // Early minutes = difference from shift end
                 $result['early_minutes'] = (int) $timeOut->diffInMinutes($shiftEnd);
             }
         }
 
-        // Overtime
+        // Overtime: only if time_out (floored) is after shift end
         if ($timeOut && $timeOut->gt($shiftEnd)) {
             $result['overtime_minutes'] = (int) $shiftEnd->diffInMinutes($timeOut);
         }

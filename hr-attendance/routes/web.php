@@ -1,0 +1,60 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\EmployeeController;
+
+/*
+|--------------------------------------------------------------------------
+| Public Routes
+|--------------------------------------------------------------------------
+*/
+Route::get('/', function () {
+    return redirect('/login');
+});
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Import Attendance (Phase 1)
+    Route::get('/import', [ImportController::class, 'index'])->name('import.index');
+    Route::post('/import/upload', [ImportController::class, 'upload'])->name('import.upload');
+    Route::get('/import/{run}/status', [ImportController::class, 'status'])->name('import.status');
+
+    // Attendance Viewer (Phase 2 & 3)
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/compute', [AttendanceController::class, 'compute'])->name('attendance.compute');
+    Route::get('/attendance/export-csv', [AttendanceController::class, 'exportCsv'])->name('attendance.export-csv');
+    Route::get('/attendance/print', [AttendanceController::class, 'printView'])->name('attendance.print');
+    Route::post('/attendance/override', [AttendanceController::class, 'override'])->name('attendance.override');
+
+    // Payroll (Phase 4)
+    Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
+    Route::get('/payroll/create', [PayrollController::class, 'create'])->name('payroll.create');
+    Route::post('/payroll', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::get('/payroll/{run}', [PayrollController::class, 'show'])->name('payroll.show');
+    Route::post('/payroll/{run}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
+    Route::post('/payroll/{run}/adjustment', [PayrollController::class, 'saveAdjustment'])->name('payroll.adjustment');
+    Route::get('/payroll/{run}/export-csv', [PayrollController::class, 'exportCsv'])->name('payroll.export-csv');
+    Route::get('/payroll/{run}/export-pdf', [PayrollController::class, 'exportPdf'])->name('payroll.export-pdf');
+
+    // Employees
+    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
+    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+});

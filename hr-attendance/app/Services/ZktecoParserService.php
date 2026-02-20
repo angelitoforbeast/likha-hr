@@ -297,11 +297,11 @@ class ZktecoParserService
                 continue;
             }
 
-            // Track for dedup
+            // Track for dedup (store raw timestamp for performance)
             if (!isset($existingPunches[$employeeId])) {
                 $existingPunches[$employeeId] = [];
             }
-            $existingPunches[$employeeId][] = $punchCarbon->copy();
+            $existingPunches[$employeeId][] = $punchCarbon->getTimestamp();
 
             $buffer[] = [
                 'employee_id'  => $employeeId,
@@ -357,6 +357,7 @@ class ZktecoParserService
 
     /**
      * Check if a punch is a duplicate within the threshold window.
+     * Uses raw timestamp comparison for performance (avoids Carbon::diffInMinutes overhead).
      */
     protected function isDuplicate(array &$existingPunches, int $employeeId, Carbon $punchTime): bool
     {
@@ -364,9 +365,11 @@ class ZktecoParserService
             return false;
         }
 
-        foreach ($existingPunches[$employeeId] as $existing) {
-            $diffMinutes = abs($punchTime->diffInMinutes($existing));
-            if ($diffMinutes < $this->dedupThresholdMinutes) {
+        $punchTs = $punchTime->getTimestamp();
+        $thresholdSeconds = $this->dedupThresholdMinutes * 60;
+
+        foreach ($existingPunches[$employeeId] as $existingTs) {
+            if (abs($punchTs - $existingTs) < $thresholdSeconds) {
                 return true;
             }
         }

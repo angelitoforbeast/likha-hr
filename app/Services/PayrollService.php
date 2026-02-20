@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceDay;
 use App\Models\Employee;
+use App\Models\EmployeeRate;
 use App\Models\PayRate;
 use App\Models\PayrollItem;
 use App\Models\PayrollRun;
@@ -26,7 +27,7 @@ class PayrollService
         $end = $run->cutoff_end;
 
         // Get all active employees
-        $employees = Employee::where('status', 'active')->with('defaultShift')->get();
+        $employees = Employee::where('status', 'active')->get();
 
         DB::transaction(function () use ($run, $employees, $start, $end) {
             // Remove existing items for this run (recompute)
@@ -56,13 +57,21 @@ class PayrollService
         $totalLateMinutes = $days->sum('computed_late_minutes');
         $totalOvertimeMinutes = $days->sum('computed_overtime_minutes');
 
-        // Determine required work minutes per day from shift
-        $requiredMinutes = $employee->defaultShift?->required_work_minutes ?? 480;
+        // Determine required work minutes per day from the shift active at the start of cutoff
+        $shift = $employee->getShiftForDate(
+            $start instanceof Carbon ? $start->format('Y-m-d') : (string) $start
+        );
+        $requiredMinutes = $shift?->required_work_minutes ?? 480;
         $totalDaysDecimal = $requiredMinutes > 0 ? round($totalWorkMinutes / $requiredMinutes, 4) : 0;
 
-        // Get pay rate
-        $payRate = $this->getPayRate($employee, $start, $end);
-        $basePay = $this->calculateBasePay($payRate, $totalWorkMinutes, $totalDaysDecimal);
+        // Calculate base pay using daily rate from employee_rates table
+        $basePay = $this->calculateBasePayFromRates($employee, $days, $start, $end);
+
+        // If no employee_rates found, fall back to legacy pay_rates table
+        if ($basePay === null) {
+            $payRate = $this->getLegacyPayRate($employee, $start, $end);
+            $basePay = $this->calculateLegacyBasePay($payRate, $totalWorkMinutes, $totalDaysDecimal);
+        }
 
         PayrollItem::create([
             'payroll_run_id'       => $run->id,
@@ -78,10 +87,51 @@ class PayrollService
     }
 
     /**
-     * Get the applicable pay rate for an employee.
+     * Calculate base pay using the new employee_rates table.
+     * Uses daily rate effective on each work date for accurate computation.
+     * Returns null if no rates are set.
+     */
+    protected function calculateBasePayFromRates(Employee $employee, $days, $start, $end): ?float
+    {
+        // Check if employee has any rates at all
+        $hasRates = EmployeeRate::where('employee_id', $employee->id)->exists();
+        if (!$hasRates) {
+            return null;
+        }
+
+        $totalPay = 0;
+
+        foreach ($days as $day) {
+            $dateStr = $day->work_date instanceof Carbon
+                ? $day->work_date->format('Y-m-d')
+                : (string) $day->work_date;
+
+            $dailyRate = $employee->getRateForDate($dateStr);
+
+            if ($dailyRate === null || $dailyRate <= 0) {
+                continue;
+            }
+
+            // Get shift for this date to determine required minutes
+            $shift = $employee->getShiftForDate($dateStr);
+            $requiredMinutes = $shift?->required_work_minutes ?? 480;
+
+            // Prorate: (payable_work_minutes / required_work_minutes) * daily_rate
+            $dayFraction = $requiredMinutes > 0
+                ? $day->payable_work_minutes / $requiredMinutes
+                : 0;
+
+            $totalPay += round($dailyRate * $dayFraction, 2);
+        }
+
+        return round($totalPay, 2);
+    }
+
+    /**
+     * Get the applicable legacy pay rate for an employee (from pay_rates table).
      * Falls back to company default (employee_id = null).
      */
-    protected function getPayRate(Employee $employee, $start, $end): ?PayRate
+    protected function getLegacyPayRate(Employee $employee, $start, $end): ?PayRate
     {
         // Try employee-specific rate
         $rate = PayRate::where('employee_id', $employee->id)
@@ -107,9 +157,9 @@ class PayrollService
     }
 
     /**
-     * Calculate base pay based on rate type.
+     * Calculate base pay based on legacy rate type.
      */
-    protected function calculateBasePay(?PayRate $rate, int $totalWorkMinutes, float $totalDaysDecimal): float
+    protected function calculateLegacyBasePay(?PayRate $rate, int $totalWorkMinutes, float $totalDaysDecimal): float
     {
         if (!$rate) {
             return 0;

@@ -25,7 +25,7 @@ class AttendanceComputeService
         $stats = ['processed' => 0, 'errors' => 0];
 
         // Get all employees with active status
-        $employees = Employee::where('status', 'active')->with('defaultShift')->get();
+        $employees = Employee::where('status', 'active')->get();
 
         foreach ($employees as $employee) {
             $this->computeForEmployee($employee, $start, $end, $sourceRunId, $stats);
@@ -44,7 +44,7 @@ class AttendanceComputeService
         ?int $sourceRunId,
         array &$stats
     ): void {
-        $shift = $employee->defaultShift;
+        // Shift is now resolved per-date using shift assignments
 
         // Get all punches for this employee in the date range
         $punches = AttendanceLog::where('employee_id', $employee->id)
@@ -65,6 +65,8 @@ class AttendanceComputeService
 
             if ($dayPunches->isNotEmpty()) {
                 try {
+                    // Resolve shift for this specific date using assignment history
+                    $shift = $employee->getShiftForDate($dateStr);
                     $this->computeDay($employee, $dateStr, $dayPunches, $shift, $sourceRunId);
                     $stats['processed']++;
                 } catch (\Throwable $e) {

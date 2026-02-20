@@ -19,42 +19,52 @@
         </form>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>ZKTeco ID</th>
-                    <th>Full Name</th>
-                    <th>Status</th>
-                    <th>Default Shift</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($employees as $emp)
-                <tr>
-                    <td>{{ $emp->id }}</td>
-                    <td>{{ $emp->zkteco_id }}</td>
-                    <td>{{ $emp->full_name }}</td>
-                    <td>
-                        <span class="badge {{ $emp->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
-                            {{ ucfirst($emp->status) }}
-                        </span>
-                    </td>
-                    <td>{{ $emp->defaultShift->name ?? '—' }}</td>
-                    <td>
-                        <a href="{{ route('employees.edit', $emp) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">No employees found.</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>ZKTeco ID</th>
+                        <th>Full Name</th>
+                        <th>Status</th>
+                        <th>Current Shift</th>
+                        <th>Daily Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($employees as $emp)
+                    <tr>
+                        <td>{{ $emp->id }}</td>
+                        <td>{{ $emp->zkteco_id }}</td>
+                        <td class="fw-semibold">{{ $emp->full_name }}</td>
+                        <td>
+                            <span class="badge {{ $emp->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
+                                {{ ucfirst($emp->status) }}
+                            </span>
+                        </td>
+                        <td>{{ $emp->current_shift->name ?? '—' }}</td>
+                        <td>
+                            @if($emp->current_rate)
+                                <span class="text-success fw-semibold">{{ number_format($emp->current_rate, 2) }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>
+                            <a href="{{ route('employees.edit', $emp) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Manage
+                            </a>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No employees found.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
     @if($employees->hasPages())
     <div class="card-footer bg-white">

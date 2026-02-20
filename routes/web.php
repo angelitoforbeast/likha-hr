@@ -9,6 +9,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\ShiftController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +63,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+
+    // Shifts
+    Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+    Route::get('/shifts/create', [ShiftController::class, 'create'])->name('shifts.create');
+    Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+    Route::get('/shifts/{shift}/edit', [ShiftController::class, 'edit'])->name('shifts.edit');
+    Route::put('/shifts/{shift}', [ShiftController::class, 'update'])->name('shifts.update');
+    Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy'])->name('shifts.destroy');
 
     // User Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

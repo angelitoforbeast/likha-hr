@@ -16,11 +16,17 @@ class Employee extends Model
         'full_name',
         'status',
         'default_shift_id',
+        'department_id',
     ];
 
     protected $casts = [
         'status' => 'string',
     ];
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
 
     public function defaultShift(): BelongsTo
     {

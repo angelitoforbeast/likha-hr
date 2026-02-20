@@ -56,6 +56,9 @@
             <a class="nav-link {{ request()->is('shifts*') ? 'active' : '' }}" href="{{ url('/shifts') }}">
                 <i class="bi bi-clock"></i> Shifts
             </a>
+            <a class="nav-link {{ request()->is('departments*') ? 'active' : '' }}" href="{{ url('/departments') }}">
+                <i class="bi bi-diagram-3"></i> Departments
+            </a>
             <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
                 <i class="bi bi-person-gear"></i> User Management
             </a>

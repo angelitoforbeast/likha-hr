@@ -33,9 +33,26 @@
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-2">
+                <label class="form-label small">Search Name</label>
+                <input type="text" name="search_name" class="form-control form-control-sm"
+                       placeholder="Type employee name..."
+                       value="{{ request('search_name') }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Department</label>
+                <select name="department_id" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    @foreach($departments as $dept)
+                        <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
+                            {{ $dept->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-1">
                 <label class="form-label small">Cutoff Rule</label>
                 <select name="cutoff_rule_id" class="form-select form-select-sm">
-                    <option value="">Manual Range</option>
+                    <option value="">Manual</option>
                     @foreach($cutoffRules as $rule)
                         <option value="{{ $rule->id }}" {{ request('cutoff_rule_id') == $rule->id ? 'selected' : '' }}>
                             {{ $rule->name }}
@@ -43,25 +60,25 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small">Cutoff Month</label>
+            <div class="col-md-1">
+                <label class="form-label small">Month</label>
                 <input type="month" name="cutoff_month" class="form-control form-control-sm"
                        value="{{ request('cutoff_month', now()->format('Y-m')) }}">
             </div>
-            <div class="col-md-2">
-                <label class="form-label small">Start Date</label>
+            <div class="col-md-1">
+                <label class="form-label small">Start</label>
                 <input type="date" name="start_date" class="form-control form-control-sm"
                        value="{{ request('start_date', $startDate) }}">
             </div>
-            <div class="col-md-2">
-                <label class="form-label small">End Date</label>
+            <div class="col-md-1">
+                <label class="form-label small">End</label>
                 <input type="date" name="end_date" class="form-control form-control-sm"
                        value="{{ request('end_date', $endDate) }}">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label class="form-label small">Employee</label>
                 <select name="employee_id" class="form-select form-select-sm">
-                    <option value="">All Employees</option>
+                    <option value="">All</option>
                     @foreach($employees as $emp)
                         <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>
                             {{ $emp->full_name }}
@@ -95,7 +112,7 @@
     </div>
 </div>
 
-{{-- Export Buttons --}}
+{{-- Export & Copy Buttons --}}
 <div class="d-flex gap-2 mb-3 no-print">
     <a href="{{ route('attendance.export-csv', request()->query()) }}" class="btn btn-sm btn-outline-success">
         <i class="bi bi-filetype-csv"></i> Export CSV
@@ -103,40 +120,55 @@
     <a href="{{ route('attendance.print', request()->query()) }}" class="btn btn-sm btn-outline-secondary" target="_blank">
         <i class="bi bi-printer"></i> Print View
     </a>
+    <button type="button" class="btn btn-sm btn-outline-info" id="copyTableBtn">
+        <i class="bi bi-clipboard"></i> Copy Table
+    </button>
 </div>
 
 {{-- Attendance Table --}}
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" style="font-size: 0.85rem;">
+            <table class="table table-hover table-sm mb-0" id="attendanceTable" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
-                        <th>Employee</th>
-                        <th>Date</th>
+                        <th class="sortable" data-col="0">Employee <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="sortable" data-col="1">Dept <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="sortable" data-col="2">Date <i class="bi bi-arrow-down-up small"></i></th>
                         <th>Shift</th>
                         <th class="text-center editable-col">Time In</th>
                         <th class="text-center editable-col">Lunch Out</th>
                         <th class="text-center editable-col">Lunch In</th>
                         <th class="text-center editable-col">Time Out</th>
-                        <th class="text-center">Work</th>
-                        <th class="text-center">Late</th>
-                        <th class="text-center">Early</th>
-                        <th class="text-center">OT</th>
-                        <th class="text-center">Payable</th>
+                        <th class="text-center sortable" data-col="8">Work <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="9">Late <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="10">Early <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="11">OT <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="12">Payable <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="text-center">Review</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($days as $day)
+                    @php
+                        $dayOverrides = $overrides[$day->id] ?? collect();
+                        $editedFields = $dayOverrides->pluck('field')->unique()->toArray();
+                    @endphp
                     <tr class="{{ $day->needs_review ? 'table-warning' : '' }}">
                         <td>{{ $day->employee->full_name ?? '—' }}</td>
+                        <td>
+                            @if($day->employee->department ?? null)
+                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $day->employee->department->name }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td>{{ $day->work_date->format('M d, Y') }}</td>
                         <td>
                             <select class="form-select form-select-sm shift-select"
                                     data-day-id="{{ $day->id }}"
                                     data-original="{{ $day->shift_id }}"
-                                    style="width:140px; font-size:0.8rem;">
+                                    style="width:120px; font-size:0.8rem;">
                                 <option value="">—</option>
                                 @foreach($shifts as $shift)
                                     <option value="{{ $shift->id }}" {{ $day->shift_id == $shift->id ? 'selected' : '' }}>
@@ -145,34 +177,31 @@
                                 @endforeach
                             </select>
                         </td>
+                        @foreach(['time_in', 'lunch_out', 'lunch_in', 'time_out'] as $timeField)
+                        @php
+                            $isEdited = in_array($timeField, $editedFields);
+                            $fieldOverrides = $dayOverrides->where('field', $timeField);
+                            $timeVal = $day->{$timeField} ? \Carbon\Carbon::parse($day->{$timeField})->format('H:i') : '';
+                        @endphp
                         <td class="text-center">
-                            <span class="time-cell" role="button"
-                                  data-day-id="{{ $day->id }}" data-field="time_in"
-                                  data-value="{{ $day->time_in ? \Carbon\Carbon::parse($day->time_in)->format('H:i') : '' }}">
-                                {{ $day->time_in ? \Carbon\Carbon::parse($day->time_in)->format('H:i') : '—' }}
+                            <span class="time-cell {{ $isEdited ? 'edited-cell' : '' }}" role="button"
+                                  data-day-id="{{ $day->id }}" data-field="{{ $timeField }}"
+                                  data-value="{{ $timeVal }}"
+                                  @if($isEdited)
+                                  data-bs-toggle="popover"
+                                  data-bs-trigger="hover"
+                                  data-bs-html="true"
+                                  data-bs-placement="top"
+                                  data-bs-content="@foreach($fieldOverrides as $ov)<div class='small mb-1'><strong>{{ $ov->updater->name ?? 'Unknown' }}</strong> on {{ $ov->created_at->format('M d, Y g:i A') }}<br>{{ $ov->old_value ?? '(empty)' }} &rarr; {{ $ov->new_value ?? '(empty)' }}<br><em>{{ $ov->reason }}</em></div>@endforeach"
+                                  @endif
+                            >
+                                {{ $timeVal ?: '—' }}
+                                @if($isEdited)
+                                    <i class="bi bi-pencil-fill text-primary" style="font-size:0.65rem;"></i>
+                                @endif
                             </span>
                         </td>
-                        <td class="text-center">
-                            <span class="time-cell" role="button"
-                                  data-day-id="{{ $day->id }}" data-field="lunch_out"
-                                  data-value="{{ $day->lunch_out ? \Carbon\Carbon::parse($day->lunch_out)->format('H:i') : '' }}">
-                                {{ $day->lunch_out ? \Carbon\Carbon::parse($day->lunch_out)->format('H:i') : '—' }}
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <span class="time-cell" role="button"
-                                  data-day-id="{{ $day->id }}" data-field="lunch_in"
-                                  data-value="{{ $day->lunch_in ? \Carbon\Carbon::parse($day->lunch_in)->format('H:i') : '' }}">
-                                {{ $day->lunch_in ? \Carbon\Carbon::parse($day->lunch_in)->format('H:i') : '—' }}
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <span class="time-cell" role="button"
-                                  data-day-id="{{ $day->id }}" data-field="time_out"
-                                  data-value="{{ $day->time_out ? \Carbon\Carbon::parse($day->time_out)->format('H:i') : '' }}">
-                                {{ $day->time_out ? \Carbon\Carbon::parse($day->time_out)->format('H:i') : '—' }}
-                            </span>
-                        </td>
+                        @endforeach
                         <td class="text-center">{{ $day->computed_work_minutes }}</td>
                         <td class="text-center {{ $day->computed_late_minutes > 0 ? 'text-danger fw-bold' : '' }}">
                             {{ $day->computed_late_minutes }}
@@ -194,7 +223,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="text-center text-muted py-4">
+                        <td colspan="14" class="text-center text-muted py-4">
                             No attendance records found. Try adjusting filters or compute attendance first.
                         </td>
                     </tr>
@@ -287,6 +316,24 @@
         background: #e3f2fd;
         text-decoration: underline;
     }
+    .edited-cell {
+        background: #fff3cd !important;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .edited-cell:hover {
+        background: #ffe69c !important;
+    }
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+    .sortable:hover {
+        background: #e9ecef;
+    }
+    .sort-asc .bi-arrow-down-up::before { content: "\F127"; } /* arrow-up */
+    .sort-desc .bi-arrow-down-up::before { content: "\F128"; } /* arrow-down */
 </style>
 @endpush
 
@@ -295,16 +342,23 @@
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+    // Initialize Bootstrap popovers for edit indicators
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (el) {
+        return new bootstrap.Popover(el, { container: 'body' });
+    });
+
     // Time cell click -> open modal
     document.querySelectorAll('.time-cell').forEach(cell => {
-        cell.addEventListener('click', function() {
+        cell.addEventListener('click', function(e) {
+            // Don't open modal if popover is showing
             const dayId = this.dataset.dayId;
             const field = this.dataset.field;
             const value = this.dataset.value;
 
             document.getElementById('override-day-id').value = dayId;
             document.getElementById('override-field').value = field;
-            document.getElementById('override-field-display').value = field.replace('_', ' ').toUpperCase();
+            document.getElementById('override-field-display').value = field.replace(/_/g, ' ').toUpperCase();
             document.getElementById('override-new-value').value = value;
             document.getElementById('override-reason').value = '';
             document.getElementById('override-clear').checked = false;
@@ -415,6 +469,90 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
             document.getElementById('shift-error').textContent = 'Network error. Please try again.';
             document.getElementById('shift-error').classList.remove('d-none');
+        });
+    });
+
+    // Copy Table to Clipboard
+    document.getElementById('copyTableBtn').addEventListener('click', function() {
+        const table = document.getElementById('attendanceTable');
+        let text = '';
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('th, td');
+            const rowData = [];
+            cells.forEach(cell => {
+                // Get text content, skip select elements and icons
+                let cellText = '';
+                const select = cell.querySelector('select');
+                if (select) {
+                    cellText = select.options[select.selectedIndex]?.text?.trim() || '';
+                } else {
+                    cellText = cell.innerText.trim().replace(/[\n\r]+/g, ' ');
+                }
+                rowData.push(cellText);
+            });
+            text += rowData.join('\t') + '\n';
+        });
+
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copyTableBtn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+            btn.classList.remove('btn-outline-info');
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-info');
+            }, 2000);
+        }).catch(err => {
+            alert('Failed to copy. Please try again.');
+        });
+    });
+
+    // Column Sorting
+    let currentSort = { col: null, dir: 'asc' };
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', function() {
+            const col = parseInt(this.dataset.col);
+            const tbody = document.querySelector('#attendanceTable tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            if (rows.length <= 1) return;
+
+            // Toggle direction
+            if (currentSort.col === col) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.col = col;
+                currentSort.dir = 'asc';
+            }
+
+            // Update header styles
+            document.querySelectorAll('.sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            this.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+            // Sort rows
+            rows.sort((a, b) => {
+                const cellA = a.cells[col]?.innerText?.trim() || '';
+                const cellB = b.cells[col]?.innerText?.trim() || '';
+
+                // Try numeric sort
+                const numA = parseFloat(cellA);
+                const numB = parseFloat(cellB);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return currentSort.dir === 'asc' ? numA - numB : numB - numA;
+                }
+
+                // String sort
+                const cmp = cellA.localeCompare(cellB);
+                return currentSort.dir === 'asc' ? cmp : -cmp;
+            });
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
         });
     });
 });

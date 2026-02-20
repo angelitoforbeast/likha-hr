@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CutoffRule;
+use App\Models\Department;
 use App\Models\PayrollItem;
 use App\Models\PayrollRun;
 use App\Services\PayrollService;
@@ -60,14 +61,31 @@ class PayrollController extends Controller
     }
 
     /**
-     * Show payroll run details.
+     * Show payroll run details with optional department filter.
      */
-    public function show(PayrollRun $run)
+    public function show(Request $request, PayrollRun $run)
     {
-        $items = PayrollItem::with('employee')
-            ->where('payroll_run_id', $run->id)
-            ->orderBy('employee_id')
-            ->get();
+        $departments = Department::orderBy('name')->get();
+
+        $query = PayrollItem::with(['employee', 'employee.department'])
+            ->where('payroll_run_id', $run->id);
+
+        // Department filter
+        if ($request->filled('department_id')) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('department_id', $request->department_id);
+            });
+        }
+
+        // Search by employee name
+        if ($request->filled('search_name')) {
+            $search = $request->search_name;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%");
+            });
+        }
+
+        $items = $query->orderBy('employee_id')->get();
 
         $totals = [
             'total_work_minutes'     => $items->sum('total_work_minutes'),
@@ -83,7 +101,7 @@ class PayrollController extends Controller
             'final_pay'              => $items->sum('final_pay'),
         ];
 
-        return view('payroll.show', compact('run', 'items', 'totals'));
+        return view('payroll.show', compact('run', 'items', 'totals', 'departments'));
     }
 
     /**
@@ -148,7 +166,7 @@ class PayrollController extends Controller
      */
     public function exportCsv(PayrollRun $run): StreamedResponse
     {
-        $items = PayrollItem::with('employee')
+        $items = PayrollItem::with(['employee', 'employee.department'])
             ->where('payroll_run_id', $run->id)
             ->orderBy('employee_id')
             ->get();
@@ -158,7 +176,7 @@ class PayrollController extends Controller
         return response()->streamDownload(function () use ($items) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Employee', 'Work Minutes', 'Days',
+                'Employee', 'Department', 'Work Minutes', 'Days',
                 'Late Min', 'Early Min', 'OT Min',
                 'Base Pay', 'Late Deduction', 'Early Deduction', 'OT Pay',
                 'Adjustments', 'Final Pay', 'Notes',
@@ -167,6 +185,7 @@ class PayrollController extends Controller
             foreach ($items as $item) {
                 fputcsv($handle, [
                     $item->employee->full_name ?? '',
+                    $item->employee->department->name ?? '—',
                     $item->total_work_minutes,
                     number_format($item->total_days_decimal, 4),
                     $item->total_late_minutes,
@@ -193,7 +212,7 @@ class PayrollController extends Controller
      */
     public function exportPdf(PayrollRun $run)
     {
-        $items = PayrollItem::with('employee')
+        $items = PayrollItem::with(['employee', 'employee.department'])
             ->where('payroll_run_id', $run->id)
             ->orderBy('employee_id')
             ->get();

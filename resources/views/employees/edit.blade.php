@@ -40,6 +40,18 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="department_id" class="form-label fw-semibold">Department</label>
+                        <select name="department_id" id="department_id" class="form-select">
+                            <option value="">— None —</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}" {{ $employee->department_id == $dept->id ? 'selected' : '' }}>
+                                    {{ $dept->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="default_shift_id" class="form-label fw-semibold">Fallback Shift</label>
                         <select name="default_shift_id" id="default_shift_id" class="form-select">
                             <option value="">— None —</option>

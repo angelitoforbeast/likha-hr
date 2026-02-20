@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeRate;
 use App\Models\EmployeeShiftAssignment;
@@ -12,7 +13,7 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Employee::with('defaultShift');
+        $query = Employee::with(['defaultShift', 'department']);
 
         if ($request->filled('search')) {
             $query->where('full_name', 'like', '%' . $request->search . '%');
@@ -22,8 +23,13 @@ class EmployeeController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
+        }
+
         $employees = $query->orderBy('full_name')->paginate(25);
         $shifts = Shift::all();
+        $departments = Department::orderBy('name')->get();
 
         // Attach current shift and rate for display
         $employees->getCollection()->transform(function ($emp) {
@@ -32,15 +38,16 @@ class EmployeeController extends Controller
             return $emp;
         });
 
-        return view('employees.index', compact('employees', 'shifts'));
+        return view('employees.index', compact('employees', 'shifts', 'departments'));
     }
 
     public function edit(Employee $employee)
     {
         $shifts = Shift::orderBy('name')->get();
-        $employee->load(['shiftAssignments.shift', 'employeeRates']);
+        $departments = Department::orderBy('name')->get();
+        $employee->load(['shiftAssignments.shift', 'employeeRates', 'department']);
 
-        return view('employees.edit', compact('employee', 'shifts'));
+        return view('employees.edit', compact('employee', 'shifts', 'departments'));
     }
 
     public function update(Request $request, Employee $employee)
@@ -49,6 +56,7 @@ class EmployeeController extends Controller
             'full_name'        => 'required|string|max:255',
             'status'           => 'required|in:active,inactive',
             'default_shift_id' => 'nullable|exists:shifts,id',
+            'department_id'    => 'nullable|exists:departments,id',
         ]);
 
         $employee->update($validated);

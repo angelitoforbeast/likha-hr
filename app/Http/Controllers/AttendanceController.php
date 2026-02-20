@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceOverride;
 use App\Models\CutoffRule;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Shift;
 use App\Services\AttendanceComputeService;
@@ -23,16 +24,25 @@ class AttendanceController extends Controller
         $cutoffRules = CutoffRule::all();
         $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
         $shifts = Shift::all();
+        $departments = Department::orderBy('name')->get();
 
         // Determine date range from filters
         $dateRange = $this->resolveDateRange($request);
         $startDate = $dateRange['start'];
         $endDate = $dateRange['end'];
 
-        $query = AttendanceDay::with(['employee', 'shift'])
+        $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
             ->orderBy('work_date')
             ->orderBy('employee_id');
+
+        // Name search filter
+        if ($request->filled('search_name')) {
+            $searchName = $request->search_name;
+            $query->whereHas('employee', function ($q) use ($searchName) {
+                $q->where('full_name', 'like', '%' . $searchName . '%');
+            });
+        }
 
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->employee_id);
@@ -42,14 +52,31 @@ class AttendanceController extends Controller
             $query->where('shift_id', $request->shift_id);
         }
 
+        // Department filter
+        if ($request->filled('department_id')) {
+            $deptId = $request->department_id;
+            $query->whereHas('employee', function ($q) use ($deptId) {
+                $q->where('department_id', $deptId);
+            });
+        }
+
         if ($request->filled('needs_review')) {
             $query->where('needs_review', $request->needs_review === '1');
         }
 
         $days = $query->paginate(50)->withQueryString();
 
+        // Load overrides for each attendance day to show edit indicators
+        $dayIds = $days->pluck('id')->toArray();
+        $overrides = AttendanceOverride::whereIn('attendance_day_id', $dayIds)
+            ->with('updater')
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('attendance_day_id');
+
         return view('attendance.index', compact(
-            'days', 'cutoffRules', 'employees', 'shifts', 'startDate', 'endDate'
+            'days', 'cutoffRules', 'employees', 'shifts', 'departments',
+            'startDate', 'endDate', 'overrides'
         ));
     }
 
@@ -106,15 +133,16 @@ class AttendanceController extends Controller
 
         $day->save();
 
-        // Record override
+        // Record override with attendance_day_id
         AttendanceOverride::create([
-            'employee_id' => $day->employee_id,
-            'work_date'   => $day->work_date,
-            'field'       => $field,
-            'old_value'   => $oldValue,
-            'new_value'   => $newValue,
-            'reason'      => $request->reason,
-            'updated_by'  => Auth::id(),
+            'attendance_day_id' => $day->id,
+            'employee_id'       => $day->employee_id,
+            'work_date'         => $day->work_date,
+            'field'             => $field,
+            'old_value'         => $oldValue,
+            'new_value'         => $newValue,
+            'reason'            => $request->reason,
+            'updated_by'        => Auth::id(),
         ]);
 
         // Recompute metrics for this day
@@ -136,16 +164,28 @@ class AttendanceController extends Controller
         $startDate = $dateRange['start'];
         $endDate = $dateRange['end'];
 
-        $query = AttendanceDay::with(['employee', 'shift'])
+        $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
             ->orderBy('work_date')
             ->orderBy('employee_id');
 
+        if ($request->filled('search_name')) {
+            $searchName = $request->search_name;
+            $query->whereHas('employee', function ($q) use ($searchName) {
+                $q->where('full_name', 'like', '%' . $searchName . '%');
+            });
+        }
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->employee_id);
         }
         if ($request->filled('shift_id')) {
             $query->where('shift_id', $request->shift_id);
+        }
+        if ($request->filled('department_id')) {
+            $deptId = $request->department_id;
+            $query->whereHas('employee', function ($q) use ($deptId) {
+                $q->where('department_id', $deptId);
+            });
         }
         if ($request->filled('needs_review')) {
             $query->where('needs_review', $request->needs_review === '1');
@@ -158,13 +198,14 @@ class AttendanceController extends Controller
         return response()->streamDownload(function () use ($days) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Employee', 'Date', 'Shift', 'Time In', 'Lunch Out', 'Lunch In', 'Time Out',
+                'Employee', 'Department', 'Date', 'Shift', 'Time In', 'Lunch Out', 'Lunch In', 'Time Out',
                 'Work Min', 'Late Min', 'Early Min', 'OT Min', 'Payable Min', 'Needs Review', 'Notes',
             ]);
 
             foreach ($days as $day) {
                 fputcsv($handle, [
                     $day->employee->full_name ?? '',
+                    $day->employee->department->name ?? '',
                     $day->work_date->format('Y-m-d'),
                     $day->shift->name ?? '',
                     $day->time_in ? Carbon::parse($day->time_in)->format('H:i') : '',
@@ -196,13 +237,25 @@ class AttendanceController extends Controller
         $startDate = $dateRange['start'];
         $endDate = $dateRange['end'];
 
-        $query = AttendanceDay::with(['employee', 'shift'])
+        $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
             ->orderBy('work_date')
             ->orderBy('employee_id');
 
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->employee_id);
+        }
+        if ($request->filled('search_name')) {
+            $searchName = $request->search_name;
+            $query->whereHas('employee', function ($q) use ($searchName) {
+                $q->where('full_name', 'like', '%' . $searchName . '%');
+            });
+        }
+        if ($request->filled('department_id')) {
+            $deptId = $request->department_id;
+            $query->whereHas('employee', function ($q) use ($deptId) {
+                $q->where('department_id', $deptId);
+            });
         }
 
         $days = $query->get();

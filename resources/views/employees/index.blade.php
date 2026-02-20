@@ -15,6 +15,14 @@
                 <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
                 <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
+            <select name="department_id" class="form-select form-select-sm" style="width:160px">
+                <option value="">All Departments</option>
+                @foreach($departments as $dept)
+                    <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
+                        {{ $dept->name }}
+                    </option>
+                @endforeach
+            </select>
             <button type="submit" class="btn btn-sm btn-primary">Filter</button>
         </form>
     </div>
@@ -26,6 +34,7 @@
                         <th>ID</th>
                         <th>ZKTeco ID</th>
                         <th>Full Name</th>
+                        <th>Department</th>
                         <th>Status</th>
                         <th>Current Shift</th>
                         <th>Daily Rate</th>
@@ -38,6 +47,13 @@
                         <td>{{ $emp->id }}</td>
                         <td>{{ $emp->zkteco_id }}</td>
                         <td class="fw-semibold">{{ $emp->full_name }}</td>
+                        <td>
+                            @if($emp->department)
+                                <span class="badge bg-info text-dark">{{ $emp->department->name }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td>
                             <span class="badge {{ $emp->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
                                 {{ ucfirst($emp->status) }}
@@ -59,7 +75,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">No employees found.</td>
+                        <td colspan="8" class="text-center text-muted py-4">No employees found.</td>
                     </tr>
                     @endforelse
                 </tbody>

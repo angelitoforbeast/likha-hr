@@ -11,6 +11,7 @@ class AttendanceOverride extends Model
     use HasFactory;
 
     protected $fillable = [
+        'attendance_day_id',
         'employee_id',
         'work_date',
         'field',
@@ -24,9 +25,19 @@ class AttendanceOverride extends Model
         'work_date' => 'date',
     ];
 
+    public function attendanceDay(): BelongsTo
+    {
+        return $this->belongsTo(AttendanceDay::class);
+    }
+
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function updatedByUser(): BelongsTo

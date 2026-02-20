@@ -35,6 +35,39 @@
     </div>
 </div>
 
+{{-- Filters --}}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Search Name</label>
+                <input type="text" name="search_name" class="form-control form-control-sm"
+                       placeholder="Type employee name..."
+                       value="{{ request('search_name') }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Department</label>
+                <select name="department_id" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    @foreach($departments as $dept)
+                        <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
+                            {{ $dept->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+            </div>
+            @if(request('search_name') || request('department_id'))
+            <div class="col-auto">
+                <a href="{{ route('payroll.show', $run) }}" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
+            </div>
+            @endif
+        </form>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -42,6 +75,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Employee</th>
+                        <th>Dept</th>
                         <th class="text-center">Work Min</th>
                         <th class="text-center">Days</th>
                         <th class="text-center">Late Min</th>
@@ -63,6 +97,13 @@
                     @forelse($items as $item)
                     <tr id="item-row-{{ $item->id }}">
                         <td>{{ $item->employee->full_name ?? '—' }}</td>
+                        <td>
+                            @if($item->employee->department ?? null)
+                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $item->employee->department->name }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td class="text-center">{{ number_format($item->total_work_minutes) }}</td>
                         <td class="text-center">{{ number_format($item->total_days_decimal, 2) }}</td>
                         <td class="text-center {{ $item->total_late_minutes > 0 ? 'text-danger' : '' }}">
@@ -104,7 +145,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $run->isFinal() ? 13 : 14 }}" class="text-center text-muted py-4">
+                        <td colspan="{{ $run->isFinal() ? 14 : 15 }}" class="text-center text-muted py-4">
                             No payroll items found.
                         </td>
                     </tr>
@@ -114,6 +155,7 @@
                 <tfoot class="table-light fw-bold">
                     <tr>
                         <td>TOTALS</td>
+                        <td></td>
                         <td class="text-center">{{ number_format($totals['total_work_minutes']) }}</td>
                         <td class="text-center">{{ number_format($totals['total_days_decimal'], 2) }}</td>
                         <td class="text-center">{{ $totals['total_late_minutes'] }}</td>
@@ -141,10 +183,10 @@
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-body small text-muted">
         <strong>Computation Reference:</strong><br>
-        Late Deduction = (Late Min ÷ 60 ÷ 8) × Daily Rate &nbsp;|&nbsp;
-        Early Deduction = (Early Min ÷ 60 ÷ 8) × Daily Rate &nbsp;|&nbsp;
-        OT Pay = (OT Min ÷ 60 ÷ 8) × Daily Rate × 1.25 &nbsp;|&nbsp;
-        <strong>Final Pay = Base Pay − Late Ded. − Early Ded. + OT Pay + Adjustments</strong>
+        Late Deduction = (Late Min &divide; 60 &divide; 8) &times; Daily Rate &nbsp;|&nbsp;
+        Early Deduction = (Early Min &divide; 60 &divide; 8) &times; Daily Rate &nbsp;|&nbsp;
+        OT Pay = (OT Min &divide; 60 &divide; 8) &times; Daily Rate &times; 1.25 &nbsp;|&nbsp;
+        <strong>Final Pay = Base Pay &minus; Late Ded. &minus; Early Ded. + OT Pay + Adjustments</strong>
     </div>
 </div>
 

@@ -111,10 +111,12 @@ class ZktecoParserService
      * Parse binary user.dat (ZKTeco 72-byte fixed-length records).
      *
      * Record structure (72 bytes):
-     *   Bytes 0-1:   UID (uint16 little-endian)
+     *   Bytes 0-1:   UID (uint16 LE) — internal device record number (NOT the user ID)
      *   Bytes 2-10:  Flags/card data
      *   Bytes 11-38: Name (28 bytes, null-terminated ASCII)
-     *   Bytes 39-71: Additional data (password, card number, group, etc.)
+     *   Bytes 39-47: Additional data (password, group, etc.)
+     *   Bytes 48-55: ID (ASCII string, null-terminated) — the actual ZKTeco user ID used in attlog.dat
+     *   Bytes 56-71: Remaining data
      */
     protected function parseBinaryUserDat(string $data, array &$stats): array
     {
@@ -128,10 +130,7 @@ class ZktecoParserService
             $offset = $i * $recordSize;
             $record = substr($data, $offset, $recordSize);
 
-            // Extract UID (2 bytes, little-endian unsigned short)
-            $uid = unpack('v', substr($record, 0, 2))[1];
-
-            // Extract name (bytes 11-38, null-terminated)
+            // Extract Name (bytes 11-38, null-terminated)
             $nameRaw = substr($record, 11, 28);
             $nameEnd = strpos($nameRaw, "\x00");
             if ($nameEnd !== false) {
@@ -139,11 +138,18 @@ class ZktecoParserService
             }
             $fullName = trim($nameRaw);
 
-            if ($uid <= 0 || empty($fullName)) {
+            // Extract ID (bytes 48-55, ASCII null-terminated) — this is the actual ZKTeco ID
+            $idRaw = substr($record, 48, 8);
+            $idEnd = strpos($idRaw, "\x00");
+            if ($idEnd !== false) {
+                $idRaw = substr($idRaw, 0, $idEnd);
+            }
+            $zktecoId = trim($idRaw);
+
+            if (empty($zktecoId) || empty($fullName)) {
                 continue;
             }
 
-            $zktecoId = (string) $uid;
             $stats['total_users_parsed']++;
 
             $employee = Employee::updateOrCreate(
@@ -297,11 +303,11 @@ class ZktecoParserService
                 continue;
             }
 
-            // Track for dedup
+            // Track for dedup (store raw timestamp for performance)
             if (!isset($existingPunches[$employeeId])) {
                 $existingPunches[$employeeId] = [];
             }
-            $existingPunches[$employeeId][] = $punchCarbon->copy();
+            $existingPunches[$employeeId][] = $punchCarbon->getTimestamp();
 
             $buffer[] = [
                 'employee_id'  => $employeeId,
@@ -357,6 +363,7 @@ class ZktecoParserService
 
     /**
      * Check if a punch is a duplicate within the threshold window.
+     * Uses raw timestamp comparison for performance (avoids Carbon::diffInMinutes overhead).
      */
     protected function isDuplicate(array &$existingPunches, int $employeeId, Carbon $punchTime): bool
     {
@@ -364,9 +371,11 @@ class ZktecoParserService
             return false;
         }
 
-        foreach ($existingPunches[$employeeId] as $existing) {
-            $diffMinutes = abs($punchTime->diffInMinutes($existing));
-            if ($diffMinutes < $this->dedupThresholdMinutes) {
+        $punchTs = $punchTime->getTimestamp();
+        $thresholdSeconds = $this->dedupThresholdMinutes * 60;
+
+        foreach ($existingPunches[$employeeId] as $existingTs) {
+            if (abs($punchTs - $existingTs) < $thresholdSeconds) {
                 return true;
             }
         }

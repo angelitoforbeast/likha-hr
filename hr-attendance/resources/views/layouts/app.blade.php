@@ -53,6 +53,9 @@
             <a class="nav-link {{ request()->is('employees*') ? 'active' : '' }}" href="{{ url('/employees') }}">
                 <i class="bi bi-people"></i> Employees
             </a>
+            <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
+                <i class="bi bi-person-gear"></i> User Management
+            </a>
         </nav>
     </div>
 
@@ -61,7 +64,12 @@
         <div class="top-bar d-flex justify-content-between align-items-center d-print-none">
             <h5 class="mb-0">@yield('page-title', 'Dashboard')</h5>
             <div class="d-flex align-items-center gap-3">
-                <span class="text-muted small">{{ Auth::user()->name ?? '' }}</span>
+                <span class="text-muted small">
+                    {{ Auth::user()->name ?? '' }}
+                    @if(Auth::user())
+                        <span class="badge bg-secondary">{{ Auth::user()->role_label }}</span>
+                    @endif
+                </span>
                 <form method="POST" action="{{ url('/logout') }}" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-secondary">

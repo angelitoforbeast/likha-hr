@@ -45,6 +45,11 @@
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Sign In</button>
                     </form>
+
+                    <div class="text-center mt-3">
+                        <span class="text-muted">Don't have an account?</span>
+                        <a href="{{ url('/register') }}">Register</a>
+                    </div>
                 </div>
             </div>
         </div>

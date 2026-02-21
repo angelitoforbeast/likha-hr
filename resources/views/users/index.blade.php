@@ -67,7 +67,7 @@
 <div class="card">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="bi bi-people"></i> Users You Can Manage</h6>
+            <h6 class="mb-0"><i class="bi bi-people"></i> Users</h6>
             <span class="badge bg-secondary">{{ $users->total() }} user(s)</span>
         </div>
         <form method="GET" action="{{ route('users.index') }}" class="row g-2 mt-2">
@@ -129,19 +129,32 @@
                             </td>
                             <td>{{ $user->created_at->format('M d, Y H:i') }}</td>
                             <td class="text-center">
-                                @if($currentUser->canManage($user))
-                                    <form method="POST" action="{{ route('users.destroy', $user) }}"
-                                          class="d-inline"
-                                          onsubmit="return confirm('Are you sure you want to delete {{ $user->name }}?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </button>
-                                    </form>
-                                @else
-                                    <span class="text-muted small">—</span>
-                                @endif
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {{-- Edit button: visible if canEdit --}}
+                                    @if($currentUser->canEdit($user))
+                                        <a href="{{ route('users.edit', $user) }}" class="btn btn-outline-primary" title="Edit">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                    @endif
+
+                                    {{-- Delete button: visible if canManage (not self) --}}
+                                    @if($currentUser->canManage($user))
+                                        <form method="POST" action="{{ route('users.destroy', $user) }}"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Are you sure you want to delete {{ $user->name }}?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    {{-- Show dash if no actions available --}}
+                                    @if(!$currentUser->canEdit($user) && !$currentUser->canManage($user))
+                                        <span class="text-muted small">—</span>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

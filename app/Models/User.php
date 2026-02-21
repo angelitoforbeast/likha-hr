@@ -84,4 +84,40 @@ class User extends Authenticatable
         }
         return in_array($target->role, $this->manageableRoles());
     }
+
+    /**
+     * Check if this user can edit the given target user.
+     * 
+     * CEO: can edit ALL users (including other CEOs and self)
+     * Admin: can edit Admin, HR Staff, and self
+     * HR Staff: can edit only self
+     */
+    public function canEdit(User $target): bool
+    {
+        // Everyone can edit themselves (own password)
+        if ($this->id === $target->id) {
+            return true;
+        }
+
+        return match ($this->role) {
+            self::ROLE_CEO      => true, // CEO can edit everyone
+            self::ROLE_ADMIN    => in_array($target->role, [self::ROLE_ADMIN, self::ROLE_HR_STAFF]),
+            self::ROLE_HR_STAFF => false, // HR Staff can only edit self
+            default             => false,
+        };
+    }
+
+    /**
+     * Get the roles this user can assign when editing another user.
+     * Same as manageableRoles but used in edit context.
+     */
+    public function assignableRolesFor(User $target): array
+    {
+        // If editing self, cannot change own role
+        if ($this->id === $target->id) {
+            return [$target->role];
+        }
+
+        return $this->manageableRoles();
+    }
 }

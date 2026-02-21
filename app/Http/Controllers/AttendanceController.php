@@ -26,7 +26,6 @@ class AttendanceController extends Controller
         $shifts = Shift::all();
         $departments = Department::orderBy('name')->get();
 
-        // Determine date range from filters
         $dateRange = $this->resolveDateRange($request);
         $startDate = $dateRange['start'];
         $endDate = $dateRange['end'];
@@ -36,7 +35,6 @@ class AttendanceController extends Controller
             ->orderBy('work_date')
             ->orderBy('employee_id');
 
-        // Name search filter
         if ($request->filled('search_name')) {
             $searchName = $request->search_name;
             $query->whereHas('employee', function ($q) use ($searchName) {
@@ -52,7 +50,6 @@ class AttendanceController extends Controller
             $query->where('shift_id', $request->shift_id);
         }
 
-        // Department filter
         if ($request->filled('department_id')) {
             $deptId = $request->department_id;
             $query->whereHas('employee', function ($q) use ($deptId) {
@@ -81,7 +78,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Compute attendance for a date range (admin trigger).
+     * Compute attendance for a date range (respects overrides).
      */
     public function compute(Request $request)
     {
@@ -91,12 +88,59 @@ class AttendanceController extends Controller
         ]);
 
         $service = new AttendanceComputeService();
-        $stats = $service->computeForDateRange($request->start_date, $request->end_date);
+        $stats = $service->computeForDateRange(
+            $request->start_date,
+            $request->end_date,
+            null,
+            false // respect overrides
+        );
+
+        $msg = "Computed attendance: {$stats['processed']} days processed, {$stats['errors']} errors.";
 
         return redirect()->route('attendance.index', [
             'start_date' => $request->start_date,
             'end_date'   => $request->end_date,
-        ])->with('success', "Computed attendance: {$stats['processed']} days processed, {$stats['errors']} errors.");
+        ])->with('success', $msg);
+    }
+
+    /**
+     * Force recompute attendance — discards all overrides and recomputes from raw logs.
+     */
+    public function forceCompute(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $service = new AttendanceComputeService();
+        $stats = $service->forceRecomputeForDateRange(
+            $request->start_date,
+            $request->end_date
+        );
+
+        $msg = "Force recomputed: {$stats['processed']} days processed, {$stats['errors']} errors, {$stats['overrides_deleted']} manual edits discarded.";
+
+        return redirect()->route('attendance.index', [
+            'start_date' => $request->start_date,
+            'end_date'   => $request->end_date,
+        ])->with('warning', $msg);
+    }
+
+    /**
+     * API: Count overrides in a date range (for force recompute warning).
+     */
+    public function countOverrides(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $service = new AttendanceComputeService();
+        $count = $service->countOverridesInRange($request->start_date, $request->end_date);
+
+        return response()->json(['count' => $count]);
     }
 
     /**
@@ -120,11 +164,9 @@ class AttendanceController extends Controller
             $oldValue = $day->shift_id ? (string) $day->shift_id : null;
             $day->shift_id = $newValue ?: null;
         } else {
-            // Time fields
             $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i') : null;
 
             if ($newValue) {
-                // Combine work_date with new time
                 $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $newValue);
             } else {
                 $day->{$field} = null;
@@ -133,7 +175,6 @@ class AttendanceController extends Controller
 
         $day->save();
 
-        // Record override with attendance_day_id
         AttendanceOverride::create([
             'attendance_day_id' => $day->id,
             'employee_id'       => $day->employee_id,
@@ -145,7 +186,6 @@ class AttendanceController extends Controller
             'updated_by'        => Auth::id(),
         ]);
 
-        // Recompute metrics for this day
         if ($field !== 'shift_id' || $newValue) {
             $day->load('shift');
             $service = new AttendanceComputeService();

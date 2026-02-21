@@ -24,6 +24,18 @@
                     <i class="bi bi-calculator"></i> Compute Attendance
                 </button>
             </div>
+            <div class="col-auto">
+                <button type="button" class="btn btn-sm btn-outline-danger" id="forceRecomputeBtn">
+                    <i class="bi bi-arrow-repeat"></i> Force Recompute
+                </button>
+            </div>
+        </form>
+
+        {{-- Hidden Force Recompute Form --}}
+        <form method="POST" action="{{ route('attendance.force-compute') }}" id="forceRecomputeForm" class="d-none">
+            @csrf
+            <input type="hidden" name="start_date" id="forceStartDate">
+            <input type="hidden" name="end_date" id="forceEndDate">
         </form>
     </div>
 </div>
@@ -507,6 +519,46 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 2000);
         }).catch(err => {
             alert('Failed to copy. Please try again.');
+        });
+    });
+
+    // Force Recompute with warning
+    document.getElementById('forceRecomputeBtn')?.addEventListener('click', function() {
+        const computeForm = document.querySelector('form[action*="attendance/compute"]');
+        const startDate = computeForm.querySelector('input[name="start_date"]').value;
+        const endDate = computeForm.querySelector('input[name="end_date"]').value;
+
+        if (!startDate || !endDate) {
+            alert('Please set the date range first.');
+            return;
+        }
+
+        // Check how many overrides exist in this range
+        fetch(`{{ route('attendance.count-overrides') }}?start_date=${startDate}&end_date=${endDate}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            let msg = `Are you sure you want to FORCE RECOMPUTE?\n\nThis will recompute attendance from ${startDate} to ${endDate} using raw logs ONLY.`;
+            if (data.count > 0) {
+                msg += `\n\n⚠️ WARNING: ${data.count} manual edit(s) will be permanently DISCARDED.`;
+            } else {
+                msg += `\n\nNo manual edits found in this range.`;
+            }
+            msg += `\n\nClick OK to proceed.`;
+
+            if (confirm(msg)) {
+                document.getElementById('forceStartDate').value = startDate;
+                document.getElementById('forceEndDate').value = endDate;
+                document.getElementById('forceRecomputeForm').submit();
+            }
+        })
+        .catch(() => {
+            if (confirm('Could not check for existing edits. Force recompute anyway?')) {
+                document.getElementById('forceStartDate').value = startDate;
+                document.getElementById('forceEndDate').value = endDate;
+                document.getElementById('forceRecomputeForm').submit();
+            }
         });
     });
 

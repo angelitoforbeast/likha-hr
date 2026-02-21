@@ -49,6 +49,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/attendance/export-csv', [AttendanceController::class, 'exportCsv'])->name('attendance.export-csv');
     Route::get('/attendance/print', [AttendanceController::class, 'printView'])->name('attendance.print');
     Route::post('/attendance/override', [AttendanceController::class, 'override'])->name('attendance.override');
+    Route::post('/attendance/force-compute', [AttendanceController::class, 'forceCompute'])->name('attendance.force-compute');
+    Route::get('/attendance/count-overrides', [AttendanceController::class, 'countOverrides'])->name('attendance.count-overrides');
 
     // Payroll (Phase 4)
     Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');

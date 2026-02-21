@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceDay;
 use App\Models\AttendanceLog;
+use App\Models\AttendanceOverride;
 use App\Models\Employee;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -12,23 +13,25 @@ use Illuminate\Support\Facades\Log;
 class AttendanceComputeService
 {
     /**
-     * Compute attendance days for a date range, optionally for a specific run.
+     * Compute attendance days for a date range.
+     *
+     * @param bool $force If true, ignore overrides and recompute from raw logs.
      */
     public function computeForDateRange(
         string $startDate,
         string $endDate,
-        ?int $sourceRunId = null
+        ?int $sourceRunId = null,
+        bool $force = false
     ): array {
         $start = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->endOfDay();
 
-        $stats = ['processed' => 0, 'errors' => 0];
+        $stats = ['processed' => 0, 'skipped' => 0, 'errors' => 0];
 
-        // Get all employees with active status
         $employees = Employee::where('status', 'active')->get();
 
         foreach ($employees as $employee) {
-            $this->computeForEmployee($employee, $start, $end, $sourceRunId, $stats);
+            $this->computeForEmployee($employee, $start, $end, $sourceRunId, $stats, $force);
         }
 
         return $stats;
@@ -42,22 +45,18 @@ class AttendanceComputeService
         Carbon $start,
         Carbon $end,
         ?int $sourceRunId,
-        array &$stats
+        array &$stats,
+        bool $force = false
     ): void {
-        // Shift is now resolved per-date using shift assignments
-
-        // Get all punches for this employee in the date range
         $punches = AttendanceLog::where('employee_id', $employee->id)
             ->whereBetween('punched_at', [$start, $end])
             ->orderBy('punched_at')
             ->get();
 
-        // Group punches by date
         $punchesByDate = $punches->groupBy(function ($log) {
             return Carbon::parse($log->punched_at)->format('Y-m-d');
         });
 
-        // Iterate each date in range
         $current = $start->copy();
         while ($current->lte($end)) {
             $dateStr = $current->format('Y-m-d');
@@ -65,8 +64,34 @@ class AttendanceComputeService
 
             if ($dayPunches->isNotEmpty()) {
                 try {
-                    // Resolve shift for this specific date using assignment history
                     $shift = $employee->getShiftForDate($dateStr);
+
+                    if (!$force) {
+                        // Check if this day has any overrides
+                        $existingDay = AttendanceDay::where('employee_id', $employee->id)
+                            ->where('work_date', $dateStr)
+                            ->first();
+
+                        if ($existingDay) {
+                            $overriddenFields = AttendanceOverride::where('attendance_day_id', $existingDay->id)
+                                ->pluck('field')
+                                ->unique()
+                                ->toArray();
+
+                            if (!empty($overriddenFields)) {
+                                // Has overrides — do override-aware compute
+                                $this->computeDayWithOverrides(
+                                    $employee, $dateStr, $dayPunches, $shift,
+                                    $sourceRunId, $existingDay, $overriddenFields
+                                );
+                                $stats['processed']++;
+                                $current->addDay();
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Normal compute (no overrides, or force mode)
                     $this->computeDay($employee, $dateStr, $dayPunches, $shift, $sourceRunId);
                     $stats['processed']++;
                 } catch (\Throwable $e) {
@@ -81,7 +106,6 @@ class AttendanceComputeService
 
     /**
      * Round a Carbon time UP to the next whole minute (ceil).
-     * 10:00:00 stays 10:00, 10:00:01 becomes 10:01, 10:00:31 becomes 10:01.
      */
     protected function ceilToMinute(Carbon $time): Carbon
     {
@@ -94,7 +118,6 @@ class AttendanceComputeService
 
     /**
      * Round a Carbon time DOWN to the current whole minute (floor).
-     * 18:59:59 becomes 18:59, 19:00:00 stays 19:00.
      */
     protected function floorToMinute(Carbon $time): Carbon
     {
@@ -102,7 +125,7 @@ class AttendanceComputeService
     }
 
     /**
-     * Compute a single attendance day for an employee.
+     * Compute a single attendance day from raw logs (no override protection).
      */
     public function computeDay(
         Employee $employee,
@@ -114,14 +137,11 @@ class AttendanceComputeService
         $needsReview = false;
         $notes = [];
 
-        // Sort punches by time
         $sorted = $punches->sortBy('punched_at')->values();
 
-        // time_in = first punch (raw), time_out = last punch (raw)
         $rawTimeIn = Carbon::parse($sorted->first()->punched_at);
         $rawTimeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
 
-        // For computation: round UP time_in (ceil), round DOWN time_out (floor)
         $computeTimeIn = $this->ceilToMinute($rawTimeIn);
         $computeTimeOut = $rawTimeOut ? $this->floorToMinute($rawTimeOut) : null;
 
@@ -133,7 +153,6 @@ class AttendanceComputeService
             $notes[] = 'No shift assigned to employee.';
         }
 
-        // Infer lunch punches if shift is available
         if ($shift && $sorted->count() >= 3) {
             $lunchResult = $this->inferLunchPunches($sorted, $shift, $workDate);
             $lunchOut = $lunchResult['lunch_out'];
@@ -145,10 +164,8 @@ class AttendanceComputeService
             $notes[] = 'Lunch punches could not be inferred.';
         }
 
-        // Compute work minutes, late, early, overtime using rounded times
         $computed = $this->computeMetrics($computeTimeIn, $computeTimeOut, $lunchOut, $lunchIn, $shift, $workDate);
 
-        // Upsert attendance_days — store raw times for display, computed values use rounded
         $day = AttendanceDay::updateOrCreate(
             [
                 'employee_id' => $employee->id,
@@ -175,13 +192,122 @@ class AttendanceComputeService
     }
 
     /**
+     * Compute a day while preserving overridden fields.
+     * Overridden fields keep their current (edited) values.
+     * Non-overridden fields get fresh values from raw logs.
+     * Metrics (work/late/early/OT) are always recomputed based on the final values.
+     */
+    protected function computeDayWithOverrides(
+        Employee $employee,
+        string $workDate,
+        Collection $punches,
+        ?\App\Models\Shift $shift,
+        ?int $sourceRunId,
+        AttendanceDay $existingDay,
+        array $overriddenFields
+    ): AttendanceDay {
+        $needsReview = false;
+        $notes = [];
+
+        $sorted = $punches->sortBy('punched_at')->values();
+
+        // Fresh values from raw logs
+        $freshTimeIn = Carbon::parse($sorted->first()->punched_at);
+        $freshTimeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
+
+        $freshLunchOut = null;
+        $freshLunchIn = null;
+
+        if (!$shift) {
+            $needsReview = true;
+            $notes[] = 'No shift assigned to employee.';
+        }
+
+        if ($shift && $sorted->count() >= 3) {
+            $lunchResult = $this->inferLunchPunches($sorted, $shift, $workDate);
+            $freshLunchOut = $lunchResult['lunch_out'];
+            $freshLunchIn = $lunchResult['lunch_in'];
+        }
+
+        // Determine final values: use existing (edited) value if field was overridden, otherwise use fresh
+        $finalTimeIn = in_array('time_in', $overriddenFields)
+            ? ($existingDay->time_in ? Carbon::parse($existingDay->time_in) : null)
+            : $freshTimeIn;
+
+        $finalTimeOut = in_array('time_out', $overriddenFields)
+            ? ($existingDay->time_out ? Carbon::parse($existingDay->time_out) : null)
+            : $freshTimeOut;
+
+        $finalLunchOut = in_array('lunch_out', $overriddenFields)
+            ? ($existingDay->lunch_out ? Carbon::parse($existingDay->lunch_out) : null)
+            : $freshLunchOut;
+
+        $finalLunchIn = in_array('lunch_in', $overriddenFields)
+            ? ($existingDay->lunch_in ? Carbon::parse($existingDay->lunch_in) : null)
+            : $freshLunchIn;
+
+        $finalShiftId = in_array('shift_id', $overriddenFields)
+            ? $existingDay->shift_id
+            : ($shift?->id);
+
+        // If shift was overridden, load that shift for metrics computation
+        $computeShift = in_array('shift_id', $overriddenFields)
+            ? \App\Models\Shift::find($existingDay->shift_id)
+            : $shift;
+
+        if ($computeShift && (!$finalLunchOut || !$finalLunchIn)) {
+            $needsReview = true;
+            $notes[] = 'Lunch punches could not be inferred.';
+        }
+
+        // Compute metrics using the final values (mix of edited + fresh)
+        $computeTimeIn = $finalTimeIn ? $this->ceilToMinute($finalTimeIn) : null;
+        $computeTimeOut = $finalTimeOut ? $this->floorToMinute($finalTimeOut) : null;
+
+        $computed = $this->computeMetrics(
+            $computeTimeIn, $computeTimeOut,
+            $finalLunchOut, $finalLunchIn,
+            $computeShift, $workDate
+        );
+
+        // Track which fields were preserved
+        $preservedFields = [];
+        if (in_array('time_in', $overriddenFields)) $preservedFields[] = 'time_in';
+        if (in_array('time_out', $overriddenFields)) $preservedFields[] = 'time_out';
+        if (in_array('lunch_out', $overriddenFields)) $preservedFields[] = 'lunch_out';
+        if (in_array('lunch_in', $overriddenFields)) $preservedFields[] = 'lunch_in';
+        if (in_array('shift_id', $overriddenFields)) $preservedFields[] = 'shift';
+
+        if (!empty($preservedFields)) {
+            $notes[] = 'Preserved overrides: ' . implode(', ', $preservedFields) . '.';
+        }
+
+        $existingDay->update([
+            'shift_id'                  => $finalShiftId,
+            'time_in'                   => $finalTimeIn,
+            'lunch_out'                 => $finalLunchOut,
+            'lunch_in'                  => $finalLunchIn,
+            'time_out'                  => $finalTimeOut,
+            'computed_work_minutes'     => $computed['work_minutes'],
+            'computed_late_minutes'     => $computed['late_minutes'],
+            'computed_early_minutes'    => $computed['early_minutes'],
+            'computed_overtime_minutes' => $computed['overtime_minutes'],
+            'payable_work_minutes'      => $computed['work_minutes'],
+            'needs_review'              => $needsReview,
+            'notes'                     => !empty($notes) ? implode(' ', $notes) : null,
+            'source_run_id'             => $sourceRunId,
+        ]);
+
+        return $existingDay->fresh();
+    }
+
+    /**
      * Recompute a single attendance day (used after overrides).
      */
     public function recomputeDay(AttendanceDay $day): AttendanceDay
     {
         $shift = $day->shift;
 
-        // Apply same rounding: ceil for time_in, floor for time_out
         $computeTimeIn = $day->time_in ? $this->ceilToMinute(Carbon::parse($day->time_in)) : null;
         $computeTimeOut = $day->time_out ? $this->floorToMinute(Carbon::parse($day->time_out)) : null;
 
@@ -206,6 +332,50 @@ class AttendanceComputeService
     }
 
     /**
+     * Force recompute: delete all overrides for the date range and recompute from raw logs.
+     * Returns count of overrides deleted.
+     */
+    public function forceRecomputeForDateRange(
+        string $startDate,
+        string $endDate,
+        ?int $sourceRunId = null
+    ): array {
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+
+        // Count overrides that will be deleted
+        $dayIds = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
+            ->pluck('id')
+            ->toArray();
+
+        $overridesDeleted = AttendanceOverride::whereIn('attendance_day_id', $dayIds)->count();
+
+        // Delete all overrides for these days
+        AttendanceOverride::whereIn('attendance_day_id', $dayIds)->delete();
+
+        // Delete all attendance days so they get freshly computed
+        AttendanceDay::whereBetween('work_date', [$startDate, $endDate])->delete();
+
+        // Recompute from scratch
+        $stats = $this->computeForDateRange($startDate, $endDate, $sourceRunId, true);
+        $stats['overrides_deleted'] = $overridesDeleted;
+
+        return $stats;
+    }
+
+    /**
+     * Count overrides in a date range (for warning before force recompute).
+     */
+    public function countOverridesInRange(string $startDate, string $endDate): int
+    {
+        $dayIds = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
+            ->pluck('id')
+            ->toArray();
+
+        return AttendanceOverride::whereIn('attendance_day_id', $dayIds)->count();
+    }
+
+    /**
      * Infer lunch out/in from punches within the lunch window.
      */
     protected function inferLunchPunches(Collection $punches, \App\Models\Shift $shift, string $workDate): array
@@ -219,7 +389,6 @@ class AttendanceComputeService
         $lunchOut = null;
         $lunchIn = null;
 
-        // Find punches within the lunch window (excluding first and last overall punches)
         $middlePunches = $punches->slice(1, -1)->values();
 
         foreach ($middlePunches as $punch) {
@@ -243,7 +412,6 @@ class AttendanceComputeService
 
     /**
      * Compute work minutes, late, early, overtime using overlap method.
-     * Expects time_in already rounded UP (ceil) and time_out rounded DOWN (floor).
      */
     protected function computeMetrics(
         ?Carbon $timeIn,
@@ -269,36 +437,28 @@ class AttendanceComputeService
         $shiftLunchStart = Carbon::parse($workDate . ' ' . $shift->lunch_start);
         $shiftLunchEnd = Carbon::parse($workDate . ' ' . $shift->lunch_end);
 
-        // Morning overlap: [time_in, lunch_out or shift_lunch_start] ∩ [shift_start, shift_lunch_start]
         $morningActualStart = $timeIn;
         $morningActualEnd = $lunchOut ?? $shiftLunchStart;
         $morningMinutes = $this->overlapMinutes($morningActualStart, $morningActualEnd, $shiftStart, $shiftLunchStart);
 
-        // Afternoon overlap: [lunch_in or shift_lunch_end, time_out] ∩ [shift_lunch_end, shift_end]
         $afternoonActualStart = $lunchIn ?? $shiftLunchEnd;
         $afternoonActualEnd = $timeOut ?? $shiftEnd;
         $afternoonMinutes = $this->overlapMinutes($afternoonActualStart, $afternoonActualEnd, $shiftLunchEnd, $shiftEnd);
 
         $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);
 
-        // Late minutes: time_in is already ceiled, so compare directly to shift start
-        // Grace period from shift (0 means no grace — any second late counts)
         $graceDeadline = $shiftStart->copy()->addMinutes($shift->grace_in_minutes);
         if ($timeIn->gt($graceDeadline)) {
-            // Late minutes = difference from shift start (not from grace deadline)
             $result['late_minutes'] = (int) $shiftStart->diffInMinutes($timeIn);
         }
 
-        // Early out minutes: time_out is already floored, so compare directly to shift end
         if ($timeOut) {
             $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
             if ($timeOut->lt($earlyDeadline)) {
-                // Early minutes = difference from shift end
                 $result['early_minutes'] = (int) $timeOut->diffInMinutes($shiftEnd);
             }
         }
 
-        // Overtime: only if time_out (floored) is after shift end
         if ($timeOut && $timeOut->gt($shiftEnd)) {
             $result['overtime_minutes'] = (int) $shiftEnd->diffInMinutes($timeOut);
         }

@@ -13,6 +13,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DayOffCalendarController;
 use App\Http\Controllers\EmploymentStatusController;
+use App\Http\Controllers\FeaturePermissionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -119,6 +120,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/employment-statuses', [EmploymentStatusController::class, 'index'])->name('employment-statuses.index');
     Route::post('/settings/employment-statuses', [EmploymentStatusController::class, 'store'])->name('employment-statuses.store');
     Route::delete('/settings/employment-statuses/{employmentStatus}', [EmploymentStatusController::class, 'destroy'])->name('employment-statuses.destroy');
+
+    // Feature Permissions (Settings)
+    Route::get('/settings/feature-permissions', [FeaturePermissionController::class, 'index'])->name('settings.feature-permissions');
+    Route::post('/settings/feature-permissions', [FeaturePermissionController::class, 'update'])->name('settings.feature-permissions.update');
 
     // User Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

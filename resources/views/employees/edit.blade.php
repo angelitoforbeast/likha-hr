@@ -3,13 +3,23 @@
 @section('title', 'Manage Employee')
 @section('page-title', 'Manage: ' . $employee->display_name)
 
+@php
+    // Helper: check if a feature section is visible / editable
+    $canView = fn(string $key) => ($permissions[$key]['can_view'] ?? false);
+    $canEdit = fn(string $key) => ($permissions[$key]['can_edit'] ?? false);
+@endphp
+
 @section('content')
 <div class="row">
     {{-- Left Column: Basic Info --}}
+    @if($canView('basic_information'))
     <div class="col-lg-4 mb-4">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white">
                 <h6 class="mb-0"><i class="bi bi-person"></i> Basic Information</h6>
+                @if(!$canEdit('basic_information'))
+                    <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                @endif
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ route('employees.update', $employee) }}">
@@ -31,7 +41,8 @@
                         <input type="text" name="actual_name" id="actual_name"
                                class="form-control @error('actual_name') is-invalid @enderror"
                                value="{{ old('actual_name', $employee->actual_name) }}"
-                               placeholder="Enter actual/formal name...">
+                               placeholder="Enter actual/formal name..."
+                               {{ !$canEdit('basic_information') ? 'disabled' : '' }}>
                         <div class="form-text">Primary display name. Leave blank to use ZKTeco name.</div>
                         @error('actual_name')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -40,7 +51,7 @@
 
                     <div class="mb-3">
                         <label for="status" class="form-label fw-semibold">Status</label>
-                        <select name="status" id="status" class="form-select">
+                        <select name="status" id="status" class="form-select" {{ !$canEdit('basic_information') ? 'disabled' : '' }}>
                             <option value="active" {{ $employee->status === 'active' ? 'selected' : '' }}>Active</option>
                             <option value="inactive" {{ $employee->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
                         </select>
@@ -48,7 +59,7 @@
 
                     <div class="mb-3">
                         <label for="department_id" class="form-label fw-semibold">Department</label>
-                        <select name="department_id" id="department_id" class="form-select">
+                        <select name="department_id" id="department_id" class="form-select" {{ !$canEdit('basic_information') ? 'disabled' : '' }}>
                             <option value="">— None —</option>
                             @foreach($departments as $dept)
                                 <option value="{{ $dept->id }}" {{ $employee->department_id == $dept->id ? 'selected' : '' }}>
@@ -58,9 +69,11 @@
                         </select>
                     </div>
 
+                    @if($canView('schedule_mode'))
                     <div class="mb-3">
                         <label for="schedule_mode" class="form-label fw-semibold">Schedule Mode</label>
-                        <select name="schedule_mode" id="schedule_mode" class="form-select">
+                        <select name="schedule_mode" id="schedule_mode" class="form-select"
+                                {{ !$canEdit('schedule_mode') ? 'disabled' : '' }}>
                             <option value="department" {{ $employee->schedule_mode === 'department' ? 'selected' : '' }}>
                                 Department — follows department schedule
                             </option>
@@ -76,10 +89,12 @@
                             @endif
                         </div>
                     </div>
+                    @endif
 
                     <div class="mb-3">
                         <label for="default_shift_id" class="form-label fw-semibold">Fallback Shift</label>
-                        <select name="default_shift_id" id="default_shift_id" class="form-select">
+                        <select name="default_shift_id" id="default_shift_id" class="form-select"
+                                {{ !$canEdit('basic_information') ? 'disabled' : '' }}>
                             <option value="">— None —</option>
                             @foreach($shifts as $shift)
                                 <option value="{{ $shift->id }}"
@@ -103,21 +118,26 @@
                         </small>
                     </div>
 
+                    @if($canView('night_differential'))
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" name="night_differential_eligible" id="night_diff"
                                    class="form-check-input" value="1"
-                                   {{ $employee->night_differential_eligible ? 'checked' : '' }}>
+                                   {{ $employee->night_differential_eligible ? 'checked' : '' }}
+                                   {{ !$canEdit('night_differential') ? 'disabled' : '' }}>
                             <label class="form-check-label fw-semibold" for="night_diff">
                                 Night Differential Eligible
                             </label>
                         </div>
                         <div class="form-text">10% premium for work between 10 PM - 6 AM (per DOLE).</div>
                     </div>
+                    @endif
 
+                    @if($canEdit('basic_information'))
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-check-lg"></i> Save Changes
                     </button>
+                    @endif
                 </form>
             </div>
         </div>
@@ -128,18 +148,28 @@
             </a>
         </div>
     </div>
+    @endif
 
     {{-- Right Column --}}
-    <div class="col-lg-8">
+    <div class="{{ $canView('basic_information') ? 'col-lg-8' : 'col-lg-12' }}">
 
         {{-- Employment Status History --}}
+        @if($canView('employment_status'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-person-badge"></i> Employment Status</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-person-badge"></i> Employment Status</h6>
+                    @if(!$canEdit('employment_status'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('employment_status'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addStatusForm">
                     <i class="bi bi-plus-lg"></i> Add Status
                 </button>
+                @endif
             </div>
+            @if($canEdit('employment_status'))
             <div class="collapse" id="addStatusForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-status', $employee) }}">
@@ -174,10 +204,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>Status</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Status</th><th>From</th><th>Until</th><th>Remarks</th>
+                            @if($canEdit('employment_status'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->statusHistory as $sh)
@@ -186,29 +220,41 @@
                             <td>{{ $sh->effective_from->format('M d, Y') }}</td>
                             <td>{{ $sh->effective_until ? $sh->effective_until->format('M d, Y') : '—  Ongoing' }}</td>
                             <td class="small">{{ $sh->remarks ?? '—' }}</td>
+                            @if($canEdit('employment_status'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-status', [$employee, $sh]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="5" class="text-center text-muted py-3">No employment status set.</td></tr>
+                        <tr><td colspan="{{ $canEdit('employment_status') ? 5 : 4 }}" class="text-center text-muted py-3">No employment status set.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Shift Assignments --}}
+        @if($canView('shift_assignments'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Shift Assignments</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-clock-history"></i> Shift Assignments</h6>
+                    @if(!$canEdit('shift_assignments'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('shift_assignments'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addShiftForm">
                     <i class="bi bi-plus-lg"></i> Add Assignment
                 </button>
+                @endif
             </div>
+            @if($canEdit('shift_assignments'))
             <div class="collapse" id="addShiftForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.assign-shift', $employee) }}">
@@ -243,10 +289,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>From</th><th>Until</th><th>Shift</th><th>Schedule</th><th>Lunch Break</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>From</th><th>Until</th><th>Shift</th><th>Schedule</th><th>Lunch Break</th><th>Remarks</th>
+                            @if($canEdit('shift_assignments'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->shiftAssignments as $assignment)
@@ -263,29 +313,41 @@
                                 — {{ \Carbon\Carbon::parse($assignment->shift->lunch_end)->format('g:i A') }}
                             </td>
                             <td class="small">{{ $assignment->remarks ?? '—' }}</td>
+                            @if($canEdit('shift_assignments'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="7" class="text-center text-muted py-3">No shift assignments. Will use fallback shift.</td></tr>
+                        <tr><td colspan="{{ $canEdit('shift_assignments') ? 7 : 6 }}" class="text-center text-muted py-3">No shift assignments. Will use fallback shift.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Daily Rates --}}
+        @if($canView('daily_rates'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-currency-exchange"></i> Daily Rates</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-currency-exchange"></i> Daily Rates</h6>
+                    @if(!$canEdit('daily_rates'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('daily_rates'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addRateForm">
                     <i class="bi bi-plus-lg"></i> Add Rate
                 </button>
+                @endif
             </div>
+            @if($canEdit('daily_rates'))
             <div class="collapse" id="addRateForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-rate', $employee) }}">
@@ -319,10 +381,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>From</th><th>Until</th><th>Daily Rate</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>From</th><th>Until</th><th>Daily Rate</th><th>Remarks</th>
+                            @if($canEdit('daily_rates'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->employeeRates as $rate)
@@ -331,29 +397,41 @@
                             <td>{{ $rate->effective_until ? $rate->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td><span class="text-success fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</span></td>
                             <td class="small">{{ $rate->remarks ?? '—' }}</td>
+                            @if($canEdit('daily_rates'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-rate', [$employee, $rate]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="5" class="text-center text-muted py-3">No rates set yet.</td></tr>
+                        <tr><td colspan="{{ $canEdit('daily_rates') ? 5 : 4 }}" class="text-center text-muted py-3">No rates set yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Benefits & Deductions --}}
+        @if($canView('benefits_deductions'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-shield-check"></i> Benefits & Deductions</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-shield-check"></i> Benefits & Deductions</h6>
+                    @if(!$canEdit('benefits_deductions'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('benefits_deductions'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addBenefitForm">
                     <i class="bi bi-plus-lg"></i> Add Benefit
                 </button>
+                @endif
             </div>
+            @if($canEdit('benefits_deductions'))
             <div class="collapse" id="addBenefitForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-benefit', $employee) }}">
@@ -396,10 +474,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>Type</th><th>Amount</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Type</th><th>Amount</th><th>From</th><th>Until</th><th>Remarks</th>
+                            @if($canEdit('benefits_deductions'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->benefits as $ben)
@@ -413,29 +495,41 @@
                             <td>{{ $ben->effective_from->format('M d, Y') }}</td>
                             <td>{{ $ben->effective_until ? $ben->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td class="small">{{ $ben->remarks ?? '—' }}</td>
+                            @if($canEdit('benefits_deductions'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-benefit', [$employee, $ben]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="text-center text-muted py-3">No benefits/deductions set.</td></tr>
+                        <tr><td colspan="{{ $canEdit('benefits_deductions') ? 6 : 5 }}" class="text-center text-muted py-3">No benefits/deductions set.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Rest Day Patterns --}}
+        @if($canView('rest_day_pattern'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Rest Day Pattern</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Rest Day Pattern</h6>
+                    @if(!$canEdit('rest_day_pattern'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('rest_day_pattern'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addRestDayForm">
                     <i class="bi bi-plus-lg"></i> Add Pattern
                 </button>
+                @endif
             </div>
+            @if($canEdit('rest_day_pattern'))
             <div class="collapse" id="addRestDayForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-rest-day', $employee) }}">
@@ -470,10 +564,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>Day</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Day</th><th>From</th><th>Until</th><th>Remarks</th>
+                            @if($canEdit('rest_day_pattern'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->restDayPatterns as $rdp)
@@ -482,29 +580,41 @@
                             <td>{{ $rdp->effective_from->format('M d, Y') }}</td>
                             <td>{{ $rdp->effective_until ? $rdp->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td class="small">{{ $rdp->remarks ?? '—' }}</td>
+                            @if($canEdit('rest_day_pattern'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-rest-day', [$employee, $rdp]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="5" class="text-center text-muted py-3">No rest day pattern set.</td></tr>
+                        <tr><td colspan="{{ $canEdit('rest_day_pattern') ? 5 : 4 }}" class="text-center text-muted py-3">No rest day pattern set.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Day Off Overrides --}}
+        @if($canView('day_off_overrides'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-calendar-x"></i> Day Off Overrides</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-calendar-x"></i> Day Off Overrides</h6>
+                    @if(!$canEdit('day_off_overrides'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('day_off_overrides'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addDayOffForm">
                     <i class="bi bi-plus-lg"></i> Add Override
                 </button>
+                @endif
             </div>
+            @if($canEdit('day_off_overrides'))
             <div class="collapse" id="addDayOffForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-day-off', $employee) }}">
@@ -532,10 +642,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>Date</th><th>Type</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Date</th><th>Type</th><th>Remarks</th>
+                            @if($canEdit('day_off_overrides'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->dayOffs->sortByDesc('off_date') as $doff)
@@ -549,29 +663,41 @@
                                 @endif
                             </td>
                             <td class="small">{{ $doff->remarks ?? '—' }}</td>
+                            @if($canEdit('day_off_overrides'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-day-off', [$employee, $doff]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="4" class="text-center text-muted py-3">No day off overrides.</td></tr>
+                        <tr><td colspan="{{ $canEdit('day_off_overrides') ? 4 : 3 }}" class="text-center text-muted py-3">No day off overrides.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Cash Advances --}}
+        @if($canView('cash_advance'))
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-cash"></i> Cash Advances</h6>
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-cash"></i> Cash Advances</h6>
+                    @if(!$canEdit('cash_advance'))
+                        <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>
+                    @endif
+                </div>
+                @if($canEdit('cash_advance'))
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addCashAdvanceForm">
                     <i class="bi bi-plus-lg"></i> Add Cash Advance
                 </button>
+                @endif
             </div>
+            @if($canEdit('cash_advance'))
             <div class="collapse" id="addCashAdvanceForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-cash-advance', $employee) }}">
@@ -619,10 +745,14 @@
                     </form>
                 </div>
             </div>
+            @endif
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr><th>Date Granted</th><th>Amount</th><th>Deduction/Cutoff</th><th>Balance</th><th>Status</th><th>Remarks</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Date Granted</th><th>Amount</th><th>Deduction/Cutoff</th><th>Balance</th><th>Status</th><th>Remarks</th>
+                            @if($canEdit('cash_advance'))<th>Actions</th>@endif
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse($employee->cashAdvances as $ca)
@@ -637,20 +767,23 @@
                             </td>
                             <td><span class="badge bg-{{ $ca->status === 'active' ? 'warning' : 'success' }}">{{ ucfirst($ca->status) }}</span></td>
                             <td class="small">{{ $ca->remarks ?? '—' }}</td>
+                            @if($canEdit('cash_advance'))
                             <td>
                                 <form method="POST" action="{{ route('employees.delete-cash-advance', [$employee, $ca]) }}" onsubmit="return confirm('Remove?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                         @empty
-                        <tr><td colspan="7" class="text-center text-muted py-3">No cash advances.</td></tr>
+                        <tr><td colspan="{{ $canEdit('cash_advance') ? 7 : 6 }}" class="text-center text-muted py-3">No cash advances.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
     </div>
 </div>
@@ -690,8 +823,10 @@
     if (deptSelect) {
         deptSelect.addEventListener('change', function() {
             if (!this.value) {
-                modeSelect.value = 'manual';
-                modeSelect.dispatchEvent(new Event('change'));
+                if (modeSelect) {
+                    modeSelect.value = 'manual';
+                    modeSelect.dispatchEvent(new Event('change'));
+                }
             }
         });
     }

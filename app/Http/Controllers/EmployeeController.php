@@ -14,7 +14,9 @@ use App\Models\EmployeeStatusHistory;
 use App\Models\EmploymentStatus;
 use App\Models\RestDayPattern;
 use App\Models\Shift;
+use App\Models\FeaturePermission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class EmployeeController extends Controller
 {
@@ -70,9 +72,12 @@ class EmployeeController extends Controller
             'cashAdvances',
         ]);
 
+        $userRole = Auth::user()->role;
+        $permissions = FeaturePermission::getForRole($userRole);
+
         return view('employees.edit', compact(
             'employee', 'shifts', 'departments',
-            'employmentStatuses', 'benefitTypes'
+            'employmentStatuses', 'benefitTypes', 'permissions'
         ));
     }
 
@@ -104,6 +109,7 @@ class EmployeeController extends Controller
 
     public function assignShift(Request $request, Employee $employee)
     {
+        $this->guardFeature('shift_assignments');
         $validated = $request->validate([
             'shift_id'        => 'required|exists:shifts,id',
             'effective_date'  => 'required|date',
@@ -132,6 +138,7 @@ class EmployeeController extends Controller
 
     public function deleteShiftAssignment(Employee $employee, EmployeeShiftAssignment $assignment)
     {
+        $this->guardFeature('shift_assignments');
         if ($assignment->employee_id !== $employee->id) abort(403);
         $assignment->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Shift assignment removed.');
@@ -141,6 +148,7 @@ class EmployeeController extends Controller
 
     public function addRate(Request $request, Employee $employee)
     {
+        $this->guardFeature('daily_rates');
         $validated = $request->validate([
             'daily_rate'      => 'required|numeric|min:0|max:999999.99',
             'effective_date'  => 'required|date',
@@ -162,6 +170,7 @@ class EmployeeController extends Controller
 
     public function deleteRate(Employee $employee, EmployeeRate $rate)
     {
+        $this->guardFeature('daily_rates');
         if ($rate->employee_id !== $employee->id) abort(403);
         $rate->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Rate entry removed.');
@@ -171,6 +180,7 @@ class EmployeeController extends Controller
 
     public function addStatus(Request $request, Employee $employee)
     {
+        $this->guardFeature('employment_status');
         $validated = $request->validate([
             'employment_status_id' => 'required|exists:employment_statuses,id',
             'effective_from'       => 'required|date',
@@ -186,6 +196,7 @@ class EmployeeController extends Controller
 
     public function deleteStatus(Employee $employee, EmployeeStatusHistory $status)
     {
+        $this->guardFeature('employment_status');
         if ($status->employee_id !== $employee->id) abort(403);
         $status->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Employment status removed.');
@@ -195,6 +206,7 @@ class EmployeeController extends Controller
 
     public function addBenefit(Request $request, Employee $employee)
     {
+        $this->guardFeature('benefits_deductions');
         $validated = $request->validate([
             'benefit_type_id' => 'required|exists:benefit_types,id',
             'is_eligible'     => 'sometimes|boolean',
@@ -214,6 +226,7 @@ class EmployeeController extends Controller
 
     public function deleteBenefit(Employee $employee, EmployeeBenefit $benefit)
     {
+        $this->guardFeature('benefits_deductions');
         if ($benefit->employee_id !== $employee->id) abort(403);
         $benefit->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Benefit/deduction removed.');
@@ -223,6 +236,7 @@ class EmployeeController extends Controller
 
     public function addRestDay(Request $request, Employee $employee)
     {
+        $this->guardFeature('rest_day_pattern');
         $validated = $request->validate([
             'day_of_week'     => 'required|integer|between:0,6',
             'effective_from'  => 'required|date',
@@ -238,6 +252,7 @@ class EmployeeController extends Controller
 
     public function deleteRestDay(Employee $employee, RestDayPattern $restday)
     {
+        $this->guardFeature('rest_day_pattern');
         if ($restday->employee_id !== $employee->id) abort(403);
         $restday->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Rest day pattern removed.');
@@ -247,6 +262,7 @@ class EmployeeController extends Controller
 
     public function addDayOff(Request $request, Employee $employee)
     {
+        $this->guardFeature('day_off_overrides');
         $validated = $request->validate([
             'off_date' => 'required|date',
             'type'     => 'required|in:day_off,cancel_day_off',
@@ -271,6 +287,7 @@ class EmployeeController extends Controller
 
     public function deleteDayOff(Employee $employee, DayOff $dayoff)
     {
+        $this->guardFeature('day_off_overrides');
         if ($dayoff->employee_id !== $employee->id) abort(403);
         $dayoff->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Day off override removed.');
@@ -280,6 +297,7 @@ class EmployeeController extends Controller
 
     public function addCashAdvance(Request $request, Employee $employee)
     {
+        $this->guardFeature('cash_advance');
         $validated = $request->validate([
             'amount'               => 'required|numeric|min:1|max:999999.99',
             'deduction_per_cutoff' => 'required|numeric|min:0|max:999999.99',
@@ -300,6 +318,7 @@ class EmployeeController extends Controller
 
     public function deleteCashAdvance(Employee $employee, CashAdvance $cashadvance)
     {
+        $this->guardFeature('cash_advance');
         if ($cashadvance->employee_id !== $employee->id) abort(403);
         $cashadvance->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Cash advance removed.');
@@ -459,6 +478,16 @@ class EmployeeController extends Controller
         }
 
         return redirect()->route('employees.index')->with('success', $msg);
+    }
+
+    /* ── Permission Guard ── */
+
+    protected function guardFeature(string $featureKey): void
+    {
+        $role = Auth::user()->role;
+        if (!FeaturePermission::canEdit($role, $featureKey)) {
+            abort(403, 'You do not have permission to edit this section.');
+        }
     }
 
     /* ── Overlap Validation Helpers ── */

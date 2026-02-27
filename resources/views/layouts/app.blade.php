@@ -66,9 +66,22 @@
             <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
                 <i class="bi bi-person-gear"></i> User Management
             </a>
-            <a class="nav-link {{ request()->is('settings*') ? 'active' : '' }}" href="{{ url('/settings/employment-statuses') }}">
-                <i class="bi bi-gear"></i> Settings
-            </a>
+            <div class="nav-item">
+                <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('settings*') ? 'active' : '' }}" data-bs-toggle="collapse" href="#settingsMenu" role="button">
+                    <span><i class="bi bi-gear"></i> Settings</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse {{ request()->is('settings*') ? 'show' : '' }}" id="settingsMenu">
+                    <a class="nav-link ps-4 py-2 {{ request()->is('settings/employment-statuses*') ? 'active' : '' }}" href="{{ url('/settings/employment-statuses') }}">
+                        <i class="bi bi-tags"></i> Employment Statuses
+                    </a>
+                    @if(Auth::user() && Auth::user()->role === 'ceo')
+                    <a class="nav-link ps-4 py-2 {{ request()->is('settings/feature-permissions*') ? 'active' : '' }}" href="{{ url('/settings/feature-permissions') }}">
+                        <i class="bi bi-shield-lock"></i> Feature Permissions
+                    </a>
+                    @endif
+                </div>
+            </div>
         </nav>
     </div>
 

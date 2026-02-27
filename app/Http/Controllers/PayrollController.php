@@ -88,6 +88,9 @@ class PayrollController extends Controller
         $items = $query->orderBy('employee_id')->get();
 
         $totals = [
+            'required_mandays'       => $items->sum('required_mandays'),
+            'days_worked'            => $items->sum('days_worked'),
+            'absent_days'            => $items->sum('absent_days'),
             'total_work_minutes'     => $items->sum('total_work_minutes'),
             'total_days_decimal'     => $items->sum('total_days_decimal'),
             'total_late_minutes'     => $items->sum('total_late_minutes'),
@@ -96,7 +99,10 @@ class PayrollController extends Controller
             'base_pay'               => $items->sum('base_pay'),
             'late_deduction'         => $items->sum('late_deduction'),
             'early_deduction'        => $items->sum('early_deduction'),
-            'ot_pay'                 => $items->sum('ot_pay'),
+            'absence_deduction'      => $items->sum('absence_deduction'),
+            'total_earnings'         => $items->sum('total_earnings'),
+            'total_deductions'       => $items->sum('total_deductions'),
+            'gross_pay'              => $items->sum('gross_pay'),
             'adjustments'            => $items->sum('adjustments'),
             'final_pay'              => $items->sum('final_pay'),
         ];
@@ -139,12 +145,11 @@ class PayrollController extends Controller
 
         $adjustments = (float) $request->adjustments;
 
-        // Final Pay = Base Pay - Late Deduction - Early Deduction + OT Pay + Adjustments
+        // Final Pay = Gross Pay + Earnings - Deductions + Adjustments
         $finalPay = round(
-            (float) $item->base_pay
-            - (float) $item->late_deduction
-            - (float) $item->early_deduction
-            + (float) $item->ot_pay
+            (float) $item->gross_pay
+            + (float) $item->total_earnings
+            - (float) $item->total_deductions
             + $adjustments,
             2
         );
@@ -162,6 +167,20 @@ class PayrollController extends Controller
     }
 
     /**
+     * Show individual payslip for an employee in a payroll run.
+     */
+    public function payslip(PayrollRun $run, PayrollItem $item)
+    {
+        if ($item->payroll_run_id !== $run->id) {
+            abort(404);
+        }
+
+        $item->load(['employee', 'employee.department']);
+
+        return view('payroll.payslip', compact('run', 'item'));
+    }
+
+    /**
      * Export payroll run as CSV.
      */
     public function exportCsv(PayrollRun $run): StreamedResponse
@@ -176,25 +195,31 @@ class PayrollController extends Controller
         return response()->streamDownload(function () use ($items) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Employee', 'Department', 'Work Minutes', 'Days',
-                'Late Min', 'Early Min', 'OT Min',
-                'Base Pay', 'Late Deduction', 'Early Deduction', 'OT Pay',
-                'Adjustments', 'Final Pay', 'Notes',
+                'Employee', 'Department', 'Daily Rate',
+                'Req. Mandays', 'Days Worked', 'Absent Days',
+                'Late Min', 'Early Min',
+                'Basic Pay', 'Late Ded.', 'Early Ded.', 'Absence Ded.',
+                'Earnings', 'Deductions',
+                'Gross Pay', 'Adjustments', 'Final Pay', 'Notes',
             ]);
 
             foreach ($items as $item) {
                 fputcsv($handle, [
-                    $item->employee->full_name ?? '',
+                    $item->employee->display_name ?? '',
                     $item->employee->department->name ?? '—',
-                    $item->total_work_minutes,
-                    number_format($item->total_days_decimal, 4),
+                    number_format($item->daily_rate, 2),
+                    $item->required_mandays,
+                    $item->days_worked,
+                    $item->absent_days,
                     $item->total_late_minutes,
                     $item->total_early_minutes ?? 0,
-                    $item->total_overtime_minutes,
                     number_format($item->base_pay, 2),
                     number_format($item->late_deduction ?? 0, 2),
                     number_format($item->early_deduction ?? 0, 2),
-                    number_format($item->ot_pay ?? 0, 2),
+                    number_format($item->absence_deduction ?? 0, 2),
+                    number_format($item->total_earnings ?? 0, 2),
+                    number_format($item->total_deductions ?? 0, 2),
+                    number_format($item->gross_pay ?? 0, 2),
                     number_format($item->adjustments, 2),
                     number_format($item->final_pay, 2),
                     $item->notes ?? '',
@@ -218,12 +243,15 @@ class PayrollController extends Controller
             ->get();
 
         $totals = [
-            'base_pay'        => $items->sum('base_pay'),
-            'late_deduction'  => $items->sum('late_deduction'),
-            'early_deduction' => $items->sum('early_deduction'),
-            'ot_pay'          => $items->sum('ot_pay'),
-            'adjustments'     => $items->sum('adjustments'),
-            'final_pay'       => $items->sum('final_pay'),
+            'base_pay'           => $items->sum('base_pay'),
+            'absence_deduction'  => $items->sum('absence_deduction'),
+            'late_deduction'     => $items->sum('late_deduction'),
+            'early_deduction'    => $items->sum('early_deduction'),
+            'total_earnings'     => $items->sum('total_earnings'),
+            'total_deductions'   => $items->sum('total_deductions'),
+            'gross_pay'          => $items->sum('gross_pay'),
+            'adjustments'        => $items->sum('adjustments'),
+            'final_pay'          => $items->sum('final_pay'),
         ];
 
         return view('payroll.pdf', compact('run', 'items', 'totals'));

@@ -14,6 +14,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DayOffCalendarController;
 use App\Http\Controllers\EmploymentStatusController;
 use App\Http\Controllers\FeaturePermissionController;
+use App\Http\Controllers\HolidayController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/payroll/{run}/adjustment', [PayrollController::class, 'saveAdjustment'])->name('payroll.adjustment');
     Route::get('/payroll/{run}/export-csv', [PayrollController::class, 'exportCsv'])->name('payroll.export-csv');
     Route::get('/payroll/{run}/export-pdf', [PayrollController::class, 'exportPdf'])->name('payroll.export-pdf');
+    Route::get('/payroll/{run}/payslip/{item}', [PayrollController::class, 'payslip'])->name('payroll.payslip');
 
     // Employees
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
@@ -120,6 +122,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/employment-statuses', [EmploymentStatusController::class, 'index'])->name('employment-statuses.index');
     Route::post('/settings/employment-statuses', [EmploymentStatusController::class, 'store'])->name('employment-statuses.store');
     Route::delete('/settings/employment-statuses/{employmentStatus}', [EmploymentStatusController::class, 'destroy'])->name('employment-statuses.destroy');
+
+    // Holiday Management (Settings)
+    Route::get('/settings/holidays', [HolidayController::class, 'index'])->name('holidays.index');
+    Route::post('/settings/holidays', [HolidayController::class, 'store'])->name('holidays.store');
+    Route::put('/settings/holidays/{holiday}', [HolidayController::class, 'update'])->name('holidays.update');
+    Route::delete('/settings/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
 
     // Feature Permissions (Settings)
     Route::get('/settings/feature-permissions', [FeaturePermissionController::class, 'index'])->name('settings.feature-permissions');

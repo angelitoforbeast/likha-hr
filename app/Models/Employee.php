@@ -249,6 +249,52 @@ class Employee extends Model
             ->get();
     }
 
+    /* ── Required Mandays Helpers ── */
+
+    /**
+     * Compute required mandays for a date range.
+     * Required Mandays = calendar days - rest days - holidays
+     * Returns an array with breakdown.
+     */
+    public function computeRequiredMandays(string $startDate, string $endDate): array
+    {
+        $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
+        $calendarDays = 0;
+        $restDays = 0;
+        $holidays = 0;
+        $requiredDays = 0;
+        $holidayDates = [];
+        $restDayDates = [];
+
+        foreach ($period as $day) {
+            $dateStr = $day->format('Y-m-d');
+            $calendarDays++;
+
+            $isRestDay = $this->isDayOff($dateStr);
+            $isHoliday = Holiday::isHoliday($dateStr);
+
+            if ($isRestDay) {
+                $restDays++;
+                $restDayDates[] = $dateStr;
+            } elseif ($isHoliday) {
+                // Only count as holiday if it's not already a rest day
+                $holidays++;
+                $holidayDates[] = $dateStr;
+            } else {
+                $requiredDays++;
+            }
+        }
+
+        return [
+            'calendar_days' => $calendarDays,
+            'rest_days' => $restDays,
+            'holidays' => $holidays,
+            'required_mandays' => $requiredDays,
+            'holiday_dates' => $holidayDates,
+            'rest_day_dates' => $restDayDates,
+        ];
+    }
+
     /* ── Cash Advance Helpers ── */
 
     /**

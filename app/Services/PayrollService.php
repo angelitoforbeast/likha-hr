@@ -3,30 +3,39 @@
 namespace App\Services;
 
 use App\Models\AttendanceDay;
+use App\Models\BenefitType;
 use App\Models\Employee;
+use App\Models\EmployeeBenefit;
 use App\Models\EmployeeRate;
+use App\Models\Holiday;
 use App\Models\PayRate;
 use App\Models\PayrollItem;
 use App\Models\PayrollRun;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
 
 class PayrollService
 {
     /**
-     * Default standard working days per month for monthly proration.
-     */
-    protected int $standardDays = 26;
-
-    /**
-     * Standard working hours per day (used for deduction/OT computation).
+     * Standard working hours per day (used for minute-based deductions).
      */
     protected int $standardHoursPerDay = 8;
 
     /**
-     * OT pay multiplier (1.25 = 125% of hourly rate).
+     * Standard working minutes per day.
+     */
+    protected int $standardMinutesPerDay = 480;
+
+    /**
+     * OT pay multiplier (1.25 = 125% of hourly rate). Prepared but not used by default.
      */
     protected float $otMultiplier = 1.25;
+
+    /**
+     * Whether OT computation is enabled. Default: false.
+     */
+    protected bool $otEnabled = false;
 
     /**
      * Compute payroll items for a payroll run.
@@ -51,64 +60,208 @@ class PayrollService
 
     /**
      * Compute payroll for a single employee.
+     *
+     * NEW LOGIC:
+     * Basic Pay = daily_rate × required_mandays - absence_deduction - late_deduction - undertime_deduction
+     * Earnings = Rice Allowance (per day worked), etc.
+     * Deductions = SSS, PhilHealth, Pag-ibig (fixed per cutoff, if eligible)
+     * Final Pay = Basic Pay + Earnings - Deductions + Adjustments
      */
     protected function computeForEmployee(PayrollRun $run, Employee $employee, $start, $end): void
     {
-        // Get attendance days for this employee in the cutoff period
-        $days = AttendanceDay::where('employee_id', $employee->id)
-            ->whereBetween('work_date', [$start, $end])
+        $startStr = $start instanceof Carbon ? $start->format('Y-m-d') : (string) $start;
+        $endStr = $end instanceof Carbon ? $end->format('Y-m-d') : (string) $end;
+
+        // 1. Get daily rate for this employee
+        $dailyRate = $this->getDailyRate($employee, $startStr, $endStr);
+        if ($dailyRate <= 0) {
+            return; // No rate set, skip
+        }
+
+        // 2. Compute required mandays
+        $mandaysData = $employee->computeRequiredMandays($startStr, $endStr);
+        $requiredMandays = $mandaysData['required_mandays'];
+
+        // 3. Get attendance days (days actually worked)
+        $attendanceDays = AttendanceDay::where('employee_id', $employee->id)
+            ->whereBetween('work_date', [$startStr, $endStr])
             ->get();
 
-        if ($days->isEmpty()) {
-            return;
+        // Count days worked (only on required days, not rest days or holidays)
+        $daysWorked = 0;
+        $totalWorkMinutes = 0;
+        $totalLateMinutes = 0;
+        $totalEarlyMinutes = 0;
+        $totalOvertimeMinutes = 0;
+
+        foreach ($attendanceDays as $day) {
+            $dateStr = $day->work_date instanceof Carbon
+                ? $day->work_date->format('Y-m-d')
+                : (string) $day->work_date;
+
+            // Count as a worked day if it's a required day (not rest day, not holiday)
+            $isRestDay = $employee->isDayOff($dateStr);
+            $isHoliday = Holiday::isHoliday($dateStr);
+
+            if (!$isRestDay && !$isHoliday) {
+                $daysWorked++;
+            }
+            // Even if rest day/holiday, still accumulate minutes for tracking
+            $totalWorkMinutes += $day->payable_work_minutes;
+            $totalLateMinutes += $day->computed_late_minutes;
+            $totalEarlyMinutes += $day->computed_early_minutes;
+            $totalOvertimeMinutes += $day->computed_overtime_minutes;
         }
 
-        $totalWorkMinutes = $days->sum('payable_work_minutes');
-        $totalLateMinutes = $days->sum('computed_late_minutes');
-        $totalEarlyMinutes = $days->sum('computed_early_minutes');
-        $totalOvertimeMinutes = $days->sum('computed_overtime_minutes');
+        // 4. Compute absent days
+        $absentDays = max(0, $requiredMandays - $daysWorked);
 
-        // Determine required work minutes per day from the shift active at the start of cutoff
-        $shift = $employee->getShiftForDate(
-            $start instanceof Carbon ? $start->format('Y-m-d') : (string) $start
-        );
-        $requiredMinutes = $shift?->required_work_minutes ?? 480;
+        // 5. Compute total days decimal (for backward compatibility)
+        $shift = $employee->getShiftForDate($startStr);
+        $requiredMinutes = $shift?->required_work_minutes ?? $this->standardMinutesPerDay;
         $totalDaysDecimal = $requiredMinutes > 0 ? round($totalWorkMinutes / $requiredMinutes, 4) : 0;
 
-        // Calculate base pay using daily rate from employee_rates table
-        $basePay = $this->calculateBasePayFromRates($employee, $days, $start, $end);
-        $avgDailyRate = $this->getAverageDailyRate($employee, $days);
+        // 6. Compute Basic Pay
+        // Gross Basic = daily_rate × required_mandays
+        $grossBasic = round($dailyRate * $requiredMandays, 2);
 
-        // If no employee_rates found, fall back to legacy pay_rates table
-        if ($basePay === null) {
-            $payRate = $this->getLegacyPayRate($employee, $start, $end);
-            $basePay = $this->calculateLegacyBasePay($payRate, $totalWorkMinutes, $totalDaysDecimal);
-            $avgDailyRate = $payRate ? (float) $payRate->amount : 0;
+        // Absence deduction = daily_rate × absent_days
+        $absenceDeduction = round($dailyRate * $absentDays, 2);
+
+        // Late deduction = (late_minutes / 60 / 8) × daily_rate
+        $lateDeduction = $this->computeMinuteBasedAmount($totalLateMinutes, $dailyRate);
+
+        // Early/Undertime deduction = (early_minutes / 60 / 8) × daily_rate
+        $earlyDeduction = $this->computeMinuteBasedAmount($totalEarlyMinutes, $dailyRate);
+
+        // Basic Pay = Gross Basic - Absences - Late - Undertime
+        $basePay = round($grossBasic - $absenceDeduction - $lateDeduction - $earlyDeduction, 2);
+        $basePay = max(0, $basePay);
+
+        // 7. OT Pay (prepared but disabled by default)
+        $otPay = 0;
+        if ($this->otEnabled) {
+            $otPay = $this->computeOtPay($totalOvertimeMinutes, $dailyRate);
         }
 
-        // Compute deductions and OT pay using formula: (minutes / 60 / 8) × daily_rate
-        $lateDeduction = $this->computeMinuteBasedAmount($totalLateMinutes, $avgDailyRate);
-        $earlyDeduction = $this->computeMinuteBasedAmount($totalEarlyMinutes, $avgDailyRate);
-        $otPay = $this->computeOtPay($totalOvertimeMinutes, $avgDailyRate);
+        // 8. Compute Earnings (benefits with category = 'earning')
+        $earningsBreakdown = [];
+        $totalEarnings = 0;
+        $activeBenefits = $employee->getActiveBenefitsForDate($endStr);
 
-        // Final Pay = Base Pay - Late Deduction - Early Deduction + OT Pay + Adjustments
-        $finalPay = round($basePay - $lateDeduction - $earlyDeduction + $otPay, 2);
+        foreach ($activeBenefits as $benefit) {
+            if ($benefit->benefitType->category !== 'earning') continue;
 
+            $amount = 0;
+            if ($benefit->benefitType->unit === 'per_day') {
+                // Per day worked (e.g., Rice Allowance)
+                $amount = round($benefit->amount * $daysWorked, 2);
+            } elseif ($benefit->benefitType->unit === 'fixed' || $benefit->benefitType->unit === 'per_cutoff') {
+                // Fixed per cutoff
+                $amount = round($benefit->amount, 2);
+            }
+
+            if ($amount > 0) {
+                $earningsBreakdown[] = [
+                    'name' => $benefit->benefitType->name,
+                    'type' => $benefit->benefitType->unit,
+                    'rate' => (float) $benefit->amount,
+                    'days' => $benefit->benefitType->unit === 'per_day' ? $daysWorked : null,
+                    'amount' => $amount,
+                ];
+                $totalEarnings += $amount;
+            }
+        }
+
+        // 9. Compute Deductions (benefits with category = 'deduction')
+        $deductionsBreakdown = [];
+        $totalDeductions = 0;
+
+        foreach ($activeBenefits as $benefit) {
+            if ($benefit->benefitType->category !== 'deduction') continue;
+
+            $amount = round($benefit->amount, 2);
+
+            if ($amount > 0) {
+                $deductionsBreakdown[] = [
+                    'name' => $benefit->benefitType->name,
+                    'amount' => $amount,
+                ];
+                $totalDeductions += $amount;
+            }
+        }
+
+        // 10. Compute Gross Pay and Final Pay
+        // Gross Pay = Basic Pay + OT Pay
+        $grossPay = round($basePay + $otPay, 2);
+
+        // Final Pay = Gross Pay + Earnings - Deductions + Adjustments
+        $finalPay = round($grossPay + $totalEarnings - $totalDeductions, 2);
+        $finalPay = max(0, $finalPay);
+
+        // 11. Create payroll item
         PayrollItem::create([
             'payroll_run_id'         => $run->id,
             'employee_id'            => $employee->id,
             'total_work_minutes'     => $totalWorkMinutes,
             'total_days_decimal'     => $totalDaysDecimal,
+            'required_mandays'       => $requiredMandays,
+            'days_worked'            => $daysWorked,
+            'absent_days'            => $absentDays,
+            'daily_rate'             => $dailyRate,
             'total_late_minutes'     => $totalLateMinutes,
             'total_early_minutes'    => $totalEarlyMinutes,
             'total_overtime_minutes' => $totalOvertimeMinutes,
             'base_pay'               => $basePay,
             'late_deduction'         => $lateDeduction,
             'early_deduction'        => $earlyDeduction,
+            'absence_deduction'      => $absenceDeduction,
             'ot_pay'                 => $otPay,
+            'earnings_breakdown'     => $earningsBreakdown,
+            'deductions_breakdown'   => $deductionsBreakdown,
+            'total_earnings'         => $totalEarnings,
+            'total_deductions'       => $totalDeductions,
+            'gross_pay'              => $grossPay,
             'adjustments'            => 0,
-            'final_pay'              => max(0, $finalPay),
+            'final_pay'              => $finalPay,
         ]);
+    }
+
+    /**
+     * Get the daily rate for an employee.
+     * Uses employee_rates table first, falls back to legacy pay_rates.
+     */
+    protected function getDailyRate(Employee $employee, string $startDate, string $endDate): float
+    {
+        // Try employee_rates table (use the rate effective at the start of the cutoff)
+        $rate = EmployeeRate::getActiveRate($employee->id, $startDate);
+        if ($rate !== null && $rate > 0) {
+            return $rate;
+        }
+
+        // Try midpoint of cutoff
+        $midDate = Carbon::parse($startDate)->addDays(
+            (int) (Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) / 2)
+        )->format('Y-m-d');
+        $rate = EmployeeRate::getActiveRate($employee->id, $midDate);
+        if ($rate !== null && $rate > 0) {
+            return $rate;
+        }
+
+        // Fall back to legacy pay_rates table
+        $payRate = PayRate::where('employee_id', $employee->id)
+            ->where('effective_from', '<=', $endDate)
+            ->where(function ($q) use ($startDate) {
+                $q->whereNull('effective_to')->orWhere('effective_to', '>=', $startDate);
+            })
+            ->orderByDesc('effective_from')
+            ->first();
+
+        if ($payRate && $payRate->rate_type === 'daily') {
+            return (float) $payRate->amount;
+        }
+
+        return 0;
     }
 
     /**
@@ -125,7 +278,7 @@ class PayrollService
     }
 
     /**
-     * Compute OT pay.
+     * Compute OT pay. Prepared but disabled by default.
      * Formula: (ot_minutes / 60 / 8) × daily_rate × ot_multiplier
      */
     protected function computeOtPay(int $otMinutes, float $dailyRate): float
@@ -135,118 +288,5 @@ class PayrollService
         }
 
         return round(($otMinutes / 60 / $this->standardHoursPerDay) * $dailyRate * $this->otMultiplier, 2);
-    }
-
-    /**
-     * Get the average daily rate for an employee across the attendance days.
-     * Used for deduction/OT computation.
-     */
-    protected function getAverageDailyRate(Employee $employee, $days): float
-    {
-        $totalRate = 0;
-        $count = 0;
-
-        foreach ($days as $day) {
-            $dateStr = $day->work_date instanceof Carbon
-                ? $day->work_date->format('Y-m-d')
-                : (string) $day->work_date;
-
-            $rate = $employee->getRateForDate($dateStr);
-            if ($rate !== null && $rate > 0) {
-                $totalRate += $rate;
-                $count++;
-            }
-        }
-
-        return $count > 0 ? round($totalRate / $count, 2) : 0;
-    }
-
-    /**
-     * Calculate base pay using the new employee_rates table.
-     * Uses daily rate effective on each work date for accurate computation.
-     * Returns null if no rates are set.
-     */
-    protected function calculateBasePayFromRates(Employee $employee, $days, $start, $end): ?float
-    {
-        // Check if employee has any rates at all
-        $hasRates = EmployeeRate::where('employee_id', $employee->id)->exists();
-        if (!$hasRates) {
-            return null;
-        }
-
-        $totalPay = 0;
-
-        foreach ($days as $day) {
-            $dateStr = $day->work_date instanceof Carbon
-                ? $day->work_date->format('Y-m-d')
-                : (string) $day->work_date;
-
-            $dailyRate = $employee->getRateForDate($dateStr);
-
-            if ($dailyRate === null || $dailyRate <= 0) {
-                continue;
-            }
-
-            // Get shift for this date to determine required minutes
-            $shift = $employee->getShiftForDate($dateStr);
-            $requiredMinutes = $shift?->required_work_minutes ?? 480;
-
-            // Prorate: (payable_work_minutes / required_work_minutes) * daily_rate
-            $dayFraction = $requiredMinutes > 0
-                ? $day->payable_work_minutes / $requiredMinutes
-                : 0;
-
-            $totalPay += round($dailyRate * $dayFraction, 2);
-        }
-
-        return round($totalPay, 2);
-    }
-
-    /**
-     * Get the applicable legacy pay rate for an employee (from pay_rates table).
-     * Falls back to company default (employee_id = null).
-     */
-    protected function getLegacyPayRate(Employee $employee, $start, $end): ?PayRate
-    {
-        // Try employee-specific rate
-        $rate = PayRate::where('employee_id', $employee->id)
-            ->where('effective_from', '<=', $end)
-            ->where(function ($q) use ($start) {
-                $q->whereNull('effective_to')->orWhere('effective_to', '>=', $start);
-            })
-            ->orderByDesc('effective_from')
-            ->first();
-
-        if ($rate) {
-            return $rate;
-        }
-
-        // Fall back to company default
-        return PayRate::whereNull('employee_id')
-            ->where('effective_from', '<=', $end)
-            ->where(function ($q) use ($start) {
-                $q->whereNull('effective_to')->orWhere('effective_to', '>=', $start);
-            })
-            ->orderByDesc('effective_from')
-            ->first();
-    }
-
-    /**
-     * Calculate base pay based on legacy rate type.
-     */
-    protected function calculateLegacyBasePay(?PayRate $rate, int $totalWorkMinutes, float $totalDaysDecimal): float
-    {
-        if (!$rate) {
-            return 0;
-        }
-
-        $amount = (float) $rate->amount;
-
-        return match ($rate->rate_type) {
-            'daily'   => round($amount * $totalDaysDecimal, 2),
-            'hourly'  => round($amount * ($totalWorkMinutes / 60), 2),
-            'monthly' => round($amount * ($totalDaysDecimal / $this->standardDays), 2),
-            default   => 0,
-        };
     }
 }

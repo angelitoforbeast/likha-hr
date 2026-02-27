@@ -75,6 +75,9 @@
                     <a class="nav-link ps-4 py-2 {{ request()->is('settings/employment-statuses*') ? 'active' : '' }}" href="{{ url('/settings/employment-statuses') }}">
                         <i class="bi bi-tags"></i> Employment Statuses
                     </a>
+                    <a class="nav-link ps-4 py-2 {{ request()->is('settings/holidays*') ? 'active' : '' }}" href="{{ url('/settings/holidays') }}">
+                        <i class="bi bi-calendar-heart"></i> Holiday Calendar
+                    </a>
                     @if(Auth::user() && Auth::user()->role === 'ceo')
                     <a class="nav-link ps-4 py-2 {{ request()->is('settings/feature-permissions*') ? 'active' : '' }}" href="{{ url('/settings/feature-permissions') }}">
                         <i class="bi bi-shield-lock"></i> Feature Permissions

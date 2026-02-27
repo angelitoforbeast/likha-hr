@@ -21,14 +21,19 @@ class AttendanceController extends Controller
      */
     public function index(Request $request)
     {
-        $cutoffRules = CutoffRule::all();
         $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
         $shifts = Shift::all();
         $departments = Department::orderBy('name')->get();
 
-        $dateRange = $this->resolveDateRange($request);
-        $startDate = $dateRange['start'];
-        $endDate = $dateRange['end'];
+        // Resolve date range — use request dates or default to last completed cutoff
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if (!$startDate || !$endDate) {
+            $defaults = $this->getLastCompletedCutoff();
+            $startDate = $startDate ?: $defaults['start'];
+            $endDate = $endDate ?: $defaults['end'];
+        }
 
         $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
@@ -38,7 +43,8 @@ class AttendanceController extends Controller
         if ($request->filled('search_name')) {
             $searchName = $request->search_name;
             $query->whereHas('employee', function ($q) use ($searchName) {
-                $q->where('full_name', 'like', '%' . $searchName . '%');
+                $q->where('full_name', 'like', '%' . $searchName . '%')
+                  ->orWhere('actual_name', 'like', '%' . $searchName . '%');
             });
         }
 
@@ -71,10 +77,45 @@ class AttendanceController extends Controller
             ->get()
             ->groupBy('attendance_day_id');
 
+        // Get employees that have records in this date range (for name filter)
+        $employeeIdsInRange = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
+            ->distinct()
+            ->pluck('employee_id')
+            ->toArray();
+        $employeesInRange = Employee::whereIn('id', $employeeIdsInRange)->orderBy('full_name')->get();
+
         return view('attendance.index', compact(
-            'days', 'cutoffRules', 'employees', 'shifts', 'departments',
+            'days', 'employees', 'employeesInRange', 'shifts', 'departments',
             'startDate', 'endDate', 'overrides'
         ));
+    }
+
+    /**
+     * API: Get employees that have records in a date range.
+     */
+    public function employeesInRange(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $employeeIds = AttendanceDay::whereBetween('work_date', [$request->start_date, $request->end_date])
+            ->distinct()
+            ->pluck('employee_id')
+            ->toArray();
+
+        $employees = Employee::whereIn('id', $employeeIds)
+            ->orderBy('full_name')
+            ->get()
+            ->map(function ($emp) {
+                return [
+                    'id' => $emp->id,
+                    'name' => $emp->display_name,
+                ];
+            });
+
+        return response()->json($employees);
     }
 
     /**
@@ -200,9 +241,14 @@ class AttendanceController extends Controller
      */
     public function exportCsv(Request $request): StreamedResponse
     {
-        $dateRange = $this->resolveDateRange($request);
-        $startDate = $dateRange['start'];
-        $endDate = $dateRange['end'];
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if (!$startDate || !$endDate) {
+            $defaults = $this->getLastCompletedCutoff();
+            $startDate = $startDate ?: $defaults['start'];
+            $endDate = $endDate ?: $defaults['end'];
+        }
 
         $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
@@ -212,7 +258,8 @@ class AttendanceController extends Controller
         if ($request->filled('search_name')) {
             $searchName = $request->search_name;
             $query->whereHas('employee', function ($q) use ($searchName) {
-                $q->where('full_name', 'like', '%' . $searchName . '%');
+                $q->where('full_name', 'like', '%' . $searchName . '%')
+                  ->orWhere('actual_name', 'like', '%' . $searchName . '%');
             });
         }
         if ($request->filled('employee_id')) {
@@ -244,7 +291,7 @@ class AttendanceController extends Controller
 
             foreach ($days as $day) {
                 fputcsv($handle, [
-                    $day->employee->full_name ?? '',
+                    $day->employee->display_name ?? '',
                     $day->employee->department->name ?? '',
                     $day->work_date->format('Y-m-d'),
                     $day->shift->name ?? '',
@@ -273,9 +320,14 @@ class AttendanceController extends Controller
      */
     public function printView(Request $request)
     {
-        $dateRange = $this->resolveDateRange($request);
-        $startDate = $dateRange['start'];
-        $endDate = $dateRange['end'];
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if (!$startDate || !$endDate) {
+            $defaults = $this->getLastCompletedCutoff();
+            $startDate = $startDate ?: $defaults['start'];
+            $endDate = $endDate ?: $defaults['end'];
+        }
 
         $query = AttendanceDay::with(['employee.department', 'shift'])
             ->whereBetween('work_date', [$startDate, $endDate])
@@ -288,7 +340,8 @@ class AttendanceController extends Controller
         if ($request->filled('search_name')) {
             $searchName = $request->search_name;
             $query->whereHas('employee', function ($q) use ($searchName) {
-                $q->where('full_name', 'like', '%' . $searchName . '%');
+                $q->where('full_name', 'like', '%' . $searchName . '%')
+                  ->orWhere('actual_name', 'like', '%' . $searchName . '%');
             });
         }
         if ($request->filled('department_id')) {
@@ -304,51 +357,73 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Resolve date range from request (cutoff rule or manual dates).
+     * Get the last completed cutoff period.
+     * Cutoff periods: 10-25 and 26-9(next month)
+     * Returns the most recently completed cutoff.
      */
-    protected function resolveDateRange(Request $request): array
+    protected function getLastCompletedCutoff(): array
     {
-        if ($request->filled('cutoff_rule_id')) {
-            $rule = CutoffRule::find($request->cutoff_rule_id);
-            if ($rule && $rule->rule_json) {
-                return $this->computeCutoffDates($rule, $request->input('cutoff_month', now()->format('Y-m')));
-            }
+        $today = Carbon::today();
+        $day = $today->day;
+
+        if ($day >= 26) {
+            // We're in the 26-9 cutoff period, so last completed = 10-25 of this month
+            return [
+                'start' => $today->copy()->day(10)->format('Y-m-d'),
+                'end'   => $today->copy()->day(25)->format('Y-m-d'),
+            ];
+        } elseif ($day >= 10) {
+            // We're in the 10-25 cutoff period, so last completed = 26(prev month)-9(this month)
+            return [
+                'start' => $today->copy()->subMonth()->day(26)->format('Y-m-d'),
+                'end'   => $today->copy()->day(9)->format('Y-m-d'),
+            ];
+        } else {
+            // Day 1-9: We're in the 26-9 cutoff period, so last completed = 10-25 of prev month
+            return [
+                'start' => $today->copy()->subMonth()->day(10)->format('Y-m-d'),
+                'end'   => $today->copy()->subMonth()->day(25)->format('Y-m-d'),
+            ];
         }
-
-        $start = $request->input('start_date', now()->startOfMonth()->format('Y-m-d'));
-        $end = $request->input('end_date', now()->format('Y-m-d'));
-
-        return ['start' => $start, 'end' => $end];
     }
 
     /**
-     * Compute actual start/end dates from a cutoff rule and reference month.
+     * Get the current ongoing cutoff period.
      */
-    protected function computeCutoffDates(CutoffRule $rule, string $yearMonth): array
+    protected function getCurrentCutoff(): array
     {
-        $ranges = $rule->rule_json['ranges'] ?? [];
-        if (empty($ranges)) {
-            return ['start' => now()->startOfMonth()->format('Y-m-d'), 'end' => now()->format('Y-m-d')];
-        }
+        $today = Carbon::today();
+        $day = $today->day;
 
-        $range = $ranges[0];
-        $ref = Carbon::parse($yearMonth . '-01');
-
-        $startDay = $range['start_day'];
-        $endDay = $range['end_day'];
-        $crossMonth = $range['cross_month'] ?? false;
-
-        $start = $ref->copy()->day(min($startDay, $ref->daysInMonth));
-
-        if ($crossMonth) {
-            $end = $ref->copy()->addMonth()->day(min($endDay, $ref->copy()->addMonth()->daysInMonth));
+        if ($day >= 26) {
+            // Current cutoff: 26 this month to 9 next month
+            return [
+                'start' => $today->copy()->day(26)->format('Y-m-d'),
+                'end'   => $today->copy()->addMonth()->day(9)->format('Y-m-d'),
+            ];
+        } elseif ($day >= 10) {
+            // Current cutoff: 10-25 this month
+            return [
+                'start' => $today->copy()->day(10)->format('Y-m-d'),
+                'end'   => $today->copy()->day(25)->format('Y-m-d'),
+            ];
         } else {
-            $end = $ref->copy()->day(min($endDay, $ref->daysInMonth));
+            // Day 1-9: Current cutoff: 26 prev month to 9 this month
+            return [
+                'start' => $today->copy()->subMonth()->day(26)->format('Y-m-d'),
+                'end'   => $today->copy()->day(9)->format('Y-m-d'),
+            ];
         }
+    }
 
-        return [
-            'start' => $start->format('Y-m-d'),
-            'end'   => $end->format('Y-m-d'),
-        ];
+    /**
+     * API: Get cutoff date ranges for quick buttons.
+     */
+    public function cutoffDates()
+    {
+        return response()->json([
+            'this_cutoff' => $this->getCurrentCutoff(),
+            'last_cutoff' => $this->getLastCompletedCutoff(),
+        ]);
     }
 }

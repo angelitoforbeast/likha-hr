@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Manage Employee')
-@section('page-title', 'Manage: ' . $employee->full_name)
+@section('page-title', 'Manage: ' . $employee->display_name)
 
 @section('content')
 <div class="row">
@@ -22,11 +22,18 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="full_name" class="form-label fw-semibold">Full Name</label>
-                        <input type="text" name="full_name" id="full_name"
-                               class="form-control @error('full_name') is-invalid @enderror"
-                               value="{{ old('full_name', $employee->full_name) }}" required>
-                        @error('full_name')
+                        <label class="form-label fw-semibold">ZKTeco Name <small class="text-muted">(from device, read-only)</small></label>
+                        <input type="text" class="form-control bg-light" value="{{ $employee->full_name }}" disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="actual_name" class="form-label fw-semibold">Actual Name</label>
+                        <input type="text" name="actual_name" id="actual_name"
+                               class="form-control @error('actual_name') is-invalid @enderror"
+                               value="{{ old('actual_name', $employee->actual_name) }}"
+                               placeholder="Enter actual/formal name...">
+                        <div class="form-text">Primary display name. Leave blank to use ZKTeco name.</div>
+                        @error('actual_name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
@@ -52,16 +59,48 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="schedule_mode" class="form-label fw-semibold">Schedule Mode</label>
+                        <select name="schedule_mode" id="schedule_mode" class="form-select">
+                            <option value="department" {{ $employee->schedule_mode === 'department' ? 'selected' : '' }}>
+                                Department — follows department schedule
+                            </option>
+                            <option value="manual" {{ $employee->schedule_mode === 'manual' ? 'selected' : '' }}>
+                                Manual — custom schedule, protected from dept changes
+                            </option>
+                        </select>
+                        <div class="form-text" id="scheduleModeHelp">
+                            @if($employee->schedule_mode === 'department')
+                                This employee follows department schedule changes automatically.
+                            @else
+                                This employee has a custom schedule. Department changes will not affect them.
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="default_shift_id" class="form-label fw-semibold">Fallback Shift</label>
                         <select name="default_shift_id" id="default_shift_id" class="form-select">
                             <option value="">— None —</option>
                             @foreach($shifts as $shift)
-                                <option value="{{ $shift->id }}" {{ $employee->default_shift_id == $shift->id ? 'selected' : '' }}>
+                                <option value="{{ $shift->id }}"
+                                        data-start="{{ \Carbon\Carbon::parse($shift->start_time)->format('g:i A') }}"
+                                        data-end="{{ \Carbon\Carbon::parse($shift->end_time)->format('g:i A') }}"
+                                        data-lunch-start="{{ \Carbon\Carbon::parse($shift->lunch_start)->format('g:i A') }}"
+                                        data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}"
+                                        {{ $employee->default_shift_id == $shift->id ? 'selected' : '' }}>
                                     {{ $shift->name }}
                                 </option>
                             @endforeach
                         </select>
                         <div class="form-text">Used only when no shift assignment exists for a date.</div>
+                        <small class="text-muted" id="fallbackShiftPreview">
+                            @if($employee->defaultShift)
+                                Schedule: {{ \Carbon\Carbon::parse($employee->defaultShift->start_time)->format('g:i A') }}
+                                — {{ \Carbon\Carbon::parse($employee->defaultShift->end_time)->format('g:i A') }}
+                                | Lunch: {{ \Carbon\Carbon::parse($employee->defaultShift->lunch_start)->format('g:i A') }}
+                                — {{ \Carbon\Carbon::parse($employee->defaultShift->lunch_end)->format('g:i A') }}
+                            @endif
+                        </small>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">
@@ -140,6 +179,7 @@
                             <th>Effective Date</th>
                             <th>Shift</th>
                             <th>Schedule</th>
+                            <th>Lunch Break</th>
                             <th>Remarks</th>
                             <th>Actions</th>
                         </tr>
@@ -151,10 +191,17 @@
                                 <span class="fw-semibold">{{ $assignment->effective_date->format('M d, Y') }}</span>
                             </td>
                             <td>{{ $assignment->shift->name }}</td>
-                            <td class="small text-muted">
+                            <td class="small">
                                 {{ \Carbon\Carbon::parse($assignment->shift->start_time)->format('g:i A') }}
                                 —
                                 {{ \Carbon\Carbon::parse($assignment->shift->end_time)->format('g:i A') }}
+                            </td>
+                            <td class="small">
+                                <span class="text-info">
+                                    {{ \Carbon\Carbon::parse($assignment->shift->lunch_start)->format('g:i A') }}
+                                    —
+                                    {{ \Carbon\Carbon::parse($assignment->shift->lunch_end)->format('g:i A') }}
+                                </span>
                             </td>
                             <td class="small">{{ $assignment->remarks ?? '—' }}</td>
                             <td>
@@ -171,7 +218,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-3">
+                            <td colspan="6" class="text-center text-muted py-3">
                                 No shift assignments yet. Will use fallback shift.
                             </td>
                         </tr>
@@ -278,3 +325,46 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    // Fallback shift preview
+    const fallbackSelect = document.getElementById('default_shift_id');
+    const fallbackPreview = document.getElementById('fallbackShiftPreview');
+    if (fallbackSelect) {
+        fallbackSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (opt.value && opt.dataset.start) {
+                fallbackPreview.innerHTML = 'Schedule: ' + opt.dataset.start + ' — ' + opt.dataset.end +
+                    ' | Lunch: ' + opt.dataset.lunchStart + ' — ' + opt.dataset.lunchEnd;
+            } else {
+                fallbackPreview.innerHTML = '';
+            }
+        });
+    }
+
+    // Schedule mode help text
+    const modeSelect = document.getElementById('schedule_mode');
+    const modeHelp = document.getElementById('scheduleModeHelp');
+    const deptSelect = document.getElementById('department_id');
+    if (modeSelect) {
+        modeSelect.addEventListener('change', function() {
+            if (this.value === 'department') {
+                modeHelp.textContent = 'This employee follows department schedule changes automatically.';
+            } else {
+                modeHelp.textContent = 'This employee has a custom schedule. Department changes will not affect them.';
+            }
+        });
+    }
+
+    // Auto-set to manual if no department selected
+    if (deptSelect) {
+        deptSelect.addEventListener('change', function() {
+            if (!this.value) {
+                modeSelect.value = 'manual';
+                modeSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+</script>
+@endpush

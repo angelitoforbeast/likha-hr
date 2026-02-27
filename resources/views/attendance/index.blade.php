@@ -7,17 +7,17 @@
 {{-- Compute Trigger --}}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="POST" action="{{ route('attendance.compute') }}" class="row g-2 align-items-end">
+        <form method="POST" action="{{ route('attendance.compute') }}" class="row g-2 align-items-end" id="computeForm">
             @csrf
             <div class="col-auto">
                 <label class="form-label small">Compute From</label>
                 <input type="date" name="start_date" class="form-control form-control-sm"
-                       value="{{ request('start_date', $startDate) }}" required>
+                       value="{{ $startDate }}" required>
             </div>
             <div class="col-auto">
                 <label class="form-label small">To</label>
                 <input type="date" name="end_date" class="form-control form-control-sm"
-                       value="{{ request('end_date', $endDate) }}" required>
+                       value="{{ $endDate }}" required>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-sm btn-warning">
@@ -43,16 +43,38 @@
 {{-- Filters --}}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label small">Search Name</label>
-                <input type="text" name="search_name" class="form-control form-control-sm"
-                       placeholder="Type employee name..."
-                       value="{{ request('search_name') }}">
+        <form method="GET" id="filterForm" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Date Range</label>
+                <input type="text" id="dateRangePicker" class="form-control form-control-sm"
+                       placeholder="Select date range..." readonly>
+                <input type="hidden" name="start_date" id="filterStartDate" value="{{ $startDate }}">
+                <input type="hidden" name="end_date" id="filterEndDate" value="{{ $endDate }}">
+            </div>
+            <div class="col-auto">
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" id="btnLastCutoff" title="Last completed cutoff">
+                        <i class="bi bi-skip-backward"></i> Last Cutoff
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="btnThisCutoff" title="Current ongoing cutoff">
+                        <i class="bi bi-calendar-event"></i> This Cutoff
+                    </button>
+                </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small">Department</label>
-                <select name="department_id" class="form-select form-select-sm">
+                <label class="form-label small fw-semibold">Employee</label>
+                <select name="employee_id" class="form-select form-select-sm" id="filterEmployee">
+                    <option value="">All Employees</option>
+                    @foreach($employeesInRange as $emp)
+                        <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>
+                            {{ $emp->display_name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Department</label>
+                <select name="department_id" class="form-select form-select-sm" id="filterDepartment">
                     <option value="">All Departments</option>
                     @foreach($departments as $dept)
                         <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
@@ -62,63 +84,12 @@
                 </select>
             </div>
             <div class="col-md-1">
-                <label class="form-label small">Cutoff Rule</label>
-                <select name="cutoff_rule_id" class="form-select form-select-sm">
-                    <option value="">Manual</option>
-                    @foreach($cutoffRules as $rule)
-                        <option value="{{ $rule->id }}" {{ request('cutoff_rule_id') == $rule->id ? 'selected' : '' }}>
-                            {{ $rule->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">Month</label>
-                <input type="month" name="cutoff_month" class="form-control form-control-sm"
-                       value="{{ request('cutoff_month', now()->format('Y-m')) }}">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">Start</label>
-                <input type="date" name="start_date" class="form-control form-control-sm"
-                       value="{{ request('start_date', $startDate) }}">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">End</label>
-                <input type="date" name="end_date" class="form-control form-control-sm"
-                       value="{{ request('end_date', $endDate) }}">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">Employee</label>
-                <select name="employee_id" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    @foreach($employees as $emp)
-                        <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>
-                            {{ $emp->full_name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">Shift</label>
-                <select name="shift_id" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    @foreach($shifts as $shift)
-                        <option value="{{ $shift->id }}" {{ request('shift_id') == $shift->id ? 'selected' : '' }}>
-                            {{ $shift->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small">Review</label>
-                <select name="needs_review" class="form-select form-select-sm">
+                <label class="form-label small fw-semibold">Review</label>
+                <select name="needs_review" class="form-select form-select-sm" id="filterReview">
                     <option value="">All</option>
                     <option value="1" {{ request('needs_review') === '1' ? 'selected' : '' }}>Yes</option>
                     <option value="0" {{ request('needs_review') === '0' ? 'selected' : '' }}>No</option>
                 </select>
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button>
             </div>
         </form>
     </div>
@@ -126,10 +97,10 @@
 
 {{-- Export & Copy Buttons --}}
 <div class="d-flex gap-2 mb-3 no-print">
-    <a href="{{ route('attendance.export-csv', request()->query()) }}" class="btn btn-sm btn-outline-success">
+    <a href="{{ route('attendance.export-csv', request()->query()) }}" class="btn btn-sm btn-outline-success" id="exportCsvLink">
         <i class="bi bi-filetype-csv"></i> Export CSV
     </a>
-    <a href="{{ route('attendance.print', request()->query()) }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+    <a href="{{ route('attendance.print', request()->query()) }}" class="btn btn-sm btn-outline-secondary" target="_blank" id="printLink">
         <i class="bi bi-printer"></i> Print View
     </a>
     <button type="button" class="btn btn-sm btn-outline-info" id="copyTableBtn">
@@ -167,7 +138,7 @@
                         $editedFields = $dayOverrides->pluck('field')->unique()->toArray();
                     @endphp
                     <tr class="{{ $day->needs_review ? 'table-warning' : '' }}">
-                        <td>{{ $day->employee->full_name ?? '—' }}</td>
+                        <td>{{ $day->employee->display_name ?? '—' }}</td>
                         <td>
                             @if($day->employee->department ?? null)
                                 <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $day->employee->department->name }}</span>
@@ -344,8 +315,11 @@
     .sortable:hover {
         background: #e9ecef;
     }
-    .sort-asc .bi-arrow-down-up::before { content: "\F127"; } /* arrow-up */
-    .sort-desc .bi-arrow-down-up::before { content: "\F128"; } /* arrow-down */
+    .sort-asc .bi-arrow-down-up::before { content: "\F127"; }
+    .sort-desc .bi-arrow-down-up::before { content: "\F128"; }
+    .flatpickr-input {
+        background-color: #fff !important;
+    }
 </style>
 @endpush
 
@@ -354,16 +328,81 @@
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-    // Initialize Bootstrap popovers for edit indicators
+    // ========== FLATPICKR DATE RANGE ==========
+    const fp = flatpickr('#dateRangePicker', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        defaultDate: ['{{ $startDate }}', '{{ $endDate }}'],
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                const start = selectedDates[0].toISOString().split('T')[0];
+                const end = selectedDates[1].toISOString().split('T')[0];
+                document.getElementById('filterStartDate').value = start;
+                document.getElementById('filterEndDate').value = end;
+                // Auto-submit
+                submitFilter();
+            }
+        }
+    });
+
+    // ========== CUTOFF QUICK BUTTONS ==========
+    let cutoffData = null;
+
+    // Fetch cutoff dates on load
+    fetch('{{ route("attendance.cutoff-dates") }}', {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        cutoffData = data;
+        // Update button tooltips
+        document.getElementById('btnLastCutoff').title =
+            'Last Cutoff: ' + data.last_cutoff.start + ' to ' + data.last_cutoff.end;
+        document.getElementById('btnThisCutoff').title =
+            'This Cutoff: ' + data.this_cutoff.start + ' to ' + data.this_cutoff.end;
+    });
+
+    document.getElementById('btnLastCutoff').addEventListener('click', function() {
+        if (cutoffData) {
+            fp.setDate([cutoffData.last_cutoff.start, cutoffData.last_cutoff.end]);
+            document.getElementById('filterStartDate').value = cutoffData.last_cutoff.start;
+            document.getElementById('filterEndDate').value = cutoffData.last_cutoff.end;
+            submitFilter();
+        }
+    });
+
+    document.getElementById('btnThisCutoff').addEventListener('click', function() {
+        if (cutoffData) {
+            fp.setDate([cutoffData.this_cutoff.start, cutoffData.this_cutoff.end]);
+            document.getElementById('filterStartDate').value = cutoffData.this_cutoff.start;
+            document.getElementById('filterEndDate').value = cutoffData.this_cutoff.end;
+            submitFilter();
+        }
+    });
+
+    // ========== AUTO-SEARCH ON FILTER CHANGE ==========
+    ['filterEmployee', 'filterDepartment', 'filterReview'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', function() {
+            submitFilter();
+        });
+    });
+
+    function submitFilter() {
+        document.getElementById('filterForm').submit();
+    }
+
+    // ========== UPDATE EMPLOYEE LIST ON DATE CHANGE ==========
+    // (employees in range are already loaded server-side, but we could refresh via AJAX if needed)
+
+    // ========== POPOVERS ==========
     var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
     popoverTriggerList.map(function (el) {
         return new bootstrap.Popover(el, { container: 'body' });
     });
 
-    // Time cell click -> open modal
+    // ========== TIME CELL CLICK -> OVERRIDE MODAL ==========
     document.querySelectorAll('.time-cell').forEach(cell => {
         cell.addEventListener('click', function(e) {
-            // Don't open modal if popover is showing
             const dayId = this.dataset.dayId;
             const field = this.dataset.field;
             const value = this.dataset.value;
@@ -380,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Save override
+    // ========== SAVE OVERRIDE ==========
     document.getElementById('override-save').addEventListener('click', function() {
         const dayId = document.getElementById('override-day-id').value;
         const field = document.getElementById('override-field').value;
@@ -424,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Shift dropdown change
+    // ========== SHIFT DROPDOWN CHANGE ==========
     document.querySelectorAll('.shift-select').forEach(select => {
         select.addEventListener('change', function() {
             const dayId = this.dataset.dayId;
@@ -442,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Save shift change
+    // ========== SAVE SHIFT CHANGE ==========
     document.getElementById('shift-save').addEventListener('click', function() {
         const dayId = document.getElementById('shift-day-id').value;
         const newValue = document.getElementById('shift-new-value').value;
@@ -484,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Copy Table to Clipboard
+    // ========== COPY TABLE ==========
     document.getElementById('copyTableBtn').addEventListener('click', function() {
         const table = document.getElementById('attendanceTable');
         let text = '';
@@ -493,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const cells = row.querySelectorAll('th, td');
             const rowData = [];
             cells.forEach(cell => {
-                // Get text content, skip select elements and icons
                 let cellText = '';
                 const select = cell.querySelector('select');
                 if (select) {
@@ -522,9 +560,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Force Recompute with warning
+    // ========== FORCE RECOMPUTE ==========
     document.getElementById('forceRecomputeBtn')?.addEventListener('click', function() {
-        const computeForm = document.querySelector('form[action*="attendance/compute"]');
+        const computeForm = document.getElementById('computeForm');
         const startDate = computeForm.querySelector('input[name="start_date"]').value;
         const endDate = computeForm.querySelector('input[name="end_date"]').value;
 
@@ -533,7 +571,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Check how many overrides exist in this range
         fetch(`{{ route('attendance.count-overrides') }}?start_date=${startDate}&end_date=${endDate}`, {
             headers: { 'Accept': 'application/json' }
         })
@@ -562,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Column Sorting
+    // ========== COLUMN SORTING ==========
     let currentSort = { col: null, dir: 'asc' };
     document.querySelectorAll('.sortable').forEach(th => {
         th.addEventListener('click', function() {
@@ -572,7 +609,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (rows.length <= 1) return;
 
-            // Toggle direction
             if (currentSort.col === col) {
                 currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
             } else {
@@ -580,30 +616,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentSort.dir = 'asc';
             }
 
-            // Update header styles
             document.querySelectorAll('.sortable').forEach(h => {
                 h.classList.remove('sort-asc', 'sort-desc');
             });
             this.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
 
-            // Sort rows
             rows.sort((a, b) => {
                 const cellA = a.cells[col]?.innerText?.trim() || '';
                 const cellB = b.cells[col]?.innerText?.trim() || '';
 
-                // Try numeric sort
                 const numA = parseFloat(cellA);
                 const numB = parseFloat(cellB);
                 if (!isNaN(numA) && !isNaN(numB)) {
                     return currentSort.dir === 'asc' ? numA - numB : numB - numA;
                 }
 
-                // String sort
                 const cmp = cellA.localeCompare(cellB);
                 return currentSort.dir === 'asc' ? cmp : -cmp;
             });
 
-            // Re-append sorted rows
             rows.forEach(row => tbody.appendChild(row));
         });
     });

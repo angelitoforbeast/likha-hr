@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/attendance/override', [AttendanceController::class, 'override'])->name('attendance.override');
     Route::post('/attendance/force-compute', [AttendanceController::class, 'forceCompute'])->name('attendance.force-compute');
     Route::get('/attendance/count-overrides', [AttendanceController::class, 'countOverrides'])->name('attendance.count-overrides');
+    Route::get('/attendance/cutoff-dates', [AttendanceController::class, 'cutoffDates'])->name('attendance.cutoff-dates');
+    Route::get('/attendance/employees-in-range', [AttendanceController::class, 'employeesInRange'])->name('attendance.employees-in-range');
 
     // Payroll (Phase 4)
     Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
@@ -83,9 +85,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
     Route::get('/departments/create', [DepartmentController::class, 'create'])->name('departments.create');
     Route::post('/departments', [DepartmentController::class, 'store'])->name('departments.store');
+    Route::get('/departments/{department}', [DepartmentController::class, 'show'])->name('departments.show');
     Route::get('/departments/{department}/edit', [DepartmentController::class, 'edit'])->name('departments.edit');
     Route::put('/departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');
     Route::delete('/departments/{department}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
+    Route::post('/departments/{department}/assign-shift', [DepartmentController::class, 'assignShift'])->name('departments.assign-shift');
+    Route::delete('/departments/{department}/shift-assignment/{assignment}', [DepartmentController::class, 'deleteShiftAssignment'])->name('departments.delete-shift-assignment');
+    Route::post('/departments/{department}/add-employee', [DepartmentController::class, 'addEmployee'])->name('departments.add-employee');
+    Route::delete('/departments/{department}/remove-employee/{employee}', [DepartmentController::class, 'removeEmployee'])->name('departments.remove-employee');
 
     // User Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

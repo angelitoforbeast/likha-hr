@@ -16,7 +16,11 @@ class EmployeeController extends Controller
         $query = Employee::with(['defaultShift', 'department']);
 
         if ($request->filled('search')) {
-            $query->where('full_name', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', '%' . $search . '%')
+                  ->orWhere('actual_name', 'like', '%' . $search . '%');
+            });
         }
 
         if ($request->filled('status')) {
@@ -53,20 +57,27 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
-            'full_name'        => 'required|string|max:255',
+            'actual_name'      => 'nullable|string|max:255',
             'status'           => 'required|in:active,inactive',
             'default_shift_id' => 'nullable|exists:shifts,id',
             'department_id'    => 'nullable|exists:departments,id',
+            'schedule_mode'    => 'required|in:department,manual',
         ]);
+
+        // If employee has no department, force manual mode
+        if (empty($validated['department_id'])) {
+            $validated['schedule_mode'] = Employee::MODE_MANUAL;
+        }
 
         $employee->update($validated);
 
         return redirect()->route('employees.edit', $employee)
-            ->with('success', "Employee {$employee->full_name} updated successfully.");
+            ->with('success', "Employee {$employee->display_name} updated successfully.");
     }
 
     /**
      * Add a new shift assignment for an employee.
+     * When manually adding, set schedule_mode to 'manual'.
      */
     public function assignShift(Request $request, Employee $employee)
     {
@@ -88,6 +99,12 @@ class EmployeeController extends Controller
         } else {
             $employee->shiftAssignments()->create($validated);
             $message = "Shift assignment added effective {$validated['effective_date']}.";
+        }
+
+        // Set to manual mode since HR is manually setting shift
+        if ($employee->isDepartmentMode()) {
+            $employee->update(['schedule_mode' => Employee::MODE_MANUAL]);
+            $message .= ' Schedule mode set to Manual.';
         }
 
         return redirect()->route('employees.edit', $employee)

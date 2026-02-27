@@ -25,8 +25,9 @@
                     <th>#</th>
                     <th>Name</th>
                     <th>Description</th>
+                    <th>Current Shift</th>
                     <th class="text-center">Employees</th>
-                    <th class="text-center" style="width: 160px;">Actions</th>
+                    <th class="text-center" style="width: 220px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,31 +36,52 @@
                     <td>{{ $dept->id }}</td>
                     <td><strong>{{ $dept->name }}</strong></td>
                     <td class="text-muted">{{ $dept->description ?? '—' }}</td>
+                    <td>
+                        @if($dept->current_shift)
+                            <small>
+                                <strong>{{ $dept->current_shift->name }}</strong><br>
+                                {{ \Carbon\Carbon::parse($dept->current_shift->start_time)->format('g:i A') }}
+                                — {{ \Carbon\Carbon::parse($dept->current_shift->end_time)->format('g:i A') }}<br>
+                                <span class="text-info">
+                                    <i class="bi bi-cup-hot"></i>
+                                    {{ \Carbon\Carbon::parse($dept->current_shift->lunch_start)->format('g:i A') }}
+                                    — {{ \Carbon\Carbon::parse($dept->current_shift->lunch_end)->format('g:i A') }}
+                                </span>
+                            </small>
+                        @else
+                            <span class="text-muted small">No shift</span>
+                        @endif
+                    </td>
                     <td class="text-center">
                         <span class="badge bg-secondary">{{ $dept->employees_count }}</span>
                     </td>
                     <td class="text-center">
-                        <a href="{{ route('departments.edit', $dept) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                        @if($dept->employees_count === 0)
-                        <form action="{{ route('departments.destroy', $dept) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this department?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i> Delete
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ route('departments.show', $dept) }}" class="btn btn-outline-info" title="View">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a href="{{ route('departments.edit', $dept) }}" class="btn btn-outline-primary" title="Edit">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            @if($dept->employees_count === 0)
+                            <form action="{{ route('departments.destroy', $dept) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this department?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            @else
+                            <button class="btn btn-outline-danger" disabled title="Has assigned employees">
+                                <i class="bi bi-trash"></i>
                             </button>
-                        </form>
-                        @else
-                        <button class="btn btn-sm btn-outline-danger" disabled title="Has assigned employees">
-                            <i class="bi bi-trash"></i> Delete
-                        </button>
-                        @endif
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">No departments yet. Click "Add Department" to create one.</td>
+                    <td colspan="6" class="text-center text-muted py-4">No departments yet. Click "Add Department" to create one.</td>
                 </tr>
                 @endforelse
             </tbody>

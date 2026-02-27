@@ -14,14 +14,45 @@ class Employee extends Model
     protected $fillable = [
         'zkteco_id',
         'full_name',
+        'actual_name',
         'status',
         'default_shift_id',
         'department_id',
+        'schedule_mode',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'schedule_mode' => 'string',
     ];
+
+    /* ── Schedule Mode Constants ── */
+    const MODE_DEPARTMENT = 'department';
+    const MODE_MANUAL     = 'manual';
+
+    /**
+     * Get the display name: actual_name if set, otherwise full_name (ZKTeco name).
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->actual_name ?: $this->full_name;
+    }
+
+    /**
+     * Check if this employee follows department schedule.
+     */
+    public function isDepartmentMode(): bool
+    {
+        return $this->schedule_mode === self::MODE_DEPARTMENT;
+    }
+
+    /**
+     * Check if this employee has a manual schedule override.
+     */
+    public function isManualMode(): bool
+    {
+        return $this->schedule_mode === self::MODE_MANUAL;
+    }
 
     public function department(): BelongsTo
     {

@@ -87,26 +87,33 @@ class PayrollService
             ->whereBetween('work_date', [$startStr, $endStr])
             ->get();
 
-        // Count days worked (only on required days, not rest days or holidays)
+        // Count days worked (only on required days, not rest days or holidays for eligible)
         $daysWorked = 0;
         $totalWorkMinutes = 0;
         $totalLateMinutes = 0;
         $totalEarlyMinutes = 0;
         $totalOvertimeMinutes = 0;
+        $isHolidayEligible = $mandaysData['holiday_eligible'];
 
         foreach ($attendanceDays as $day) {
             $dateStr = $day->work_date instanceof Carbon
                 ? $day->work_date->format('Y-m-d')
                 : (string) $day->work_date;
 
-            // Count as a worked day if it's a required day (not rest day, not holiday)
             $isRestDay = $employee->isDayOff($dateStr);
-            $isHoliday = Holiday::isHoliday($dateStr);
+            $holiday = Holiday::getHolidayForDate($dateStr);
 
-            if (!$isRestDay && !$isHoliday) {
+            if ($isRestDay) {
+                // Rest day — don't count as worked day for basic pay
+            } elseif ($holiday && $isHolidayEligible) {
+                // Holiday-eligible employee working on a holiday — don't count in regular days worked
+                // (holiday pay is handled separately in earnings)
+            } else {
+                // Regular working day (or non-eligible employee on a holiday)
                 $daysWorked++;
             }
-            // Even if rest day/holiday, still accumulate minutes for tracking
+
+            // Accumulate minutes for tracking regardless
             $totalWorkMinutes += $day->payable_work_minutes;
             $totalLateMinutes += $day->computed_late_minutes;
             $totalEarlyMinutes += $day->computed_early_minutes;
@@ -144,10 +151,24 @@ class PayrollService
             $otPay = $this->computeOtPay($totalOvertimeMinutes, $dailyRate);
         }
 
-        // 8. Compute Earnings (benefits with category = 'earning')
+        // 8. Compute Earnings (benefits with category = 'earning' + holiday pay)
         $earningsBreakdown = [];
         $totalEarnings = 0;
         $activeBenefits = $employee->getActiveBenefitsForDate($endStr);
+
+        // Holiday Pay: Regular Holidays = 100% of daily rate per holiday (for eligible employees)
+        $regularHolidays = $mandaysData['regular_holidays'] ?? 0;
+        if ($isHolidayEligible && $regularHolidays > 0 && $dailyRate > 0) {
+            $holidayPayAmount = round($dailyRate * $regularHolidays, 2);
+            $earningsBreakdown[] = [
+                'name' => 'Holiday Pay (Regular)',
+                'type' => 'holiday',
+                'rate' => $dailyRate,
+                'days' => $regularHolidays,
+                'amount' => $holidayPayAmount,
+            ];
+            $totalEarnings += $holidayPayAmount;
+        }
 
         foreach ($activeBenefits as $benefit) {
             if ($benefit->benefitType->category !== 'earning') continue;

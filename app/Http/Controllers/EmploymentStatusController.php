@@ -22,11 +22,27 @@ class EmploymentStatusController extends Controller
 
         $maxSort = EmploymentStatus::max('sort_order') ?? 0;
         $validated['sort_order'] = $maxSort + 1;
+        $validated['holiday_eligible'] = $request->boolean('holiday_eligible');
 
         EmploymentStatus::create($validated);
 
         return redirect()->route('employment-statuses.index')
             ->with('success', 'Employment status added.');
+    }
+
+    public function update(Request $request, EmploymentStatus $employmentStatus)
+    {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:100|unique:employment_statuses,name,' . $employmentStatus->id,
+            'color' => 'nullable|string|max:20',
+        ]);
+
+        $validated['holiday_eligible'] = $request->boolean('holiday_eligible');
+
+        $employmentStatus->update($validated);
+
+        return redirect()->route('employment-statuses.index')
+            ->with('success', 'Employment status updated.');
     }
 
     public function destroy(EmploymentStatus $employmentStatus)

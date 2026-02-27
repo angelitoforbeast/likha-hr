@@ -121,6 +121,7 @@ Route::middleware('auth')->group(function () {
     // Employment Statuses (Settings)
     Route::get('/settings/employment-statuses', [EmploymentStatusController::class, 'index'])->name('employment-statuses.index');
     Route::post('/settings/employment-statuses', [EmploymentStatusController::class, 'store'])->name('employment-statuses.store');
+    Route::put('/settings/employment-statuses/{employmentStatus}', [EmploymentStatusController::class, 'update'])->name('employment-statuses.update');
     Route::delete('/settings/employment-statuses/{employmentStatus}', [EmploymentStatusController::class, 'destroy'])->name('employment-statuses.destroy');
 
     // Holiday Management (Settings)

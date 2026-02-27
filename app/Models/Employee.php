@@ -262,25 +262,41 @@ class Employee extends Model
         $calendarDays = 0;
         $restDays = 0;
         $holidays = 0;
+        $regularHolidays = 0;
+        $specialHolidays = 0;
         $requiredDays = 0;
         $holidayDates = [];
+        $regularHolidayDates = [];
+        $specialHolidayDates = [];
         $restDayDates = [];
+
+        // Check if employee's current status is holiday-eligible
+        $status = $this->getStatusForDate($endDate);
+        $isHolidayEligible = $status ? $status->holiday_eligible : true; // default eligible if no status
 
         foreach ($period as $day) {
             $dateStr = $day->format('Y-m-d');
             $calendarDays++;
 
             $isRestDay = $this->isDayOff($dateStr);
-            $isHoliday = Holiday::isHoliday($dateStr);
+            $holiday = Holiday::getHolidayForDate($dateStr);
 
             if ($isRestDay) {
                 $restDays++;
                 $restDayDates[] = $dateStr;
-            } elseif ($isHoliday) {
-                // Only count as holiday if it's not already a rest day
+            } elseif ($holiday && $isHolidayEligible) {
+                // Only count as holiday if employee is eligible
                 $holidays++;
                 $holidayDates[] = $dateStr;
+                if ($holiday->type === Holiday::TYPE_REGULAR) {
+                    $regularHolidays++;
+                    $regularHolidayDates[] = $dateStr;
+                } else {
+                    $specialHolidays++;
+                    $specialHolidayDates[] = $dateStr;
+                }
             } else {
+                // Not eligible for holiday = treated as regular working day
                 $requiredDays++;
             }
         }
@@ -289,9 +305,14 @@ class Employee extends Model
             'calendar_days' => $calendarDays,
             'rest_days' => $restDays,
             'holidays' => $holidays,
+            'regular_holidays' => $regularHolidays,
+            'special_holidays' => $specialHolidays,
             'required_mandays' => $requiredDays,
             'holiday_dates' => $holidayDates,
+            'regular_holiday_dates' => $regularHolidayDates,
+            'special_holiday_dates' => $specialHolidayDates,
             'rest_day_dates' => $restDayDates,
+            'holiday_eligible' => $isHolidayEligible,
         ];
     }
 

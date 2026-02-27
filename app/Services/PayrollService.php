@@ -38,6 +38,13 @@ class PayrollService
     protected bool $otEnabled = false;
 
     /**
+     * Holiday pay rates (DOLE standard).
+     */
+    protected float $regularHolidayWorkedRate = 2.00;    // 200% if worked
+    protected float $regularHolidayNotWorkedRate = 1.00; // 100% if not worked (paid)
+    protected float $specialHolidayWorkedRate = 1.30;    // 130% if worked
+
+    /**
      * Compute payroll items for a payroll run.
      */
     public function computePayroll(PayrollRun $run): void
@@ -61,11 +68,19 @@ class PayrollService
     /**
      * Compute payroll for a single employee.
      *
-     * NEW LOGIC:
+     * LOGIC:
      * Basic Pay = daily_rate × required_mandays - absence_deduction - late_deduction - undertime_deduction
-     * Earnings = Rice Allowance (per day worked), etc.
+     * Earnings = Holiday Pay + Rice Allowance (per day worked incl. holiday days), etc.
      * Deductions = SSS, PhilHealth, Pag-ibig (fixed per cutoff, if eligible)
      * Final Pay = Basic Pay + Earnings - Deductions + Adjustments
+     *
+     * Holiday Rules (for eligible employees):
+     * - Regular Holiday + NOT worked = 100% daily rate (Holiday Pay in Earnings)
+     * - Regular Holiday + WORKED = 200% daily rate (in Earnings)
+     * - Special Non-Working + NOT worked = no pay, no deduction
+     * - Special Non-Working + WORKED = 130% daily rate (in Earnings)
+     *
+     * For non-eligible employees: holidays are treated as regular working days.
      */
     protected function computeForEmployee(PayrollRun $run, Employee $employee, $start, $end): void
     {
@@ -81,19 +96,35 @@ class PayrollService
         // 2. Compute required mandays
         $mandaysData = $employee->computeRequiredMandays($startStr, $endStr);
         $requiredMandays = $mandaysData['required_mandays'];
+        $isHolidayEligible = $mandaysData['holiday_eligible'];
 
         // 3. Get attendance days (days actually worked)
         $attendanceDays = AttendanceDay::where('employee_id', $employee->id)
             ->whereBetween('work_date', [$startStr, $endStr])
             ->get();
 
-        // Count days worked (only on required days, not rest days or holidays for eligible)
-        $daysWorked = 0;
+        // Build a set of dates that have attendance
+        $attendanceDateSet = [];
+        foreach ($attendanceDays as $day) {
+            $dateStr = $day->work_date instanceof Carbon
+                ? $day->work_date->format('Y-m-d')
+                : (string) $day->work_date;
+            $attendanceDateSet[$dateStr] = true;
+        }
+
+        // 4. Count days worked on REQUIRED days + track holiday work
+        $daysWorked = 0;              // Regular working days with attendance
+        $holidayDaysWorked = 0;       // Holiday days with attendance (for eligible)
         $totalWorkMinutes = 0;
         $totalLateMinutes = 0;
         $totalEarlyMinutes = 0;
         $totalOvertimeMinutes = 0;
-        $isHolidayEligible = $mandaysData['holiday_eligible'];
+
+        // Track holiday work details for earnings
+        $regularHolidaysWorked = 0;
+        $regularHolidaysNotWorked = 0;
+        $specialHolidaysWorked = 0;
+        $specialHolidaysNotWorked = 0;
 
         foreach ($attendanceDays as $day) {
             $dateStr = $day->work_date instanceof Carbon
@@ -106,8 +137,9 @@ class PayrollService
             if ($isRestDay) {
                 // Rest day — don't count as worked day for basic pay
             } elseif ($holiday && $isHolidayEligible) {
-                // Holiday-eligible employee working on a holiday — don't count in regular days worked
-                // (holiday pay is handled separately in earnings)
+                // Holiday-eligible employee working on a holiday
+                // Don't count in regular daysWorked (basic pay), but track for holiday premium
+                $holidayDaysWorked++;
             } else {
                 // Regular working day (or non-eligible employee on a holiday)
                 $daysWorked++;
@@ -120,15 +152,42 @@ class PayrollService
             $totalOvertimeMinutes += $day->computed_overtime_minutes;
         }
 
-        // 4. Compute absent days
+        // 5. For eligible employees, check each holiday date to determine worked vs not worked
+        if ($isHolidayEligible) {
+            // Check Regular Holidays
+            $regularHolidayDates = $mandaysData['regular_holiday_dates'] ?? [];
+            foreach ($regularHolidayDates as $hDate) {
+                if (isset($attendanceDateSet[$hDate])) {
+                    $regularHolidaysWorked++;
+                } else {
+                    $regularHolidaysNotWorked++;
+                }
+            }
+
+            // Check Special Non-Working Holidays
+            $specialHolidayDates = $mandaysData['special_holiday_dates'] ?? [];
+            foreach ($specialHolidayDates as $hDate) {
+                if (isset($attendanceDateSet[$hDate])) {
+                    $specialHolidaysWorked++;
+                } else {
+                    $specialHolidaysNotWorked++;
+                    // Special Non-Working + not worked = no pay, no deduction (nothing to do)
+                }
+            }
+        }
+
+        // 6. Compute absent days (only on required mandays)
         $absentDays = max(0, $requiredMandays - $daysWorked);
 
-        // 5. Compute total days decimal (for backward compatibility)
+        // 7. Total days actually worked (regular + holiday) — for Rice Allowance etc.
+        $totalDaysActuallyWorked = $daysWorked + $holidayDaysWorked;
+
+        // 8. Compute total days decimal (for backward compatibility)
         $shift = $employee->getShiftForDate($startStr);
         $requiredMinutes = $shift?->required_work_minutes ?? $this->standardMinutesPerDay;
         $totalDaysDecimal = $requiredMinutes > 0 ? round($totalWorkMinutes / $requiredMinutes, 4) : 0;
 
-        // 6. Compute Basic Pay
+        // 9. Compute Basic Pay
         // Gross Basic = daily_rate × required_mandays
         $grossBasic = round($dailyRate * $requiredMandays, 2);
 
@@ -145,38 +204,68 @@ class PayrollService
         $basePay = round($grossBasic - $absenceDeduction - $lateDeduction - $earlyDeduction, 2);
         $basePay = max(0, $basePay);
 
-        // 7. OT Pay (prepared but disabled by default)
+        // 10. OT Pay (prepared but disabled by default)
         $otPay = 0;
         if ($this->otEnabled) {
             $otPay = $this->computeOtPay($totalOvertimeMinutes, $dailyRate);
         }
 
-        // 8. Compute Earnings (benefits with category = 'earning' + holiday pay)
+        // 11. Compute Earnings (holiday premiums + benefits with category = 'earning')
         $earningsBreakdown = [];
         $totalEarnings = 0;
         $activeBenefits = $employee->getActiveBenefitsForDate($endStr);
 
-        // Holiday Pay: Regular Holidays = 100% of daily rate per holiday (for eligible employees)
-        $regularHolidays = $mandaysData['regular_holidays'] ?? 0;
-        if ($isHolidayEligible && $regularHolidays > 0 && $dailyRate > 0) {
-            $holidayPayAmount = round($dailyRate * $regularHolidays, 2);
+        // --- Holiday Pay Earnings (for eligible employees) ---
+
+        // Regular Holiday + WORKED = 200% of daily rate
+        if ($regularHolidaysWorked > 0 && $dailyRate > 0) {
+            $amount = round($dailyRate * $this->regularHolidayWorkedRate * $regularHolidaysWorked, 2);
+            $earningsBreakdown[] = [
+                'name' => 'Regular Holiday Worked',
+                'type' => 'holiday',
+                'rate' => round($dailyRate * $this->regularHolidayWorkedRate, 2),
+                'days' => $regularHolidaysWorked,
+                'amount' => $amount,
+            ];
+            $totalEarnings += $amount;
+        }
+
+        // Regular Holiday + NOT WORKED = 100% of daily rate (Holiday Pay)
+        if ($regularHolidaysNotWorked > 0 && $dailyRate > 0) {
+            $amount = round($dailyRate * $this->regularHolidayNotWorkedRate * $regularHolidaysNotWorked, 2);
             $earningsBreakdown[] = [
                 'name' => 'Holiday Pay (Regular)',
                 'type' => 'holiday',
-                'rate' => $dailyRate,
-                'days' => $regularHolidays,
-                'amount' => $holidayPayAmount,
+                'rate' => round($dailyRate * $this->regularHolidayNotWorkedRate, 2),
+                'days' => $regularHolidaysNotWorked,
+                'amount' => $amount,
             ];
-            $totalEarnings += $holidayPayAmount;
+            $totalEarnings += $amount;
         }
 
+        // Special Non-Working + WORKED = 130% of daily rate
+        if ($specialHolidaysWorked > 0 && $dailyRate > 0) {
+            $amount = round($dailyRate * $this->specialHolidayWorkedRate * $specialHolidaysWorked, 2);
+            $earningsBreakdown[] = [
+                'name' => 'Special Holiday Worked',
+                'type' => 'holiday',
+                'rate' => round($dailyRate * $this->specialHolidayWorkedRate, 2),
+                'days' => $specialHolidaysWorked,
+                'amount' => $amount,
+            ];
+            $totalEarnings += $amount;
+        }
+
+        // Special Non-Working + NOT WORKED = no pay (nothing added)
+
+        // --- Benefit-based Earnings ---
         foreach ($activeBenefits as $benefit) {
             if ($benefit->benefitType->category !== 'earning') continue;
 
             $amount = 0;
             if ($benefit->benefitType->unit === 'per_day') {
-                // Per day worked (e.g., Rice Allowance)
-                $amount = round($benefit->amount * $daysWorked, 2);
+                // Per day worked INCLUDING holiday days worked (e.g., Rice Allowance)
+                $amount = round($benefit->amount * $totalDaysActuallyWorked, 2);
             } elseif ($benefit->benefitType->unit === 'fixed' || $benefit->benefitType->unit === 'per_cutoff') {
                 // Fixed per cutoff
                 $amount = round($benefit->amount, 2);
@@ -187,14 +276,14 @@ class PayrollService
                     'name' => $benefit->benefitType->name,
                     'type' => $benefit->benefitType->unit,
                     'rate' => (float) $benefit->amount,
-                    'days' => $benefit->benefitType->unit === 'per_day' ? $daysWorked : null,
+                    'days' => $benefit->benefitType->unit === 'per_day' ? $totalDaysActuallyWorked : null,
                     'amount' => $amount,
                 ];
                 $totalEarnings += $amount;
             }
         }
 
-        // 9. Compute Deductions (benefits with category = 'deduction')
+        // 12. Compute Deductions (benefits with category = 'deduction')
         $deductionsBreakdown = [];
         $totalDeductions = 0;
 
@@ -212,7 +301,7 @@ class PayrollService
             }
         }
 
-        // 10. Compute Gross Pay and Final Pay
+        // 13. Compute Gross Pay and Final Pay
         // Gross Pay = Basic Pay + OT Pay
         $grossPay = round($basePay + $otPay, 2);
 
@@ -220,14 +309,14 @@ class PayrollService
         $finalPay = round($grossPay + $totalEarnings - $totalDeductions, 2);
         $finalPay = max(0, $finalPay);
 
-        // 11. Create payroll item
+        // 14. Create payroll item
         PayrollItem::create([
             'payroll_run_id'         => $run->id,
             'employee_id'            => $employee->id,
             'total_work_minutes'     => $totalWorkMinutes,
             'total_days_decimal'     => $totalDaysDecimal,
             'required_mandays'       => $requiredMandays,
-            'days_worked'            => $daysWorked,
+            'days_worked'            => $totalDaysActuallyWorked, // includes holiday days worked
             'absent_days'            => $absentDays,
             'daily_rate'             => $dailyRate,
             'total_late_minutes'     => $totalLateMinutes,

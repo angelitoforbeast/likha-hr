@@ -134,6 +134,8 @@
                 {{ $earning['name'] }}
                 @if(($earning['type'] ?? '') === 'per_day' && isset($earning['days']))
                     <span class="text-muted small">({{ $earning['days'] }} days &times; &#8369;{{ number_format($earning['rate'] ?? 0, 2) }})</span>
+                @elseif(($earning['type'] ?? '') === 'holiday' && isset($earning['days']))
+                    <span class="text-muted small">({{ $earning['days'] }} day{{ $earning['days'] > 1 ? 's' : '' }} &times; &#8369;{{ number_format($earning['rate'] ?? 0, 2) }})</span>
                 @endif
             </span>
             <span class="text-success">+&#8369;{{ number_format($earning['amount'], 2) }}</span>

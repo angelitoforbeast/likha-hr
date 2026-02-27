@@ -599,36 +599,41 @@ class AttendanceComputeService
         }
 
         // === EARLY MINUTES ===
-        // Early = remaining WORK minutes not worked because of early departure
+        // Early = remaining WORK minutes not worked because of early departure OR early lunch out
         // Lunch break is excluded (invisible)
+        $earlyMinutes = 0;
+
+        // A) Early lunch out: went to lunch before scheduled lunch start
+        if ($hasLunch && $lunchOut && $lunchOut->lt($shiftLunchStart)) {
+            $earlyMinutes += max(0, (int) $lunchOut->diffInMinutes($shiftLunchStart));
+        }
+
+        // B) Early time out: left before shift end
         if ($timeOut) {
             $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
             if ($timeOut->lt($earlyDeadline)) {
                 if ($hasLunch) {
-                    // Calculate remaining work minutes from time out to shift end, excluding lunch
-                    $earlyMinutes = 0;
-
                     if ($timeOut->lt($shiftLunchStart)) {
                         // Left before lunch — missed: (lunch start - time out) in morning + entire afternoon
                         $morningMissed = (int) $timeOut->diffInMinutes($shiftLunchStart);
                         $afternoonMissed = (int) $shiftLunchEnd->diffInMinutes($shiftEnd);
-                        $earlyMinutes = $morningMissed + $afternoonMissed;
+                        $earlyMinutes += $morningMissed + $afternoonMissed;
                     } elseif ($timeOut->lte($shiftLunchEnd)) {
                         // Left during lunch — missed entire afternoon
                         $afternoonMissed = (int) $shiftLunchEnd->diffInMinutes($shiftEnd);
-                        $earlyMinutes = $afternoonMissed;
+                        $earlyMinutes += $afternoonMissed;
                     } else {
                         // Left after lunch — missed: (shift end - time out) in afternoon
-                        $earlyMinutes = (int) $timeOut->diffInMinutes($shiftEnd);
+                        $earlyMinutes += (int) $timeOut->diffInMinutes($shiftEnd);
                     }
-
-                    $result['early_minutes'] = max(0, $earlyMinutes);
                 } else {
                     // No lunch — simple subtraction
-                    $result['early_minutes'] = max(0, (int) $timeOut->diffInMinutes($shiftEnd));
+                    $earlyMinutes += max(0, (int) $timeOut->diffInMinutes($shiftEnd));
                 }
             }
         }
+
+        $result['early_minutes'] = max(0, $earlyMinutes);
 
         // === OVERTIME MINUTES ===
         if ($timeOut && $timeOut->gt($shiftEnd)) {

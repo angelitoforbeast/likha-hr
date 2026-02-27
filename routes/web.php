@@ -86,6 +86,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/employees/{employee}/add-cash-advance', [EmployeeController::class, 'addCashAdvance'])->name('employees.add-cash-advance');
     Route::delete('/employees/{employee}/cash-advance/{cashadvance}', [EmployeeController::class, 'deleteCashAdvance'])->name('employees.delete-cash-advance');
 
+    // Bulk Operations
+    Route::post('/employees/bulk-action', [EmployeeController::class, 'bulkAction'])->name('employees.bulk-action');
+
     // Shifts
     Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
     Route::get('/shifts/create', [ShiftController::class, 'create'])->name('shifts.create');

@@ -322,6 +322,145 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /* ── Bulk Operations ── */
+
+    public function bulkAction(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_ids'   => 'required|array|min:1',
+            'employee_ids.*' => 'exists:employees,id',
+            'action'         => 'required|string',
+        ]);
+
+        $employeeIds = $validated['employee_ids'];
+        $action = $validated['action'];
+        $count = count($employeeIds);
+
+        switch ($action) {
+            case 'assign_shift':
+                $request->validate([
+                    'shift_id'        => 'required|exists:shifts,id',
+                    'effective_date'  => 'required|date',
+                    'effective_until' => 'nullable|date|after_or_equal:effective_date',
+                ]);
+                foreach ($employeeIds as $id) {
+                    EmployeeShiftAssignment::create([
+                        'employee_id'    => $id,
+                        'shift_id'       => $request->shift_id,
+                        'effective_date'  => $request->effective_date,
+                        'effective_until' => $request->effective_until,
+                    ]);
+                }
+                $msg = "Shift assigned to {$count} employees.";
+                break;
+
+            case 'change_department':
+                $request->validate(['department_id' => 'required|exists:departments,id']);
+                Employee::whereIn('id', $employeeIds)->update(['department_id' => $request->department_id]);
+                $msg = "{$count} employees moved to new department.";
+                break;
+
+            case 'change_status':
+                $request->validate([
+                    'employment_status_id' => 'required|exists:employment_statuses,id',
+                    'effective_from'       => 'required|date',
+                    'effective_until'      => 'nullable|date|after_or_equal:effective_from',
+                ]);
+                foreach ($employeeIds as $id) {
+                    EmployeeStatusHistory::create([
+                        'employee_id'          => $id,
+                        'employment_status_id' => $request->employment_status_id,
+                        'effective_from'       => $request->effective_from,
+                        'effective_until'      => $request->effective_until,
+                    ]);
+                }
+                $msg = "Employment status set for {$count} employees.";
+                break;
+
+            case 'set_rest_day':
+                $request->validate([
+                    'day_of_week'     => 'required|integer|between:0,6',
+                    'effective_from'  => 'required|date',
+                    'effective_until' => 'nullable|date|after_or_equal:effective_from',
+                ]);
+                foreach ($employeeIds as $id) {
+                    RestDayPattern::create([
+                        'employee_id'    => $id,
+                        'day_of_week'    => $request->day_of_week,
+                        'effective_from'  => $request->effective_from,
+                        'effective_until' => $request->effective_until,
+                    ]);
+                }
+                $msg = "Rest day pattern set for {$count} employees.";
+                break;
+
+            case 'add_benefit':
+                $request->validate([
+                    'benefit_type_id' => 'required|exists:benefit_types,id',
+                    'amount'          => 'required|numeric|min:0',
+                    'effective_from'  => 'required|date',
+                    'effective_until' => 'nullable|date|after_or_equal:effective_from',
+                ]);
+                foreach ($employeeIds as $id) {
+                    EmployeeBenefit::create([
+                        'employee_id'    => $id,
+                        'benefit_type_id' => $request->benefit_type_id,
+                        'is_eligible'    => true,
+                        'amount'         => $request->amount,
+                        'effective_from'  => $request->effective_from,
+                        'effective_until' => $request->effective_until,
+                    ]);
+                }
+                $msg = "Benefit added to {$count} employees.";
+                break;
+
+            case 'set_daily_rate':
+                $request->validate([
+                    'daily_rate'      => 'required|numeric|min:0',
+                    'effective_date'  => 'required|date',
+                    'effective_until' => 'nullable|date|after_or_equal:effective_date',
+                ]);
+                foreach ($employeeIds as $id) {
+                    EmployeeRate::create([
+                        'employee_id'    => $id,
+                        'daily_rate'     => $request->daily_rate,
+                        'effective_date'  => $request->effective_date,
+                        'effective_until' => $request->effective_until,
+                    ]);
+                }
+                $msg = "Daily rate set for {$count} employees.";
+                break;
+
+            case 'set_schedule_mode':
+                $request->validate(['schedule_mode' => 'required|in:department,manual']);
+                Employee::whereIn('id', $employeeIds)->update(['schedule_mode' => $request->schedule_mode]);
+                $msg = "{$count} employees set to {$request->schedule_mode} mode.";
+                break;
+
+            case 'set_night_diff':
+                $request->validate(['night_differential_eligible' => 'required|boolean']);
+                Employee::whereIn('id', $employeeIds)->update(['night_differential_eligible' => $request->night_differential_eligible]);
+                $status = $request->night_differential_eligible ? 'eligible' : 'not eligible';
+                $msg = "{$count} employees set to {$status} for night differential.";
+                break;
+
+            case 'activate':
+                Employee::whereIn('id', $employeeIds)->update(['status' => 'active']);
+                $msg = "{$count} employees activated.";
+                break;
+
+            case 'deactivate':
+                Employee::whereIn('id', $employeeIds)->update(['status' => 'inactive']);
+                $msg = "{$count} employees deactivated.";
+                break;
+
+            default:
+                return redirect()->route('employees.index')->with('error', 'Unknown bulk action.');
+        }
+
+        return redirect()->route('employees.index')->with('success', $msg);
+    }
+
     /* ── Overlap Validation Helpers ── */
 
     protected function checkShiftOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)

@@ -11,6 +11,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DayOffCalendarController;
+use App\Http\Controllers\EmploymentStatusController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,6 +75,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/employees/{employee}/add-rate', [EmployeeController::class, 'addRate'])->name('employees.add-rate');
     Route::delete('/employees/{employee}/rate/{rate}', [EmployeeController::class, 'deleteRate'])->name('employees.delete-rate');
     Route::post('/employees/{employee}/inline-update', [EmployeeController::class, 'inlineUpdate'])->name('employees.inline-update');
+    Route::post('/employees/{employee}/add-status', [EmployeeController::class, 'addStatus'])->name('employees.add-status');
+    Route::delete('/employees/{employee}/status/{status}', [EmployeeController::class, 'deleteStatus'])->name('employees.delete-status');
+    Route::post('/employees/{employee}/add-benefit', [EmployeeController::class, 'addBenefit'])->name('employees.add-benefit');
+    Route::delete('/employees/{employee}/benefit/{benefit}', [EmployeeController::class, 'deleteBenefit'])->name('employees.delete-benefit');
+    Route::post('/employees/{employee}/add-rest-day', [EmployeeController::class, 'addRestDay'])->name('employees.add-rest-day');
+    Route::delete('/employees/{employee}/rest-day/{restday}', [EmployeeController::class, 'deleteRestDay'])->name('employees.delete-rest-day');
+    Route::post('/employees/{employee}/add-day-off', [EmployeeController::class, 'addDayOff'])->name('employees.add-day-off');
+    Route::delete('/employees/{employee}/day-off/{dayoff}', [EmployeeController::class, 'deleteDayOff'])->name('employees.delete-day-off');
+    Route::post('/employees/{employee}/add-cash-advance', [EmployeeController::class, 'addCashAdvance'])->name('employees.add-cash-advance');
+    Route::delete('/employees/{employee}/cash-advance/{cashadvance}', [EmployeeController::class, 'deleteCashAdvance'])->name('employees.delete-cash-advance');
 
     // Shifts
     Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
@@ -94,6 +106,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/departments/{department}/shift-assignment/{assignment}', [DepartmentController::class, 'deleteShiftAssignment'])->name('departments.delete-shift-assignment');
     Route::post('/departments/{department}/add-employee', [DepartmentController::class, 'addEmployee'])->name('departments.add-employee');
     Route::delete('/departments/{department}/remove-employee/{employee}', [DepartmentController::class, 'removeEmployee'])->name('departments.remove-employee');
+
+    // Day Off Calendar
+    Route::get('/day-off-calendar', [DayOffCalendarController::class, 'index'])->name('dayoff.index');
+    Route::post('/day-off-calendar/toggle', [DayOffCalendarController::class, 'toggle'])->name('dayoff.toggle');
+    Route::get('/day-off-calendar/employee-month', [DayOffCalendarController::class, 'employeeMonth'])->name('dayoff.employee-month');
+
+    // Employment Statuses (Settings)
+    Route::get('/settings/employment-statuses', [EmploymentStatusController::class, 'index'])->name('employment-statuses.index');
+    Route::post('/settings/employment-statuses', [EmploymentStatusController::class, 'store'])->name('employment-statuses.store');
+    Route::delete('/settings/employment-statuses/{employmentStatus}', [EmploymentStatusController::class, 'destroy'])->name('employment-statuses.destroy');
 
     // User Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

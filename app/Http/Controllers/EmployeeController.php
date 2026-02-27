@@ -2,10 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BenefitType;
+use App\Models\CashAdvance;
+use App\Models\DayOff;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeBenefit;
 use App\Models\EmployeeRate;
 use App\Models\EmployeeShiftAssignment;
+use App\Models\EmployeeStatusHistory;
+use App\Models\EmploymentStatus;
+use App\Models\RestDayPattern;
 use App\Models\Shift;
 use Illuminate\Http\Request;
 
@@ -35,10 +42,10 @@ class EmployeeController extends Controller
         $shifts = Shift::all();
         $departments = Department::orderBy('name')->get();
 
-        // Attach current shift and rate for display
         $employees->getCollection()->transform(function ($emp) {
             $emp->current_shift = $emp->getCurrentShift();
             $emp->current_rate = $emp->getCurrentRate();
+            $emp->current_status = $emp->getCurrentStatus();
             return $emp;
         });
 
@@ -49,19 +56,35 @@ class EmployeeController extends Controller
     {
         $shifts = Shift::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
-        $employee->load(['shiftAssignments.shift', 'employeeRates', 'department']);
+        $employmentStatuses = EmploymentStatus::orderBy('sort_order')->get();
+        $benefitTypes = BenefitType::active()->orderBy('sort_order')->get();
 
-        return view('employees.edit', compact('employee', 'shifts', 'departments'));
+        $employee->load([
+            'shiftAssignments.shift',
+            'employeeRates',
+            'department',
+            'statusHistory.employmentStatus',
+            'benefits.benefitType',
+            'restDayPatterns',
+            'dayOffs',
+            'cashAdvances',
+        ]);
+
+        return view('employees.edit', compact(
+            'employee', 'shifts', 'departments',
+            'employmentStatuses', 'benefitTypes'
+        ));
     }
 
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
-            'actual_name'      => 'nullable|string|max:255',
-            'status'           => 'required|in:active,inactive',
-            'default_shift_id' => 'nullable|exists:shifts,id',
-            'department_id'    => 'nullable|exists:departments,id',
-            'schedule_mode'    => 'required|in:department,manual',
+            'actual_name'                  => 'nullable|string|max:255',
+            'status'                       => 'required|in:active,inactive',
+            'default_shift_id'             => 'nullable|exists:shifts,id',
+            'department_id'                => 'nullable|exists:departments,id',
+            'schedule_mode'                => 'required|in:department,manual',
+            'night_differential_eligible'  => 'sometimes|boolean',
         ]);
 
         // If employee has no department, force manual mode
@@ -69,39 +92,35 @@ class EmployeeController extends Controller
             $validated['schedule_mode'] = Employee::MODE_MANUAL;
         }
 
+        $validated['night_differential_eligible'] = $request->has('night_differential_eligible');
+
         $employee->update($validated);
 
         return redirect()->route('employees.edit', $employee)
             ->with('success', "Employee {$employee->display_name} updated successfully.");
     }
 
-    /**
-     * Add a new shift assignment for an employee.
-     * When manually adding, set schedule_mode to 'manual'.
-     */
+    /* ── Shift Assignments ── */
+
     public function assignShift(Request $request, Employee $employee)
     {
         $validated = $request->validate([
-            'shift_id'       => 'required|exists:shifts,id',
-            'effective_date' => 'required|date',
-            'remarks'        => 'nullable|string|max:500',
+            'shift_id'        => 'required|exists:shifts,id',
+            'effective_date'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_date',
+            'remarks'         => 'nullable|string|max:500',
         ]);
 
-        // Check for duplicate effective_date
-        $existing = EmployeeShiftAssignment::where('employee_id', $employee->id)
-            ->where('effective_date', $validated['effective_date'])
-            ->first();
-
-        if ($existing) {
-            // Update existing assignment for that date
-            $existing->update($validated);
-            $message = "Shift assignment updated for {$validated['effective_date']}.";
-        } else {
-            $employee->shiftAssignments()->create($validated);
-            $message = "Shift assignment added effective {$validated['effective_date']}.";
+        // Check for overlapping assignments
+        $overlap = $this->checkShiftOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null);
+        if ($overlap) {
+            return redirect()->route('employees.edit', $employee)
+                ->with('error', "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).");
         }
 
-        // Set to manual mode since HR is manually setting shift
+        $employee->shiftAssignments()->create($validated);
+        $message = "Shift assignment added effective {$validated['effective_date']}.";
+
         if ($employee->isDepartmentMode()) {
             $employee->update(['schedule_mode' => Employee::MODE_MANUAL]);
             $message .= ' Schedule mode set to Manual.';
@@ -111,52 +130,183 @@ class EmployeeController extends Controller
             ->with('success', $message);
     }
 
-    /**
-     * Delete a shift assignment.
-     */
     public function deleteShiftAssignment(Employee $employee, EmployeeShiftAssignment $assignment)
     {
-        if ($assignment->employee_id !== $employee->id) {
-            abort(403);
-        }
-
+        if ($assignment->employee_id !== $employee->id) abort(403);
         $assignment->delete();
-
-        return redirect()->route('employees.edit', $employee)
-            ->with('success', 'Shift assignment removed.');
+        return redirect()->route('employees.edit', $employee)->with('success', 'Shift assignment removed.');
     }
 
-    /**
-     * Add a new rate for an employee.
-     */
+    /* ── Rates ── */
+
     public function addRate(Request $request, Employee $employee)
     {
         $validated = $request->validate([
-            'daily_rate'     => 'required|numeric|min:0|max:999999.99',
-            'effective_date' => 'required|date',
-            'remarks'        => 'nullable|string|max:500',
+            'daily_rate'      => 'required|numeric|min:0|max:999999.99',
+            'effective_date'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_date',
+            'remarks'         => 'nullable|string|max:500',
         ]);
 
-        // Check for duplicate effective_date
-        $existing = EmployeeRate::where('employee_id', $employee->id)
-            ->where('effective_date', $validated['effective_date'])
+        $overlap = $this->checkRateOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null);
+        if ($overlap) {
+            return redirect()->route('employees.edit', $employee)
+                ->with('error', "Rate overlaps with existing rate (effective {$overlap->effective_date->format('M d, Y')}).");
+        }
+
+        $employee->employeeRates()->create($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', "Rate added effective {$validated['effective_date']}.");
+    }
+
+    public function deleteRate(Employee $employee, EmployeeRate $rate)
+    {
+        if ($rate->employee_id !== $employee->id) abort(403);
+        $rate->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Rate entry removed.');
+    }
+
+    /* ── Employment Status ── */
+
+    public function addStatus(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'employment_status_id' => 'required|exists:employment_statuses,id',
+            'effective_from'       => 'required|date',
+            'effective_until'      => 'nullable|date|after_or_equal:effective_from',
+            'remarks'              => 'nullable|string|max:500',
+        ]);
+
+        $employee->statusHistory()->create($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Employment status added.');
+    }
+
+    public function deleteStatus(Employee $employee, EmployeeStatusHistory $status)
+    {
+        if ($status->employee_id !== $employee->id) abort(403);
+        $status->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Employment status removed.');
+    }
+
+    /* ── Benefits ── */
+
+    public function addBenefit(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'benefit_type_id' => 'required|exists:benefit_types,id',
+            'is_eligible'     => 'sometimes|boolean',
+            'amount'          => 'required|numeric|min:0|max:999999.99',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $validated['is_eligible'] = $request->has('is_eligible') ? true : true; // default eligible when adding
+
+        $employee->benefits()->create($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Benefit/deduction added.');
+    }
+
+    public function deleteBenefit(Employee $employee, EmployeeBenefit $benefit)
+    {
+        if ($benefit->employee_id !== $employee->id) abort(403);
+        $benefit->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Benefit/deduction removed.');
+    }
+
+    /* ── Rest Day Patterns ── */
+
+    public function addRestDay(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'day_of_week'     => 'required|integer|between:0,6',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $employee->restDayPatterns()->create($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Rest day pattern added.');
+    }
+
+    public function deleteRestDay(Employee $employee, RestDayPattern $restday)
+    {
+        if ($restday->employee_id !== $employee->id) abort(403);
+        $restday->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Rest day pattern removed.');
+    }
+
+    /* ── Day Off Overrides ── */
+
+    public function addDayOff(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'off_date' => 'required|date',
+            'type'     => 'required|in:day_off,cancel_day_off',
+            'remarks'  => 'nullable|string|max:500',
+        ]);
+
+        // Check for existing override on same date
+        $existing = DayOff::where('employee_id', $employee->id)
+            ->where('off_date', $validated['off_date'])
             ->first();
 
         if ($existing) {
             $existing->update($validated);
-            $message = "Rate updated for {$validated['effective_date']}.";
+            $message = 'Day off override updated.';
         } else {
-            $employee->employeeRates()->create($validated);
-            $message = "Rate added effective {$validated['effective_date']}.";
+            $employee->dayOffs()->create($validated);
+            $message = 'Day off override added.';
         }
 
-        return redirect()->route('employees.edit', $employee)
-            ->with('success', $message);
+        return redirect()->route('employees.edit', $employee)->with('success', $message);
     }
 
-    /**
-     * Inline update a single field (AJAX).
-     */
+    public function deleteDayOff(Employee $employee, DayOff $dayoff)
+    {
+        if ($dayoff->employee_id !== $employee->id) abort(403);
+        $dayoff->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Day off override removed.');
+    }
+
+    /* ── Cash Advances ── */
+
+    public function addCashAdvance(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'amount'               => 'required|numeric|min:1|max:999999.99',
+            'deduction_per_cutoff' => 'required|numeric|min:0|max:999999.99',
+            'date_granted'         => 'required|date',
+            'effective_from'       => 'required|date',
+            'effective_until'      => 'nullable|date|after_or_equal:effective_from',
+            'remarks'              => 'nullable|string|max:500',
+        ]);
+
+        $validated['remaining_balance'] = $validated['amount'];
+        $validated['status'] = 'active';
+
+        $employee->cashAdvances()->create($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Cash advance added.');
+    }
+
+    public function deleteCashAdvance(Employee $employee, CashAdvance $cashadvance)
+    {
+        if ($cashadvance->employee_id !== $employee->id) abort(403);
+        $cashadvance->delete();
+        return redirect()->route('employees.edit', $employee)->with('success', 'Cash advance removed.');
+    }
+
+    /* ── Inline Update (AJAX) ── */
+
     public function inlineUpdate(Request $request, Employee $employee)
     {
         $validated = $request->validate([
@@ -172,18 +322,38 @@ class EmployeeController extends Controller
         ]);
     }
 
-    /**
-     * Delete a rate entry.
-     */
-    public function deleteRate(Employee $employee, EmployeeRate $rate)
+    /* ── Overlap Validation Helpers ── */
+
+    protected function checkShiftOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)
     {
-        if ($rate->employee_id !== $employee->id) {
-            abort(403);
-        }
+        $query = EmployeeShiftAssignment::where('employee_id', $employeeId);
+        if ($excludeId) $query->where('id', '!=', $excludeId);
 
-        $rate->delete();
+        return $query->where(function ($q) use ($start, $end) {
+            $q->where(function ($q2) use ($start, $end) {
+                // New record overlaps with existing
+                $q2->where('effective_date', '<=', $end ?? '9999-12-31')
+                   ->where(function ($q3) use ($start) {
+                       $q3->whereNull('effective_until')
+                          ->orWhere('effective_until', '>=', $start);
+                   });
+            });
+        })->first();
+    }
 
-        return redirect()->route('employees.edit', $employee)
-            ->with('success', 'Rate entry removed.');
+    protected function checkRateOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)
+    {
+        $query = EmployeeRate::where('employee_id', $employeeId);
+        if ($excludeId) $query->where('id', '!=', $excludeId);
+
+        return $query->where(function ($q) use ($start, $end) {
+            $q->where(function ($q2) use ($start, $end) {
+                $q2->where('effective_date', '<=', $end ?? '9999-12-31')
+                   ->where(function ($q3) use ($start) {
+                       $q3->whereNull('effective_until')
+                          ->orWhere('effective_until', '>=', $start);
+                   });
+            });
+        })->first();
     }
 }

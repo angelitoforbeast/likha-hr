@@ -118,35 +118,39 @@
                         <th class="sortable" data-col="0">Employee <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="sortable" data-col="1">Dept <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="sortable" data-col="2">Date <i class="bi bi-arrow-down-up small"></i></th>
+                        <th>Status</th>
                         <th>Shift</th>
                         <th class="text-center editable-col">Time In</th>
                         <th class="text-center editable-col">Lunch Out</th>
                         <th class="text-center editable-col">Lunch In</th>
                         <th class="text-center editable-col">Time Out</th>
-                        <th class="text-center sortable" data-col="8">Work <i class="bi bi-arrow-down-up small"></i></th>
-                        <th class="text-center sortable" data-col="9">Late <i class="bi bi-arrow-down-up small"></i></th>
-                        <th class="text-center sortable" data-col="10">Early <i class="bi bi-arrow-down-up small"></i></th>
-                        <th class="text-center sortable" data-col="11">OT <i class="bi bi-arrow-down-up small"></i></th>
-                        <th class="text-center sortable" data-col="12">Payable <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="9">Work <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="10">Late <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="11">Early <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="12">OT <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center sortable" data-col="13">Payable <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="text-center">Review</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($days as $day)
+                    @forelse($days as $row)
+                    @if($row->type === 'present')
                     @php
+                        $day = $row->attendance_day;
                         $dayOverrides = $overrides[$day->id] ?? collect();
                         $editedFields = $dayOverrides->pluck('field')->unique()->toArray();
                     @endphp
                     <tr class="{{ $day->needs_review ? 'table-warning' : '' }}">
-                        <td>{{ $day->employee->display_name ?? '—' }}</td>
+                        <td>{{ $row->employee->display_name ?? '—' }}</td>
                         <td>
-                            @if($day->employee->department ?? null)
-                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $day->employee->department->name }}</span>
+                            @if($row->employee->department ?? null)
+                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $row->employee->department->name }}</span>
                             @else
                                 <span class="text-muted">—</span>
                             @endif
                         </td>
-                        <td>{{ $day->work_date->format('M d, Y') }}</td>
+                        <td>{{ $row->work_date->format('M d, Y') }}</td>
+                        <td><span class="badge bg-success" style="font-size:0.7rem;">Present</span></td>
                         <td>
                             <select class="form-select form-select-sm shift-select"
                                     data-day-id="{{ $day->id }}"
@@ -189,7 +193,7 @@
                         <td class="text-center {{ $day->computed_late_minutes > 0 ? 'text-danger fw-bold' : '' }}">
                             {{ $day->computed_late_minutes }}
                         </td>
-                        <td class="text-center {{ $day->computed_early_minutes > 0 ? 'text-warning fw-bold' : '' }}">
+                        <td class="text-center {{ $day->computed_early_minutes > 0 ? 'text-danger fw-bold' : '' }}">
                             {{ $day->computed_early_minutes }}
                         </td>
                         <td class="text-center {{ $day->computed_overtime_minutes > 0 ? 'text-success fw-bold' : '' }}">
@@ -204,9 +208,58 @@
                             @endif
                         </td>
                     </tr>
+                    @elseif($row->type === 'day_off')
+                    <tr class="table-light" style="opacity: 0.75;">
+                        <td>{{ $row->employee->display_name ?? '—' }}</td>
+                        <td>
+                            @if($row->employee->department ?? null)
+                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $row->employee->department->name }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>{{ $row->work_date->format('M d, Y') }}</td>
+                        <td><span class="badge bg-primary" style="font-size:0.7rem;">Day Off</span></td>
+                        <td class="text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                    </tr>
+                    @elseif($row->type === 'absent')
+                    <tr class="table-danger" style="opacity: 0.85;">
+                        <td>{{ $row->employee->display_name ?? '—' }}</td>
+                        <td>
+                            @if($row->employee->department ?? null)
+                                <span class="badge bg-info text-dark" style="font-size:0.75rem;">{{ $row->employee->department->name }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>{{ $row->work_date->format('M d, Y') }}</td>
+                        <td><span class="badge bg-danger" style="font-size:0.7rem;">Absent</span></td>
+                        <td class="text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center text-muted">—</td>
+                    </tr>
+                    @endif
                     @empty
                     <tr>
-                        <td colspan="14" class="text-center text-muted py-4">
+                        <td colspan="15" class="text-center text-muted py-4">
                             No attendance records found. Try adjusting filters or compute attendance first.
                         </td>
                     </tr>
@@ -339,7 +392,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const end = selectedDates[1].toISOString().split('T')[0];
                 document.getElementById('filterStartDate').value = start;
                 document.getElementById('filterEndDate').value = end;
-                // Auto-submit
                 submitFilter();
             }
         }
@@ -348,14 +400,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========== CUTOFF QUICK BUTTONS ==========
     let cutoffData = null;
 
-    // Fetch cutoff dates on load
     fetch('{{ route("attendance.cutoff-dates") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(r => r.json())
     .then(data => {
         cutoffData = data;
-        // Update button tooltips
         document.getElementById('btnLastCutoff').title =
             'Last Cutoff: ' + data.last_cutoff.start + ' to ' + data.last_cutoff.end;
         document.getElementById('btnThisCutoff').title =
@@ -390,9 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function submitFilter() {
         document.getElementById('filterForm').submit();
     }
-
-    // ========== UPDATE EMPLOYEE LIST ON DATE CHANGE ==========
-    // (employees in range are already loaded server-side, but we could refresh via AJAX if needed)
 
     // ========== POPOVERS ==========
     var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));

@@ -65,7 +65,7 @@
                                 Department — follows department schedule
                             </option>
                             <option value="manual" {{ $employee->schedule_mode === 'manual' ? 'selected' : '' }}>
-                                Manual — custom schedule, protected from dept changes
+                                Manual — custom schedule, protected
                             </option>
                         </select>
                         <div class="form-text" id="scheduleModeHelp">
@@ -103,6 +103,18 @@
                         </small>
                     </div>
 
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="night_differential_eligible" id="night_diff"
+                                   class="form-check-input" value="1"
+                                   {{ $employee->night_differential_eligible ? 'checked' : '' }}>
+                            <label class="form-check-label fw-semibold" for="night_diff">
+                                Night Differential Eligible
+                            </label>
+                        </div>
+                        <div class="form-text">10% premium for work between 10 PM - 6 AM (per DOLE).</div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-check-lg"></i> Save Changes
                     </button>
@@ -117,8 +129,78 @@
         </div>
     </div>
 
-    {{-- Right Column: Shift Assignments & Rates --}}
+    {{-- Right Column --}}
     <div class="col-lg-8">
+
+        {{-- Employment Status History --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-person-badge"></i> Employment Status</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addStatusForm">
+                    <i class="bi bi-plus-lg"></i> Add Status
+                </button>
+            </div>
+            <div class="collapse" id="addStatusForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-status', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Status</label>
+                                <select name="employment_status_id" class="form-select form-select-sm" required>
+                                    <option value="">Select...</option>
+                                    @foreach($employmentStatuses as $es)
+                                        <option value="{{ $es->id }}">{{ $es->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_from" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(optional)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Status</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->statusHistory as $sh)
+                        <tr>
+                            <td><span class="badge" style="background-color: {{ $sh->employmentStatus->color ?? '#6c757d' }}">{{ $sh->employmentStatus->name }}</span></td>
+                            <td>{{ $sh->effective_from->format('M d, Y') }}</td>
+                            <td>{{ $sh->effective_until ? $sh->effective_until->format('M d, Y') : '—  Ongoing' }}</td>
+                            <td class="small">{{ $sh->remarks ?? '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.delete-status', [$employee, $sh]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="5" class="text-center text-muted py-3">No employment status set.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- Shift Assignments --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -127,101 +209,69 @@
                     <i class="bi bi-plus-lg"></i> Add Assignment
                 </button>
             </div>
-
-            {{-- Add Shift Form (collapsible) --}}
-            <div class="collapse {{ $errors->has('shift_id') || $errors->has('effective_date') ? 'show' : '' }}" id="addShiftForm">
+            <div class="collapse" id="addShiftForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.assign-shift', $employee) }}">
                         @csrf
                         <div class="row g-2 align-items-end">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-semibold">Shift</label>
-                                <select name="shift_id" class="form-select form-select-sm @error('shift_id') is-invalid @enderror" required>
+                                <select name="shift_id" class="form-select form-select-sm" required>
                                     <option value="">Select...</option>
                                     @foreach($shifts as $shift)
-                                        <option value="{{ $shift->id }}" {{ old('shift_id') == $shift->id ? 'selected' : '' }}>
-                                            {{ $shift->name }}
-                                        </option>
+                                        <option value="{{ $shift->id }}">{{ $shift->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('shift_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Effective Date</label>
-                                <input type="date" name="effective_date"
-                                       class="form-control form-control-sm @error('effective_date') is-invalid @enderror"
-                                       value="{{ old('effective_date', date('Y-m-d')) }}" required>
-                                @error('effective_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-semibold">Remarks (optional)</label>
-                                <input type="text" name="remarks" class="form-control form-control-sm"
-                                       value="{{ old('remarks') }}" placeholder="e.g. Transferred to night shift">
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-sm btn-success w-100">
-                                    <i class="bi bi-check"></i> Save
-                                </button>
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_date" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
-
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr>
-                            <th>Effective Date</th>
-                            <th>Shift</th>
-                            <th>Schedule</th>
-                            <th>Lunch Break</th>
-                            <th>Remarks</th>
-                            <th>Actions</th>
-                        </tr>
+                        <tr><th>From</th><th>Until</th><th>Shift</th><th>Schedule</th><th>Lunch Break</th><th>Remarks</th><th>Actions</th></tr>
                     </thead>
                     <tbody>
                         @forelse($employee->shiftAssignments as $assignment)
                         <tr>
-                            <td>
-                                <span class="fw-semibold">{{ $assignment->effective_date->format('M d, Y') }}</span>
-                            </td>
+                            <td class="fw-semibold">{{ $assignment->effective_date->format('M d, Y') }}</td>
+                            <td>{{ $assignment->effective_until ? $assignment->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td>{{ $assignment->shift->name }}</td>
                             <td class="small">
                                 {{ \Carbon\Carbon::parse($assignment->shift->start_time)->format('g:i A') }}
-                                —
-                                {{ \Carbon\Carbon::parse($assignment->shift->end_time)->format('g:i A') }}
+                                — {{ \Carbon\Carbon::parse($assignment->shift->end_time)->format('g:i A') }}
                             </td>
-                            <td class="small">
-                                <span class="text-info">
-                                    {{ \Carbon\Carbon::parse($assignment->shift->lunch_start)->format('g:i A') }}
-                                    —
-                                    {{ \Carbon\Carbon::parse($assignment->shift->lunch_end)->format('g:i A') }}
-                                </span>
+                            <td class="small text-info">
+                                {{ \Carbon\Carbon::parse($assignment->shift->lunch_start)->format('g:i A') }}
+                                — {{ \Carbon\Carbon::parse($assignment->shift->lunch_end)->format('g:i A') }}
                             </td>
                             <td class="small">{{ $assignment->remarks ?? '—' }}</td>
                             <td>
-                                <form method="POST"
-                                      action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}"
-                                      onsubmit="return confirm('Remove this shift assignment?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                         </tr>
                         @empty
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-3">
-                                No shift assignments yet. Will use fallback shift.
-                            </td>
-                        </tr>
+                        <tr><td colspan="7" class="text-center text-muted py-3">No shift assignments. Will use fallback shift.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -229,99 +279,379 @@
         </div>
 
         {{-- Daily Rates --}}
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-currency-exchange"></i> Daily Rates</h6>
                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addRateForm">
                     <i class="bi bi-plus-lg"></i> Add Rate
                 </button>
             </div>
-
-            {{-- Add Rate Form (collapsible) --}}
-            <div class="collapse {{ $errors->has('daily_rate') ? 'show' : '' }}" id="addRateForm">
+            <div class="collapse" id="addRateForm">
                 <div class="card-body border-bottom bg-light">
                     <form method="POST" action="{{ route('employees.add-rate', $employee) }}">
                         @csrf
                         <div class="row g-2 align-items-end">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-semibold">Daily Rate</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">&#8369;</span>
                                     <input type="number" name="daily_rate" step="0.01" min="0"
-                                           class="form-control @error('daily_rate') is-invalid @enderror"
-                                           value="{{ old('daily_rate') }}" placeholder="0.00" required>
-                                    @error('daily_rate')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                           class="form-control" placeholder="0.00" required>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Effective Date</label>
-                                <input type="date" name="effective_date"
-                                       class="form-control form-control-sm @error('effective_date') is-invalid @enderror"
-                                       value="{{ old('effective_date', date('Y-m-d')) }}" required>
-                                @error('effective_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-semibold">Remarks (optional)</label>
-                                <input type="text" name="remarks" class="form-control form-control-sm"
-                                       value="{{ old('remarks') }}" placeholder="e.g. Salary increase">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_date" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-sm btn-success w-100">
-                                    <i class="bi bi-check"></i> Save
-                                </button>
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
-
             <div class="card-body p-0">
                 <table class="table table-sm table-hover mb-0">
                     <thead class="table-light">
-                        <tr>
-                            <th>Effective Date</th>
-                            <th>Daily Rate</th>
-                            <th>Remarks</th>
-                            <th>Actions</th>
-                        </tr>
+                        <tr><th>From</th><th>Until</th><th>Daily Rate</th><th>Remarks</th><th>Actions</th></tr>
                     </thead>
                     <tbody>
                         @forelse($employee->employeeRates as $rate)
                         <tr>
-                            <td>
-                                <span class="fw-semibold">{{ $rate->effective_date->format('M d, Y') }}</span>
-                            </td>
-                            <td>
-                                <span class="text-success fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</span>
-                            </td>
+                            <td class="fw-semibold">{{ $rate->effective_date->format('M d, Y') }}</td>
+                            <td>{{ $rate->effective_until ? $rate->effective_until->format('M d, Y') : '— Ongoing' }}</td>
+                            <td><span class="text-success fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</span></td>
                             <td class="small">{{ $rate->remarks ?? '—' }}</td>
                             <td>
-                                <form method="POST"
-                                      action="{{ route('employees.delete-rate', [$employee, $rate]) }}"
-                                      onsubmit="return confirm('Remove this rate entry?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                <form method="POST" action="{{ route('employees.delete-rate', [$employee, $rate]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                         </tr>
                         @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">
-                                No rates set yet.
-                            </td>
-                        </tr>
+                        <tr><td colspan="5" class="text-center text-muted py-3">No rates set yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+
+        {{-- Benefits & Deductions --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-shield-check"></i> Benefits & Deductions</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addBenefitForm">
+                    <i class="bi bi-plus-lg"></i> Add Benefit
+                </button>
+            </div>
+            <div class="collapse" id="addBenefitForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-benefit', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Type</label>
+                                <select name="benefit_type_id" class="form-select form-select-sm" required>
+                                    <option value="">Select...</option>
+                                    @foreach($benefitTypes as $bt)
+                                        <option value="{{ $bt->id }}">{{ $bt->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Amount</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">&#8369;</span>
+                                    <input type="number" name="amount" step="0.01" min="0"
+                                           class="form-control" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_from" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Type</th><th>Amount</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->benefits as $ben)
+                        <tr>
+                            <td>
+                                <span class="badge bg-{{ $ben->benefitType->category === 'deduction' ? 'danger' : ($ben->benefitType->category === 'allowance' ? 'success' : 'info') }}">
+                                    {{ $ben->benefitType->name }}
+                                </span>
+                            </td>
+                            <td class="fw-semibold">&#8369; {{ number_format($ben->amount, 2) }}</td>
+                            <td>{{ $ben->effective_from->format('M d, Y') }}</td>
+                            <td>{{ $ben->effective_until ? $ben->effective_until->format('M d, Y') : '— Ongoing' }}</td>
+                            <td class="small">{{ $ben->remarks ?? '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.delete-benefit', [$employee, $ben]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="6" class="text-center text-muted py-3">No benefits/deductions set.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Rest Day Patterns --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Rest Day Pattern</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addRestDayForm">
+                    <i class="bi bi-plus-lg"></i> Add Pattern
+                </button>
+            </div>
+            <div class="collapse" id="addRestDayForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-rest-day', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Day</label>
+                                <select name="day_of_week" class="form-select form-select-sm" required>
+                                    <option value="">Select...</option>
+                                    @foreach(\App\Models\RestDayPattern::$dayNames as $num => $name)
+                                        <option value="{{ $num }}">{{ $name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_from" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Day</th><th>From</th><th>Until</th><th>Remarks</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->restDayPatterns as $rdp)
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ $rdp->day_name }}</span></td>
+                            <td>{{ $rdp->effective_from->format('M d, Y') }}</td>
+                            <td>{{ $rdp->effective_until ? $rdp->effective_until->format('M d, Y') : '— Ongoing' }}</td>
+                            <td class="small">{{ $rdp->remarks ?? '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.delete-rest-day', [$employee, $rdp]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="5" class="text-center text-muted py-3">No rest day pattern set.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Day Off Overrides --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-calendar-x"></i> Day Off Overrides</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addDayOffForm">
+                    <i class="bi bi-plus-lg"></i> Add Override
+                </button>
+            </div>
+            <div class="collapse" id="addDayOffForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-day-off', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Date</label>
+                                <input type="date" name="off_date" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Type</label>
+                                <select name="type" class="form-select form-select-sm" required>
+                                    <option value="day_off">Extra Day Off</option>
+                                    <option value="cancel_day_off">Cancel Day Off (must work)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="e.g. Change RD">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Date</th><th>Type</th><th>Remarks</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->dayOffs->sortByDesc('off_date') as $doff)
+                        <tr>
+                            <td class="fw-semibold">{{ $doff->off_date->format('M d, Y (l)') }}</td>
+                            <td>
+                                @if($doff->type === 'day_off')
+                                    <span class="badge bg-info">Extra Day Off</span>
+                                @else
+                                    <span class="badge bg-warning text-dark">Cancel Day Off</span>
+                                @endif
+                            </td>
+                            <td class="small">{{ $doff->remarks ?? '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.delete-day-off', [$employee, $doff]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="4" class="text-center text-muted py-3">No day off overrides.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Cash Advances --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-cash"></i> Cash Advances</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addCashAdvanceForm">
+                    <i class="bi bi-plus-lg"></i> Add Cash Advance
+                </button>
+            </div>
+            <div class="collapse" id="addCashAdvanceForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-cash-advance', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Amount</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">&#8369;</span>
+                                    <input type="number" name="amount" step="0.01" min="1"
+                                           class="form-control" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Deduction/Cutoff</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">&#8369;</span>
+                                    <input type="number" name="deduction_per_cutoff" step="0.01" min="0"
+                                           class="form-control" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Date Granted</label>
+                                <input type="date" name="date_granted" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Deduction From</label>
+                                <input type="date" name="effective_from" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small>(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-md-12">
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Remarks (optional)">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Date Granted</th><th>Amount</th><th>Deduction/Cutoff</th><th>Balance</th><th>Status</th><th>Remarks</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->cashAdvances as $ca)
+                        <tr>
+                            <td>{{ $ca->date_granted->format('M d, Y') }}</td>
+                            <td class="fw-semibold">&#8369; {{ number_format($ca->amount, 2) }}</td>
+                            <td>&#8369; {{ number_format($ca->deduction_per_cutoff, 2) }}</td>
+                            <td>
+                                <span class="text-{{ $ca->remaining_balance > 0 ? 'danger' : 'success' }} fw-semibold">
+                                    &#8369; {{ number_format($ca->remaining_balance, 2) }}
+                                </span>
+                            </td>
+                            <td><span class="badge bg-{{ $ca->status === 'active' ? 'warning' : 'success' }}">{{ ucfirst($ca->status) }}</span></td>
+                            <td class="small">{{ $ca->remarks ?? '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.delete-cash-advance', [$employee, $ca]) }}" onsubmit="return confirm('Remove?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="7" class="text-center text-muted py-3">No cash advances.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection
@@ -357,7 +687,6 @@
         });
     }
 
-    // Auto-set to manual if no department selected
     if (deptSelect) {
         deptSelect.addEventListener('change', function() {
             if (!this.value) {

@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\Shift;
 use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -67,22 +68,103 @@ class AttendanceController extends Controller
             $query->where('needs_review', $request->needs_review === '1');
         }
 
-        $days = $query->paginate(50)->withQueryString();
+        $attendanceDays = $query->get();
 
         // Load overrides for each attendance day to show edit indicators
-        $dayIds = $days->pluck('id')->toArray();
+        $dayIds = $attendanceDays->pluck('id')->toArray();
         $overrides = AttendanceOverride::whereIn('attendance_day_id', $dayIds)
             ->with('updater')
             ->orderByDesc('created_at')
             ->get()
             ->groupBy('attendance_day_id');
 
+        // Build combined rows: attendance records + Day Off + Absent virtual rows
+        $combinedRows = collect();
+
+        // Determine which employees to show day off/absent rows for
+        $filteredEmployeeQuery = Employee::where('status', 'active');
+        if ($request->filled('employee_id')) {
+            $filteredEmployeeQuery->where('id', $request->employee_id);
+        }
+        if ($request->filled('department_id')) {
+            $filteredEmployeeQuery->where('department_id', $request->department_id);
+        }
+        if ($request->filled('search_name')) {
+            $searchName = $request->search_name;
+            $filteredEmployeeQuery->where(function ($q) use ($searchName) {
+                $q->where('full_name', 'like', '%' . $searchName . '%')
+                  ->orWhere('actual_name', 'like', '%' . $searchName . '%');
+            });
+        }
+        $filteredEmployees = $filteredEmployeeQuery->with('department')->get();
+
+        // Index attendance days by employee_id + date for quick lookup
+        $attendanceIndex = [];
+        foreach ($attendanceDays as $day) {
+            $key = $day->employee_id . '_' . $day->work_date->format('Y-m-d');
+            $attendanceIndex[$key] = $day;
+        }
+
+        // Generate rows for each date in range for each filtered employee
+        $period = CarbonPeriod::create($startDate, $endDate);
+        foreach ($filteredEmployees as $emp) {
+            foreach ($period as $date) {
+                $dateStr = $date->format('Y-m-d');
+                $key = $emp->id . '_' . $dateStr;
+
+                if (isset($attendanceIndex[$key])) {
+                    // Has attendance record — present
+                    $row = (object) [
+                        'type' => 'present',
+                        'attendance_day' => $attendanceIndex[$key],
+                        'employee' => $emp,
+                        'work_date' => $date->copy(),
+                        'date_str' => $dateStr,
+                    ];
+                } elseif ($emp->isDayOff($dateStr)) {
+                    // Day off
+                    $row = (object) [
+                        'type' => 'day_off',
+                        'attendance_day' => null,
+                        'employee' => $emp,
+                        'work_date' => $date->copy(),
+                        'date_str' => $dateStr,
+                    ];
+                } else {
+                    // Absent
+                    $row = (object) [
+                        'type' => 'absent',
+                        'attendance_day' => null,
+                        'employee' => $emp,
+                        'work_date' => $date->copy(),
+                        'date_str' => $dateStr,
+                    ];
+                }
+                $combinedRows->push($row);
+            }
+        }
+
+        // Sort by date then employee name
+        $combinedRows = $combinedRows->sortBy([
+            ['date_str', 'asc'],
+            [fn($a, $b) => strcmp($a->employee->display_name, $b->employee->display_name), 'asc'],
+        ]);
+
+        // Paginate manually
+        $page = $request->input('page', 1);
+        $perPage = 50;
+        $total = $combinedRows->count();
+        $days = new \Illuminate\Pagination\LengthAwarePaginator(
+            $combinedRows->forPage($page, $perPage)->values(),
+            $total,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         // Get employees that have records in this date range (for name filter)
-        $employeeIdsInRange = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
-            ->distinct()
-            ->pluck('employee_id')
-            ->toArray();
-        $employeesInRange = Employee::whereIn('id', $employeeIdsInRange)->orderBy('full_name')->get();
+        $employeeIdsInRange = $filteredEmployees->pluck('id')->toArray();
+        $employeesInRange = $filteredEmployees->sortBy('full_name');
 
         return view('attendance.index', compact(
             'days', 'employees', 'employeesInRange', 'shifts', 'departments',
@@ -358,7 +440,7 @@ class AttendanceController extends Controller
 
     /**
      * Get the last completed cutoff period.
-     * Cutoff periods: 10-25 and 26-9(next month)
+     * Cutoff periods: 11-25 and 26-10(next month)
      * Returns the most recently completed cutoff.
      */
     protected function getLastCompletedCutoff(): array
@@ -367,21 +449,21 @@ class AttendanceController extends Controller
         $day = $today->day;
 
         if ($day >= 26) {
-            // We're in the 26-9 cutoff period, so last completed = 10-25 of this month
+            // We're in the 26-10 cutoff period, so last completed = 11-25 of this month
             return [
-                'start' => $today->copy()->day(10)->format('Y-m-d'),
+                'start' => $today->copy()->day(11)->format('Y-m-d'),
                 'end'   => $today->copy()->day(25)->format('Y-m-d'),
             ];
-        } elseif ($day >= 10) {
-            // We're in the 10-25 cutoff period, so last completed = 26(prev month)-9(this month)
+        } elseif ($day >= 11) {
+            // We're in the 11-25 cutoff period, so last completed = 26(prev month)-10(this month)
             return [
                 'start' => $today->copy()->subMonth()->day(26)->format('Y-m-d'),
-                'end'   => $today->copy()->day(9)->format('Y-m-d'),
+                'end'   => $today->copy()->day(10)->format('Y-m-d'),
             ];
         } else {
-            // Day 1-9: We're in the 26-9 cutoff period, so last completed = 10-25 of prev month
+            // Day 1-10: We're in the 26-10 cutoff period, so last completed = 11-25 of prev month
             return [
-                'start' => $today->copy()->subMonth()->day(10)->format('Y-m-d'),
+                'start' => $today->copy()->subMonth()->day(11)->format('Y-m-d'),
                 'end'   => $today->copy()->subMonth()->day(25)->format('Y-m-d'),
             ];
         }
@@ -396,22 +478,22 @@ class AttendanceController extends Controller
         $day = $today->day;
 
         if ($day >= 26) {
-            // Current cutoff: 26 this month to 9 next month
+            // Current cutoff: 26 this month to 10 next month
             return [
                 'start' => $today->copy()->day(26)->format('Y-m-d'),
-                'end'   => $today->copy()->addMonth()->day(9)->format('Y-m-d'),
+                'end'   => $today->copy()->addMonth()->day(10)->format('Y-m-d'),
             ];
-        } elseif ($day >= 10) {
-            // Current cutoff: 10-25 this month
+        } elseif ($day >= 11) {
+            // Current cutoff: 11-25 this month
             return [
-                'start' => $today->copy()->day(10)->format('Y-m-d'),
+                'start' => $today->copy()->day(11)->format('Y-m-d'),
                 'end'   => $today->copy()->day(25)->format('Y-m-d'),
             ];
         } else {
-            // Day 1-9: Current cutoff: 26 prev month to 9 this month
+            // Day 1-10: Current cutoff: 26 prev month to 10 this month
             return [
                 'start' => $today->copy()->subMonth()->day(26)->format('Y-m-d'),
-                'end'   => $today->copy()->day(9)->format('Y-m-d'),
+                'end'   => $today->copy()->day(10)->format('Y-m-d'),
             ];
         }
     }

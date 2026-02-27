@@ -60,8 +60,14 @@
             <a class="nav-link {{ request()->is('departments*') ? 'active' : '' }}" href="{{ url('/departments') }}">
                 <i class="bi bi-diagram-3"></i> Departments
             </a>
+            <a class="nav-link {{ request()->is('day-off-calendar*') ? 'active' : '' }}" href="{{ url('/day-off-calendar') }}">
+                <i class="bi bi-calendar-x"></i> Day Off Calendar
+            </a>
             <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
                 <i class="bi bi-person-gear"></i> User Management
+            </a>
+            <a class="nav-link {{ request()->is('settings*') ? 'active' : '' }}" href="{{ url('/settings/employment-statuses') }}">
+                <i class="bi bi-gear"></i> Settings
             </a>
         </nav>
     </div>

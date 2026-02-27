@@ -1,0 +1,10 @@
+Attendance Viewer Update Notes:
+- Need to show Day Off and Absent rows in the attendance table
+- Controller needs to generate "virtual" rows for days with no attendance record
+- For each employee in the date range, check every date:
+  - If has attendance_day record -> show as normal (Present)
+  - If isDayOff(date) -> show as Day Off row (blue/gray)
+  - If not day off and no attendance -> show as Absent row (red)
+- These virtual rows should be mixed in with real attendance rows
+- Day Off/Absent rows: no time fields, no work/late/early/OT, just status indicator
+- Need a "Status" column or indicator

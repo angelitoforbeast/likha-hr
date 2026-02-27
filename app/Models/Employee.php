@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,11 +20,13 @@ class Employee extends Model
         'default_shift_id',
         'department_id',
         'schedule_mode',
+        'night_differential_eligible',
     ];
 
     protected $casts = [
         'status' => 'string',
         'schedule_mode' => 'string',
+        'night_differential_eligible' => 'boolean',
     ];
 
     /* ── Schedule Mode Constants ── */
@@ -38,21 +41,17 @@ class Employee extends Model
         return $this->actual_name ?: $this->full_name;
     }
 
-    /**
-     * Check if this employee follows department schedule.
-     */
     public function isDepartmentMode(): bool
     {
         return $this->schedule_mode === self::MODE_DEPARTMENT;
     }
 
-    /**
-     * Check if this employee has a manual schedule override.
-     */
     public function isManualMode(): bool
     {
         return $this->schedule_mode === self::MODE_MANUAL;
     }
+
+    /* ── Existing Relationships ── */
 
     public function department(): BelongsTo
     {
@@ -99,42 +98,164 @@ class Employee extends Model
         return $this->hasMany(PayrollItem::class);
     }
 
-    /**
-     * Get the active shift for this employee on a given date.
-     * Falls back to default_shift_id if no assignment exists.
-     */
+    /* ── New Relationships ── */
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(EmployeeStatusHistory::class)->orderByDesc('effective_from');
+    }
+
+    public function benefits(): HasMany
+    {
+        return $this->hasMany(EmployeeBenefit::class)->orderByDesc('effective_from');
+    }
+
+    public function restDayPatterns(): HasMany
+    {
+        return $this->hasMany(RestDayPattern::class)->orderByDesc('effective_from');
+    }
+
+    public function dayOffs(): HasMany
+    {
+        return $this->hasMany(DayOff::class);
+    }
+
+    public function cashAdvances(): HasMany
+    {
+        return $this->hasMany(CashAdvance::class)->orderByDesc('date_granted');
+    }
+
+    /* ── Shift Helpers ── */
+
     public function getShiftForDate(string $date): ?Shift
     {
         $shift = EmployeeShiftAssignment::getActiveShift($this->id, $date);
-
-        if ($shift) {
-            return $shift;
-        }
-
+        if ($shift) return $shift;
         return $this->defaultShift;
     }
 
-    /**
-     * Get the active daily rate for this employee on a given date.
-     */
     public function getRateForDate(string $date): ?float
     {
         return EmployeeRate::getActiveRate($this->id, $date);
     }
 
-    /**
-     * Get the current (latest) shift assignment.
-     */
     public function getCurrentShift(): ?Shift
     {
         return $this->getShiftForDate(now()->toDateString());
     }
 
-    /**
-     * Get the current (latest) daily rate.
-     */
     public function getCurrentRate(): ?float
     {
         return $this->getRateForDate(now()->toDateString());
+    }
+
+    /* ── Employment Status Helpers ── */
+
+    /**
+     * Get the active employment status on a given date.
+     */
+    public function getStatusForDate(string $date): ?EmploymentStatus
+    {
+        $history = $this->statusHistory()
+            ->where('effective_from', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
+            ->orderByDesc('effective_from')
+            ->first();
+
+        return $history ? $history->employmentStatus : null;
+    }
+
+    public function getCurrentStatus(): ?EmploymentStatus
+    {
+        return $this->getStatusForDate(now()->toDateString());
+    }
+
+    /* ── Rest Day Helpers ── */
+
+    /**
+     * Get active rest day patterns for a given date.
+     */
+    public function getRestDayPatternsForDate(string $date): array
+    {
+        return $this->restDayPatterns()
+            ->where('effective_from', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
+            ->pluck('day_of_week')
+            ->toArray();
+    }
+
+    /**
+     * Check if a given date is a day off for this employee.
+     * Logic: check pattern first, then check overrides.
+     */
+    public function isDayOff(string $date): bool
+    {
+        $carbonDate = Carbon::parse($date);
+        $dayOfWeek = $carbonDate->dayOfWeek; // 0=Sunday, 6=Saturday
+
+        // Check if there's an explicit override for this date
+        $override = $this->dayOffs()->where('off_date', $date)->first();
+
+        if ($override) {
+            // Explicit day_off override = definitely off
+            if ($override->type === DayOff::TYPE_DAY_OFF) return true;
+            // Explicit cancel_day_off = definitely NOT off (even if pattern says so)
+            if ($override->type === DayOff::TYPE_CANCEL_DAY_OFF) return false;
+        }
+
+        // Check rest day patterns
+        $activePatterns = $this->getRestDayPatternsForDate($date);
+        return in_array($dayOfWeek, $activePatterns);
+    }
+
+    /* ── Benefits Helpers ── */
+
+    /**
+     * Get active benefit for a specific type on a given date.
+     */
+    public function getBenefitForDate(int $benefitTypeId, string $date): ?EmployeeBenefit
+    {
+        return $this->benefits()
+            ->where('benefit_type_id', $benefitTypeId)
+            ->where('effective_from', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
+            ->where('is_eligible', true)
+            ->orderByDesc('effective_from')
+            ->first();
+    }
+
+    /**
+     * Get all active benefits on a given date.
+     */
+    public function getActiveBenefitsForDate(string $date): \Illuminate\Support\Collection
+    {
+        return $this->benefits()
+            ->with('benefitType')
+            ->where('effective_from', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
+            ->where('is_eligible', true)
+            ->get();
+    }
+
+    /* ── Cash Advance Helpers ── */
+
+    /**
+     * Get active cash advances.
+     */
+    public function getActiveCashAdvances(): \Illuminate\Support\Collection
+    {
+        return $this->cashAdvances()->active()->get();
     }
 }

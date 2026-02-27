@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/payroll/{run}/export-csv', [PayrollController::class, 'exportCsv'])->name('payroll.export-csv');
     Route::get('/payroll/{run}/export-pdf', [PayrollController::class, 'exportPdf'])->name('payroll.export-pdf');
     Route::get('/payroll/{run}/payslip/{item}', [PayrollController::class, 'payslip'])->name('payroll.payslip');
+    Route::delete('/payroll/{run}', [PayrollController::class, 'destroy'])->name('payroll.destroy');
 
     // Employees
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');

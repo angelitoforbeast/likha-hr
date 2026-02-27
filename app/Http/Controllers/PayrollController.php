@@ -233,6 +233,24 @@ class PayrollController extends Controller
     }
 
     /**
+     * Delete a payroll run and all its items. CEO only.
+     */
+    public function destroy(PayrollRun $run)
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'ceo') {
+            abort(403, 'Only CEO can delete payroll runs.');
+        }
+
+        $runId = $run->id;
+        $run->items()->delete();
+        $run->delete();
+
+        return redirect()->route('payroll.index')
+            ->with('success', "Payroll Run #{$runId} has been deleted.");
+    }
+
+    /**
      * Export payroll run as a basic PDF (print-friendly HTML).
      */
     public function exportPdf(PayrollRun $run)

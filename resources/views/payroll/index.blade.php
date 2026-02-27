@@ -38,10 +38,19 @@
                         </span>
                     </td>
                     <td>{{ $run->created_at->format('M d, Y H:i') }}</td>
-                    <td>
+                    <td class="d-flex gap-1">
                         <a href="{{ route('payroll.show', $run) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> View
                         </a>
+                        @if(auth()->user()->role === 'ceo')
+                        <form action="{{ route('payroll.destroy', $run) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete Payroll Run #{{ $run->id }}? This will permanently remove all payroll items. This action cannot be undone.')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </form>
+                        @endif
                     </td>
                 </tr>
                 @empty

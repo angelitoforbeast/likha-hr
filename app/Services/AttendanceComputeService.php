@@ -301,8 +301,10 @@ class AttendanceComputeService
 
         $computeTimeIn = $rawTimeIn ? $this->ceilToMinute($rawTimeIn) : null;
         $computeTimeOut = $rawTimeOut ? $this->floorToMinute($rawTimeOut) : null;
+        $computeLunchOut = $lunchOut ? $this->floorToMinute($lunchOut) : null;
+        $computeLunchIn = $lunchIn ? $this->ceilToMinute($lunchIn) : null;
 
-        $computed = $this->computeMetrics($computeTimeIn, $computeTimeOut, $lunchOut, $lunchIn, $shift, $workDate);
+        $computed = $this->computeMetrics($computeTimeIn, $computeTimeOut, $computeLunchOut, $computeLunchIn, $shift, $workDate);
 
         $day = AttendanceDay::updateOrCreate(
             [
@@ -397,12 +399,13 @@ class AttendanceComputeService
         }
 
         // Compute metrics using the final values (mix of edited + fresh)
-        $computeTimeIn = $finalTimeIn ? $this->ceilToMinute($finalTimeIn) : null;
+         $computeTimeIn = $finalTimeIn ? $this->ceilToMinute($finalTimeIn) : null;
         $computeTimeOut = $finalTimeOut ? $this->floorToMinute($finalTimeOut) : null;
-
+        $computeLunchOut = $finalLunchOut ? $this->floorToMinute($finalLunchOut) : null;
+        $computeLunchIn = $finalLunchIn ? $this->ceilToMinute($finalLunchIn) : null;
         $computed = $this->computeMetrics(
             $computeTimeIn, $computeTimeOut,
-            $finalLunchOut, $finalLunchIn,
+            $computeLunchOut, $computeLunchIn,
             $computeShift, $workDate
         );
 
@@ -446,15 +449,16 @@ class AttendanceComputeService
 
         $computeTimeIn = $day->time_in ? $this->ceilToMinute(Carbon::parse($day->time_in)) : null;
         $computeTimeOut = $day->time_out ? $this->floorToMinute(Carbon::parse($day->time_out)) : null;
-
+        $computeLunchOut = $day->lunch_out ? $this->floorToMinute(Carbon::parse($day->lunch_out)) : null;
+        $computeLunchIn = $day->lunch_in ? $this->ceilToMinute(Carbon::parse($day->lunch_in)) : null;
         $computed = $this->computeMetrics(
             $computeTimeIn,
             $computeTimeOut,
-            $day->lunch_out ? Carbon::parse($day->lunch_out) : null,
-            $day->lunch_in ? Carbon::parse($day->lunch_in) : null,
+            $computeLunchOut,
+            $computeLunchIn,
             $shift,
             $day->work_date->format('Y-m-d')
-        );
+        );;
 
         $day->update([
             'computed_work_minutes'     => $computed['work_minutes'],

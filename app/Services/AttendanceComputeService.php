@@ -125,6 +125,161 @@ class AttendanceComputeService
     }
 
     /**
+     * Assign timestamps using "closest to shift event" rules.
+     *
+     * Rules:
+     * - Time In: punch closest to shift start
+     * - Lunch Out: punch closest to lunch start (from remaining punches)
+     * - Lunch In: punch closest to lunch end (from remaining punches)
+     * - Time Out: punch closest to shift end (from remaining punches)
+     *
+     * Each punch can only be assigned to one event (no duplicates).
+     * Deduplication: if two punches have the exact same time, only one is used.
+     */
+    protected function assignTimestamps(Collection $punches, ?\App\Models\Shift $shift, string $workDate): array
+    {
+        $result = [
+            'time_in'   => null,
+            'lunch_out' => null,
+            'lunch_in'  => null,
+            'time_out'  => null,
+            'notes'     => [],
+            'needs_review' => false,
+        ];
+
+        $sorted = $punches->sortBy('punched_at')->values();
+
+        if ($sorted->isEmpty()) {
+            return $result;
+        }
+
+        // Deduplicate: remove punches with exact same timestamp
+        $uniquePunches = collect();
+        $lastTime = null;
+        foreach ($sorted as $punch) {
+            $punchTime = Carbon::parse($punch->punched_at);
+            if ($lastTime === null || !$punchTime->eq($lastTime)) {
+                $uniquePunches->push($punch);
+                $lastTime = $punchTime;
+            }
+        }
+
+        if (!$shift) {
+            // No shift — just use first as time in, last as time out
+            $result['time_in'] = Carbon::parse($uniquePunches->first()->punched_at);
+            if ($uniquePunches->count() > 1) {
+                $result['time_out'] = Carbon::parse($uniquePunches->last()->punched_at);
+            }
+            $result['needs_review'] = true;
+            $result['notes'][] = 'No shift assigned to employee.';
+            return $result;
+        }
+
+        $shiftStart = Carbon::parse($workDate . ' ' . $shift->start_time);
+        $shiftEnd = Carbon::parse($workDate . ' ' . $shift->end_time);
+        $lunchStart = $shift->lunch_start ? Carbon::parse($workDate . ' ' . $shift->lunch_start) : null;
+        $lunchEnd = $shift->lunch_end ? Carbon::parse($workDate . ' ' . $shift->lunch_end) : null;
+
+        // Build array of punch times with indices for tracking
+        $available = [];
+        foreach ($uniquePunches as $idx => $punch) {
+            $available[$idx] = Carbon::parse($punch->punched_at);
+        }
+
+        // Step 1: Time In — closest to shift start
+        $timeInIdx = $this->findClosest($available, $shiftStart);
+        if ($timeInIdx !== null) {
+            $result['time_in'] = $available[$timeInIdx];
+            unset($available[$timeInIdx]);
+        }
+
+        // Step 2: Lunch Out — closest to lunch start (if lunch exists and punches remain)
+        if ($lunchStart && !empty($available)) {
+            $lunchOutIdx = $this->findClosest($available, $lunchStart);
+            if ($lunchOutIdx !== null) {
+                $result['lunch_out'] = $available[$lunchOutIdx];
+                unset($available[$lunchOutIdx]);
+            }
+        }
+
+        // Step 3: Lunch In — closest to lunch end (if lunch exists and punches remain)
+        if ($lunchEnd && !empty($available)) {
+            $lunchInIdx = $this->findClosest($available, $lunchEnd);
+            if ($lunchInIdx !== null) {
+                $result['lunch_in'] = $available[$lunchInIdx];
+                unset($available[$lunchInIdx]);
+            }
+        }
+
+        // Step 4: Time Out — closest to shift end (from remaining punches)
+        if (!empty($available)) {
+            $timeOutIdx = $this->findClosest($available, $shiftEnd);
+            if ($timeOutIdx !== null) {
+                $result['time_out'] = $available[$timeOutIdx];
+                unset($available[$timeOutIdx]);
+            }
+        }
+
+        // Validation: ensure logical order
+        // Time In should be before Lunch Out
+        if ($result['time_in'] && $result['lunch_out'] && $result['time_in']->gt($result['lunch_out'])) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'Time In is after Lunch Out (order issue).';
+        }
+
+        // Lunch Out should be before Lunch In
+        if ($result['lunch_out'] && $result['lunch_in'] && $result['lunch_out']->gt($result['lunch_in'])) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'Lunch Out is after Lunch In (order issue).';
+        }
+
+        // Lunch In should be before Time Out
+        if ($result['lunch_in'] && $result['time_out'] && $result['lunch_in']->gt($result['time_out'])) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'Lunch In is after Time Out (order issue).';
+        }
+
+        // If only 1 punch, no time out
+        if ($uniquePunches->count() === 1) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'Only 1 punch recorded.';
+        }
+
+        // If lunch punches missing
+        if ($lunchStart && (!$result['lunch_out'] || !$result['lunch_in'])) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'Lunch punches could not be inferred.';
+        }
+
+        // If no time out assigned
+        if (!$result['time_out']) {
+            $result['needs_review'] = true;
+            $result['notes'][] = 'No Time Out recorded (missed timeout).';
+        }
+
+        return $result;
+    }
+
+    /**
+     * Find the index of the punch closest to a target time.
+     */
+    protected function findClosest(array $available, Carbon $target): ?int
+    {
+        $bestIdx = null;
+        $bestDiff = PHP_INT_MAX;
+
+        foreach ($available as $idx => $punchTime) {
+            $diff = abs($punchTime->diffInSeconds($target));
+            if ($diff < $bestDiff) {
+                $bestDiff = $diff;
+                $bestIdx = $idx;
+            }
+        }
+
+        return $bestIdx;
+    }
+
+    /**
      * Compute a single attendance day from raw logs (no override protection).
      */
     public function computeDay(
@@ -134,35 +289,18 @@ class AttendanceComputeService
         ?\App\Models\Shift $shift,
         ?int $sourceRunId = null
     ): AttendanceDay {
-        $needsReview = false;
-        $notes = [];
+        // Use new timestamp assignment rules
+        $assigned = $this->assignTimestamps($punches, $shift, $workDate);
 
-        $sorted = $punches->sortBy('punched_at')->values();
+        $rawTimeIn = $assigned['time_in'];
+        $rawTimeOut = $assigned['time_out'];
+        $lunchOut = $assigned['lunch_out'];
+        $lunchIn = $assigned['lunch_in'];
+        $needsReview = $assigned['needs_review'];
+        $notes = $assigned['notes'];
 
-        $rawTimeIn = Carbon::parse($sorted->first()->punched_at);
-        $rawTimeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
-
-        $computeTimeIn = $this->ceilToMinute($rawTimeIn);
+        $computeTimeIn = $rawTimeIn ? $this->ceilToMinute($rawTimeIn) : null;
         $computeTimeOut = $rawTimeOut ? $this->floorToMinute($rawTimeOut) : null;
-
-        $lunchOut = null;
-        $lunchIn = null;
-
-        if (!$shift) {
-            $needsReview = true;
-            $notes[] = 'No shift assigned to employee.';
-        }
-
-        if ($shift && $sorted->count() >= 3) {
-            $lunchResult = $this->inferLunchPunches($sorted, $shift, $workDate);
-            $lunchOut = $lunchResult['lunch_out'];
-            $lunchIn = $lunchResult['lunch_in'];
-        }
-
-        if ($shift && (!$lunchOut || !$lunchIn)) {
-            $needsReview = true;
-            $notes[] = 'Lunch punches could not be inferred.';
-        }
 
         $computed = $this->computeMetrics($computeTimeIn, $computeTimeOut, $lunchOut, $lunchIn, $shift, $workDate);
 
@@ -209,24 +347,17 @@ class AttendanceComputeService
         $needsReview = false;
         $notes = [];
 
-        $sorted = $punches->sortBy('punched_at')->values();
+        // Use new timestamp assignment rules for fresh values
+        $assigned = $this->assignTimestamps($punches, $shift, $workDate);
 
-        // Fresh values from raw logs
-        $freshTimeIn = Carbon::parse($sorted->first()->punched_at);
-        $freshTimeOut = $sorted->count() > 1 ? Carbon::parse($sorted->last()->punched_at) : null;
-
-        $freshLunchOut = null;
-        $freshLunchIn = null;
+        $freshTimeIn = $assigned['time_in'];
+        $freshTimeOut = $assigned['time_out'];
+        $freshLunchOut = $assigned['lunch_out'];
+        $freshLunchIn = $assigned['lunch_in'];
 
         if (!$shift) {
             $needsReview = true;
             $notes[] = 'No shift assigned to employee.';
-        }
-
-        if ($shift && $sorted->count() >= 3) {
-            $lunchResult = $this->inferLunchPunches($sorted, $shift, $workDate);
-            $freshLunchOut = $lunchResult['lunch_out'];
-            $freshLunchIn = $lunchResult['lunch_in'];
         }
 
         // Determine final values: use existing (edited) value if field was overridden, otherwise use fresh
@@ -258,6 +389,11 @@ class AttendanceComputeService
         if ($computeShift && (!$finalLunchOut || !$finalLunchIn)) {
             $needsReview = true;
             $notes[] = 'Lunch punches could not be inferred.';
+        }
+
+        if (!$finalTimeOut) {
+            $needsReview = true;
+            $notes[] = 'No Time Out recorded (missed timeout).';
         }
 
         // Compute metrics using the final values (mix of edited + fresh)
@@ -376,42 +512,12 @@ class AttendanceComputeService
     }
 
     /**
-     * Infer lunch out/in from punches within the lunch window.
-     */
-    protected function inferLunchPunches(Collection $punches, \App\Models\Shift $shift, string $workDate): array
-    {
-        $lunchStart = Carbon::parse($workDate . ' ' . $shift->lunch_start);
-        $lunchEnd = Carbon::parse($workDate . ' ' . $shift->lunch_end);
-
-        $windowStart = $lunchStart->copy()->subMinutes($shift->lunch_inference_window_before_minutes);
-        $windowEnd = $lunchEnd->copy()->addMinutes($shift->lunch_inference_window_after_minutes);
-
-        $lunchOut = null;
-        $lunchIn = null;
-
-        $middlePunches = $punches->slice(1, -1)->values();
-
-        foreach ($middlePunches as $punch) {
-            $punchTime = Carbon::parse($punch->punched_at);
-
-            if ($punchTime->between($windowStart, $windowEnd)) {
-                if (!$lunchOut) {
-                    $lunchOut = $punchTime;
-                } elseif (!$lunchIn) {
-                    $lunchIn = $punchTime;
-                    break;
-                }
-            }
-        }
-
-        return [
-            'lunch_out' => $lunchOut,
-            'lunch_in'  => $lunchIn,
-        ];
-    }
-
-    /**
-     * Compute work minutes, late, early, overtime using overlap method.
+     * Compute work minutes, late, early, overtime.
+     *
+     * Work minutes: actual time worked within shift periods (morning + afternoon), excluding lunch.
+     * Late: minutes arrived after shift start (only counted if after grace period).
+     * Early: remaining WORK minutes not worked because of early departure (lunch excluded).
+     * OT: minutes worked after shift end.
      */
     protected function computeMetrics(
         ?Carbon $timeIn,
@@ -434,31 +540,97 @@ class AttendanceComputeService
 
         $shiftStart = Carbon::parse($workDate . ' ' . $shift->start_time);
         $shiftEnd = Carbon::parse($workDate . ' ' . $shift->end_time);
-        $shiftLunchStart = Carbon::parse($workDate . ' ' . $shift->lunch_start);
-        $shiftLunchEnd = Carbon::parse($workDate . ' ' . $shift->lunch_end);
+        $shiftLunchStart = $shift->lunch_start ? Carbon::parse($workDate . ' ' . $shift->lunch_start) : null;
+        $shiftLunchEnd = $shift->lunch_end ? Carbon::parse($workDate . ' ' . $shift->lunch_end) : null;
 
-        $morningActualStart = $timeIn;
-        $morningActualEnd = $lunchOut ?? $shiftLunchStart;
-        $morningMinutes = $this->overlapMinutes($morningActualStart, $morningActualEnd, $shiftStart, $shiftLunchStart);
+        $hasLunch = $shiftLunchStart && $shiftLunchEnd;
 
-        $afternoonActualStart = $lunchIn ?? $shiftLunchEnd;
-        $afternoonActualEnd = $timeOut ?? $shiftEnd;
-        $afternoonMinutes = $this->overlapMinutes($afternoonActualStart, $afternoonActualEnd, $shiftLunchEnd, $shiftEnd);
+        // === WORK MINUTES ===
+        // Calculate actual work time within shift periods, excluding lunch
+        if ($hasLunch) {
+            // Morning period: shift start to lunch start
+            $morningActualStart = $timeIn;
+            $morningActualEnd = $lunchOut ?? ($timeOut ?? $shiftLunchStart);
+            // Cap morning end to lunch start
+            if ($morningActualEnd->gt($shiftLunchStart)) {
+                $morningActualEnd = $shiftLunchStart;
+            }
+            $morningMinutes = $this->overlapMinutes($morningActualStart, $morningActualEnd, $shiftStart, $shiftLunchStart);
 
-        $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);
-
-        $graceDeadline = $shiftStart->copy()->addMinutes($shift->grace_in_minutes);
-        if ($timeIn->gt($graceDeadline)) {
-            $result['late_minutes'] = (int) $shiftStart->diffInMinutes($timeIn);
-        }
-
-        if ($timeOut) {
-            $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
-            if ($timeOut->lt($earlyDeadline)) {
-                $result['early_minutes'] = (int) $timeOut->diffInMinutes($shiftEnd);
+            // Afternoon period: lunch end to shift end
+            $afternoonActualStart = $lunchIn ?? $shiftLunchEnd;
+            $afternoonActualEnd = $timeOut ?? $shiftEnd;
+            // If no time out, we don't assume they stayed till shift end — mark 0 afternoon
+            if (!$timeOut) {
+                // Check if they at least came back from lunch
+                if ($lunchIn && $lunchIn->gte($shiftLunchEnd)) {
+                    // They came back but no time out — we can't compute afternoon
+                    $afternoonMinutes = 0;
+                } else {
+                    $afternoonMinutes = 0;
+                }
+            } else {
+                $afternoonMinutes = $this->overlapMinutes($afternoonActualStart, $afternoonActualEnd, $shiftLunchEnd, $shiftEnd);
+            }
+        } else {
+            // No lunch break — single work period
+            $morningMinutes = $this->overlapMinutes($timeIn, $timeOut ?? $shiftEnd, $shiftStart, $shiftEnd);
+            $afternoonMinutes = 0;
+            if (!$timeOut) {
+                $morningMinutes = 0;
             }
         }
 
+        $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);
+
+        // === LATE MINUTES ===
+        // Late = minutes arrived after shift start (with grace period)
+        $graceDeadline = $shiftStart->copy()->addMinutes($shift->grace_in_minutes);
+        if ($timeIn->gt($graceDeadline)) {
+            // Late minutes = only the minutes within the morning work period that were missed
+            // i.e., from shift start to time in, but only within shift start to lunch start
+            if ($hasLunch) {
+                $lateEnd = $timeIn->min($shiftLunchStart); // cap at lunch start
+                $result['late_minutes'] = max(0, (int) $shiftStart->diffInMinutes($lateEnd));
+            } else {
+                $lateEnd = $timeIn->min($shiftEnd);
+                $result['late_minutes'] = max(0, (int) $shiftStart->diffInMinutes($lateEnd));
+            }
+        }
+
+        // === EARLY MINUTES ===
+        // Early = remaining WORK minutes not worked because of early departure
+        // Lunch break is excluded (invisible)
+        if ($timeOut) {
+            $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
+            if ($timeOut->lt($earlyDeadline)) {
+                if ($hasLunch) {
+                    // Calculate remaining work minutes from time out to shift end, excluding lunch
+                    $earlyMinutes = 0;
+
+                    if ($timeOut->lt($shiftLunchStart)) {
+                        // Left before lunch — missed: (lunch start - time out) in morning + entire afternoon
+                        $morningMissed = (int) $timeOut->diffInMinutes($shiftLunchStart);
+                        $afternoonMissed = (int) $shiftLunchEnd->diffInMinutes($shiftEnd);
+                        $earlyMinutes = $morningMissed + $afternoonMissed;
+                    } elseif ($timeOut->lte($shiftLunchEnd)) {
+                        // Left during lunch — missed entire afternoon
+                        $afternoonMissed = (int) $shiftLunchEnd->diffInMinutes($shiftEnd);
+                        $earlyMinutes = $afternoonMissed;
+                    } else {
+                        // Left after lunch — missed: (shift end - time out) in afternoon
+                        $earlyMinutes = (int) $timeOut->diffInMinutes($shiftEnd);
+                    }
+
+                    $result['early_minutes'] = max(0, $earlyMinutes);
+                } else {
+                    // No lunch — simple subtraction
+                    $result['early_minutes'] = max(0, (int) $timeOut->diffInMinutes($shiftEnd));
+                }
+            }
+        }
+
+        // === OVERTIME MINUTES ===
         if ($timeOut && $timeOut->gt($shiftEnd)) {
             $result['overtime_minutes'] = (int) $shiftEnd->diffInMinutes($timeOut);
         }

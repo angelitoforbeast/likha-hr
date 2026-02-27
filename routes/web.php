@@ -72,6 +72,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/employees/{employee}/shift-assignment/{assignment}', [EmployeeController::class, 'deleteShiftAssignment'])->name('employees.delete-shift-assignment');
     Route::post('/employees/{employee}/add-rate', [EmployeeController::class, 'addRate'])->name('employees.add-rate');
     Route::delete('/employees/{employee}/rate/{rate}', [EmployeeController::class, 'deleteRate'])->name('employees.delete-rate');
+    Route::post('/employees/{employee}/inline-update', [EmployeeController::class, 'inlineUpdate'])->name('employees.inline-update');
 
     // Shifts
     Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');

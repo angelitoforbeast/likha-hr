@@ -155,6 +155,24 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Inline update a single field (AJAX).
+     */
+    public function inlineUpdate(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'field' => 'required|in:actual_name',
+            'value' => 'nullable|string|max:255',
+        ]);
+
+        $employee->update([$validated['field'] => $validated['value'] ?: null]);
+
+        return response()->json([
+            'success' => true,
+            'display_name' => $employee->display_name,
+        ]);
+    }
+
+    /**
      * Delete a rate entry.
      */
     public function deleteRate(Employee $employee, EmployeeRate $rate)

@@ -588,19 +588,30 @@ class AttendanceComputeService
         $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);
 
         // === LATE MINUTES ===
-        // Late = minutes arrived after shift start (with grace period)
+        // Late = minutes arrived after shift start (with grace period) + late lunch return
+        $lateMinutes = 0;
+
+        // A) Late morning arrival
         $graceDeadline = $shiftStart->copy()->addMinutes($shift->grace_in_minutes);
         if ($timeIn->gt($graceDeadline)) {
             // Late minutes = only the minutes within the morning work period that were missed
             // i.e., from shift start to time in, but only within shift start to lunch start
             if ($hasLunch) {
                 $lateEnd = $timeIn->min($shiftLunchStart); // cap at lunch start
-                $result['late_minutes'] = max(0, (int) $shiftStart->diffInMinutes($lateEnd));
+                $lateMinutes += max(0, (int) $shiftStart->diffInMinutes($lateEnd));
             } else {
                 $lateEnd = $timeIn->min($shiftEnd);
-                $result['late_minutes'] = max(0, (int) $shiftStart->diffInMinutes($lateEnd));
+                $lateMinutes += max(0, (int) $shiftStart->diffInMinutes($lateEnd));
             }
         }
+
+        // B) Late lunch return: came back from lunch after scheduled lunch end
+        if ($hasLunch && $lunchIn && $lunchIn->gt($shiftLunchEnd)) {
+            $lateLunchEnd = $lunchIn->min($shiftEnd); // cap at shift end
+            $lateMinutes += max(0, (int) $shiftLunchEnd->diffInMinutes($lateLunchEnd));
+        }
+
+        $result['late_minutes'] = max(0, $lateMinutes);
 
         // === EARLY MINUTES ===
         // Early = remaining WORK minutes not worked because of early departure OR early lunch out

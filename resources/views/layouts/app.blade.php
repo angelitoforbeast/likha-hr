@@ -69,6 +69,9 @@
             <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
                 <i class="bi bi-person-gear"></i> User Management
             </a>
+            <a class="nav-link {{ request()->is("manus-edit-logs*") ? "active" : "" }}" href="{{ url("/manus-edit-logs") }}">
+                <i class="bi bi-journal-code"></i> Edit Logs
+            </a>
             <div class="nav-item">
                 <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('settings*') ? 'active' : '' }}" data-bs-toggle="collapse" href="#settingsMenu" role="button">
                     <span><i class="bi bi-gear"></i> Settings</span>

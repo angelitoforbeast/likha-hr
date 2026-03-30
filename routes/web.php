@@ -16,6 +16,7 @@ use App\Http\Controllers\EmploymentStatusController;
 use App\Http\Controllers\FeaturePermissionController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\AttendanceCalendarController;
+use App\Http\Controllers\ManusEditLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,6 +117,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/departments/{department}/remove-employee/{employee}', [DepartmentController::class, 'removeEmployee'])->name('departments.remove-employee');
 
     // Attendance Calendar
+    Route::get("/manus-edit-logs", [ManusEditLogController::class, "index"])->name("manus-edit-logs.index");
     Route::get("/attendance-calendar", [AttendanceCalendarController::class, "index"])->name("attendance-calendar.index");
 
     // Day Off Calendar

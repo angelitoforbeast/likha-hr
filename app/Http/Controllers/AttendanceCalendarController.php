@@ -3,33 +3,54 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceDay;
+use App\Models\AttendanceOverride;
 use App\Models\Department;
 use App\Models\Employee;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 
 class AttendanceCalendarController extends Controller
 {
     /**
      * Show the Attendance Calendar page.
-     * Monthly grid view — rows = employees, columns = days of month.
-     * Only shows active employees that have at least one attendance log in the selected month.
+     * Grid view — rows = employees, columns = days in selected date range.
+     * Only shows active employees that have at least one attendance log in the range.
      */
     public function index(Request $request)
     {
         $departments = Department::orderBy('name')->get();
 
-        // Default to current month
-        $month = $request->input('month', now()->format('Y-m'));
-        $startOfMonth = Carbon::parse($month . '-01')->startOfMonth();
-        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+        // Default date range: 1st to last day of current month
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
+        $dateTo   = $request->input('date_to', now()->endOfMonth()->format('Y-m-d'));
 
-        $filterType = $request->input('filter_type', 'all'); // all, department, employee
+        $startDate = Carbon::parse($dateFrom)->startOfDay();
+        $endDate   = Carbon::parse($dateTo)->startOfDay();
+
+        // Ensure from <= to
+        if ($startDate->gt($endDate)) {
+            $tmp = $startDate;
+            $startDate = $endDate;
+            $endDate = $tmp;
+            $dateFrom = $startDate->format('Y-m-d');
+            $dateTo = $endDate->format('Y-m-d');
+        }
+
+        $filterType = $request->input('filter_type', 'all');
         $departmentId = $request->input('department_id');
         $employeeId = $request->input('employee_id');
 
-        // Get employee IDs that have attendance records in this month
-        $employeeIdsWithLogs = AttendanceDay::whereBetween('work_date', [$startOfMonth, $endOfMonth])
+        // Build the list of dates in range
+        $period = CarbonPeriod::create($startDate, $endDate);
+        $dates = [];
+        foreach ($period as $date) {
+            $dates[] = $date->copy();
+        }
+        $totalDays = count($dates);
+
+        // Get employee IDs that have attendance records in this range
+        $employeeIdsWithLogs = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
             ->distinct()
             ->pluck('employee_id')
             ->toArray();
@@ -49,10 +70,10 @@ class AttendanceCalendarController extends Controller
         // All active employees for the employee filter dropdown
         $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
 
-        // Preload all attendance days for the month for these employees
+        // Preload all attendance days for the range for these employees
         $attendanceDays = AttendanceDay::with('shift')
             ->whereIn('employee_id', $filteredEmployees->pluck('id'))
-            ->whereBetween('work_date', [$startOfMonth, $endOfMonth])
+            ->whereBetween('work_date', [$startDate, $endDate])
             ->get();
 
         // Index by employee_id + date
@@ -62,9 +83,14 @@ class AttendanceCalendarController extends Controller
             $attendanceIndex[$key] = $day;
         }
 
+        // Preload overrides for these attendance days to show edit indicators
+        $attDayIds = $attendanceDays->pluck('id')->toArray();
+        $overrides = AttendanceOverride::whereIn('attendance_day_id', $attDayIds)
+            ->get()
+            ->groupBy('attendance_day_id');
+
         // Build calendar data
         $calendarData = [];
-        $daysInMonth = $startOfMonth->daysInMonth;
 
         foreach ($filteredEmployees as $emp) {
             $empData = [
@@ -72,16 +98,14 @@ class AttendanceCalendarController extends Controller
                 'days' => [],
             ];
 
-            for ($d = 1; $d <= $daysInMonth; $d++) {
-                $date = $startOfMonth->copy()->day($d);
+            foreach ($dates as $idx => $date) {
                 $dateStr = $date->format('Y-m-d');
                 $key = $emp->id . '_' . $dateStr;
 
                 $attDay = $attendanceIndex[$key] ?? null;
 
                 if ($attDay) {
-                    // Has attendance record — determine status
-                    $status = 'present'; // default
+                    $status = 'present';
                     $lateMin = $attDay->computed_late_minutes ?? 0;
                     $earlyMin = $attDay->computed_early_minutes ?? 0;
 
@@ -93,22 +117,28 @@ class AttendanceCalendarController extends Controller
                         $status = 'undertime';
                     }
 
-                    $empData['days'][$d] = [
+                    // Check if any overrides exist for this day
+                    $hasOverrides = isset($overrides[$attDay->id]);
+
+                    $empData['days'][$idx] = [
                         'date' => $dateStr,
                         'status' => $status,
                         'attendance' => $attDay,
+                        'has_overrides' => $hasOverrides,
                     ];
                 } elseif ($emp->isDayOff($dateStr)) {
-                    $empData['days'][$d] = [
+                    $empData['days'][$idx] = [
                         'date' => $dateStr,
                         'status' => 'day_off',
                         'attendance' => null,
+                        'has_overrides' => false,
                     ];
                 } else {
-                    $empData['days'][$d] = [
+                    $empData['days'][$idx] = [
                         'date' => $dateStr,
                         'status' => 'absent',
                         'attendance' => null,
+                        'has_overrides' => false,
                     ];
                 }
             }
@@ -118,7 +148,7 @@ class AttendanceCalendarController extends Controller
 
         return view('attendance-calendar.index', compact(
             'departments', 'employees', 'calendarData',
-            'month', 'startOfMonth', 'daysInMonth',
+            'dates', 'totalDays', 'dateFrom', 'dateTo',
             'filterType', 'departmentId', 'employeeId'
         ));
     }

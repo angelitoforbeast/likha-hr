@@ -538,7 +538,57 @@ class AttendanceComputeService
             'overtime_minutes' => 0,
         ];
 
-        if (!$shift || !$timeIn) {
+        if (!$shift) {
+            return $result;
+        }
+
+        // === MISSING TIME IN SCENARIO ===
+        // No Time In, but has Lunch In + Time Out → compute afternoon portion only
+        // The entire morning period is counted as late minutes
+        if (!$timeIn && $lunchIn && $timeOut) {
+            $shiftStart = Carbon::parse($workDate . ' ' . $shift->start_time);
+            $shiftEnd = Carbon::parse($workDate . ' ' . $shift->end_time);
+            $shiftLunchStart = $shift->lunch_start ? Carbon::parse($workDate . ' ' . $shift->lunch_start) : null;
+            $shiftLunchEnd = $shift->lunch_end ? Carbon::parse($workDate . ' ' . $shift->lunch_end) : null;
+
+            // Afternoon work minutes: from lunchIn to timeOut, within shift afternoon period
+            if ($shiftLunchEnd) {
+                $afternoonMinutes = $this->overlapMinutes($lunchIn, $timeOut, $shiftLunchEnd, $shiftEnd);
+            } else {
+                $afternoonMinutes = 0;
+            }
+            $result['work_minutes'] = max(0, $afternoonMinutes);
+
+            // Late minutes = entire morning period (shift start to lunch start)
+            $lateMinutes = 0;
+            if ($shiftLunchStart) {
+                $lateMinutes += max(0, (int) $shiftStart->diffInMinutes($shiftLunchStart));
+            }
+            // Also add late lunch return if lunchIn is after scheduled lunch end
+            if ($shiftLunchEnd && $lunchIn->gt($shiftLunchEnd)) {
+                $lateLunchEnd = $lunchIn->min($shiftEnd);
+                $lateMinutes += max(0, (int) $shiftLunchEnd->diffInMinutes($lateLunchEnd));
+            }
+            $result['late_minutes'] = max(0, $lateMinutes);
+
+            // Early minutes: if timeOut is before shift end
+            if ($timeOut->lt($shiftEnd)) {
+                $earlyDeadline = $shiftEnd->copy()->subMinutes($shift->grace_out_minutes);
+                if ($timeOut->lt($earlyDeadline)) {
+                    $result['early_minutes'] = max(0, (int) $timeOut->diffInMinutes($shiftEnd));
+                }
+            }
+
+            // Overtime: if timeOut is after shift end
+            if ($timeOut->gt($shiftEnd)) {
+                $result['overtime_minutes'] = (int) $shiftEnd->diffInMinutes($timeOut);
+            }
+
+            return $result;
+        }
+
+        // Normal scenario: if no timeIn and no lunchIn, nothing to compute
+        if (!$timeIn) {
             return $result;
         }
 

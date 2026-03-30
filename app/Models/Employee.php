@@ -265,6 +265,7 @@ class Employee extends Model
         $regularHolidays = 0;
         $specialHolidays = 0;
         $requiredDays = 0;
+        $requiredDates = [];
         $holidayDates = [];
         $regularHolidayDates = [];
         $specialHolidayDates = [];
@@ -298,6 +299,7 @@ class Employee extends Model
             } else {
                 // Not eligible for holiday = treated as regular working day
                 $requiredDays++;
+                $requiredDates[] = $dateStr;
             }
         }
 
@@ -308,6 +310,7 @@ class Employee extends Model
             'regular_holidays' => $regularHolidays,
             'special_holidays' => $specialHolidays,
             'required_mandays' => $requiredDays,
+            'required_dates' => $requiredDates,
             'holiday_dates' => $holidayDates,
             'regular_holiday_dates' => $regularHolidayDates,
             'special_holiday_dates' => $specialHolidayDates,

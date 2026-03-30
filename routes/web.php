@@ -15,6 +15,7 @@ use App\Http\Controllers\DayOffCalendarController;
 use App\Http\Controllers\EmploymentStatusController;
 use App\Http\Controllers\FeaturePermissionController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\AttendanceCalendarController;
 
 /*
 |--------------------------------------------------------------------------
@@ -113,6 +114,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/departments/{department}/shift-assignment/{assignment}', [DepartmentController::class, 'deleteShiftAssignment'])->name('departments.delete-shift-assignment');
     Route::post('/departments/{department}/add-employee', [DepartmentController::class, 'addEmployee'])->name('departments.add-employee');
     Route::delete('/departments/{department}/remove-employee/{employee}', [DepartmentController::class, 'removeEmployee'])->name('departments.remove-employee');
+
+    // Attendance Calendar
+    Route::get("/attendance-calendar", [AttendanceCalendarController::class, "index"])->name("attendance-calendar.index");
 
     // Day Off Calendar
     Route::get('/day-off-calendar', [DayOffCalendarController::class, 'index'])->name('dayoff.index');

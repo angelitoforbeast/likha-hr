@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeBenefit;
 use App\Models\EmployeeRate;
+use Carbon\Carbon;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\EmployeeStatusHistory;
 use App\Models\EmploymentStatus;
@@ -156,7 +157,21 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        $overlap = $this->checkRateOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null);
+        $newStart = $validated['effective_date'];
+
+        // Auto-close any open-ended rate that starts before the new rate
+        $openRates = EmployeeRate::where('employee_id', $employee->id)
+            ->whereNull('effective_until')
+            ->where('effective_date', '<', $newStart)
+            ->get();
+
+        foreach ($openRates as $openRate) {
+            $openRate->effective_until = Carbon::parse($newStart)->subDay()->format('Y-m-d');
+            $openRate->save();
+        }
+
+        // Check for remaining overlaps (with closed-end rates)
+        $overlap = $this->checkRateOverlap($employee->id, $newStart, $validated['effective_until'] ?? null);
         if ($overlap) {
             return redirect()->route('employees.edit', $employee)
                 ->with('error', "Rate overlaps with existing rate (effective {$overlap->effective_date->format('M d, Y')}).");
@@ -165,7 +180,7 @@ class EmployeeController extends Controller
         $employee->employeeRates()->create($validated);
 
         return redirect()->route('employees.edit', $employee)
-            ->with('success', "Rate added effective {$validated['effective_date']}.");
+            ->with('success', "Rate added effective {$newStart}. Previous open rate auto-closed.");
     }
 
     public function deleteRate(Employee $employee, EmployeeRate $rate)

@@ -91,9 +91,19 @@
         {{-- BASIC PAY Section --}}
         <div class="payslip-section-title"><i class="bi bi-wallet2"></i> Basic Pay</div>
 
+        @php
+            $storedGross = $item->base_pay + ($item->absence_deduction ?? 0) + ($item->late_deduction ?? 0) + ($item->early_deduction ?? 0);
+            $simpleGross = $item->daily_rate * $item->required_mandays;
+            $isMultiRate = abs($storedGross - $simpleGross) > 1;
+        @endphp
         <div class="payslip-row">
-            <span>Gross Basic ({{ $item->required_mandays }} days &times; &#8369;{{ number_format($item->daily_rate, 2) }})</span>
-            <span>&#8369;{{ number_format($item->daily_rate * $item->required_mandays, 2) }}</span>
+            @if($isMultiRate)
+                <span>Gross Basic ({{ $item->required_mandays }} days, variable rate)</span>
+                <span>&#8369;{{ number_format($storedGross, 2) }}</span>
+            @else
+                <span>Gross Basic ({{ $item->required_mandays }} days &times; &#8369;{{ number_format($item->daily_rate, 2) }})</span>
+                <span>&#8369;{{ number_format($simpleGross, 2) }}</span>
+            @endif
         </div>
 
         @if($item->absent_days > 0)
@@ -180,6 +190,66 @@
         @if($item->notes)
         <div class="small text-muted ps-2 mb-1"><em>{{ $item->notes }}</em></div>
         @endif
+        @endif
+
+        {{-- DAILY BREAKDOWN Section --}}
+        @php $breakdown = $item->daily_breakdown ?? []; @endphp
+        @if(count($breakdown) > 0)
+        <div class="payslip-divider"></div>
+        <div class="payslip-section-title"><i class="bi bi-calendar3"></i> Daily Breakdown</div>
+
+        <div style="overflow-x:auto;">
+        <table class="table table-sm table-bordered mb-2" style="font-size:0.78rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th class="text-center">In</th>
+                    <th class="text-center">L-Out</th>
+                    <th class="text-center">L-In</th>
+                    <th class="text-center">Out</th>
+                    <th class="text-end">Hours</th>
+                    <th class="text-end">Late</th>
+                    <th class="text-end">UT</th>
+                    <th class="text-end">OT</th>
+                    <th class="text-end">Rate</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach($breakdown as $bd)
+                @php
+                    $rowClass = '';
+                    if (($bd['type'] ?? '') === 'rest_day') $rowClass = 'table-secondary';
+                    elseif (($bd['type'] ?? '') === 'rest_day_worked') $rowClass = 'table-info';
+                    elseif (($bd['type'] ?? '') === 'holiday') $rowClass = 'table-warning';
+                    elseif (($bd['type'] ?? '') === 'absent') $rowClass = 'table-danger';
+                    $typeLabel = match($bd['type'] ?? 'regular') {
+                        'rest_day' => 'Rest Day',
+                        'rest_day_worked' => 'RD Worked',
+                        'holiday' => 'Holiday',
+                        'absent' => 'Absent',
+                        default => 'Regular',
+                    };
+                @endphp
+                <tr class="{{ $rowClass }}">
+                    <td>{{ \Carbon\Carbon::parse($bd['date'])->format('M d') }}</td>
+                    <td>{{ $typeLabel }}</td>
+                    <td class="text-center">{{ $bd['time_in'] ?? '—' }}</td>
+                    <td class="text-center">{{ $bd['lunch_out'] ?? '—' }}</td>
+                    <td class="text-center">{{ $bd['lunch_in'] ?? '—' }}</td>
+                    <td class="text-center">{{ $bd['time_out'] ?? '—' }}</td>
+                    <td class="text-end">{{ $bd['hours'] ?? 0 }}h</td>
+                    <td class="text-end {{ ($bd['late'] ?? 0) > 0 ? 'text-danger' : '' }}">{{ ($bd['late'] ?? 0) > 0 ? $bd['late'] . 'm' : '—' }}</td>
+                    <td class="text-end {{ ($bd['undertime'] ?? 0) > 0 ? 'text-danger' : '' }}">{{ ($bd['undertime'] ?? 0) > 0 ? $bd['undertime'] . 'm' : '—' }}</td>
+                    <td class="text-end {{ ($bd['ot'] ?? 0) > 0 ? 'text-success' : '' }}">{{ ($bd['ot'] ?? 0) > 0 ? $bd['ot'] . 'm' : '—' }}</td>
+                    <td class="text-end">&#8369;{{ number_format($bd['rate'] ?? $item->daily_rate, 2) }}</td>
+                    <td class="text-end">&#8369;{{ number_format($bd['amount'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        </div>
         @endif
 
         {{-- NET PAY --}}

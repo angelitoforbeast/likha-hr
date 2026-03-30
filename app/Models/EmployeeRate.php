@@ -14,12 +14,14 @@ class EmployeeRate extends Model
         'employee_id',
         'daily_rate',
         'effective_date',
+        'effective_until',
         'remarks',
     ];
 
     protected $casts = [
-        'daily_rate'     => 'decimal:2',
-        'effective_date' => 'date',
+        'daily_rate'      => 'decimal:2',
+        'effective_date'  => 'date',
+        'effective_until' => 'date',
     ];
 
     public function employee(): BelongsTo

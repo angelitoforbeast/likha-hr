@@ -45,8 +45,11 @@
             <a class="nav-link {{ request()->is('import*') ? 'active' : '' }}" href="{{ url('/import') }}">
                 <i class="bi bi-upload"></i> Import Attendance
             </a>
-            <a class="nav-link {{ request()->is('attendance*') ? 'active' : '' }}" href="{{ url('/attendance') }}">
+            <a class="nav-link {{ request()->is('attendance', 'attendance/*') ? 'active' : '' }}" href="{{ url('/attendance') }}">
                 <i class="bi bi-calendar-check"></i> Attendance Viewer
+            </a>
+            <a class="nav-link {{ request()->is("attendance-calendar*") ? "active" : "" }}" href="{{ url("/attendance-calendar") }}">
+                <i class="bi bi-calendar2-week"></i> Attendance Calendar
             </a>
             <a class="nav-link {{ request()->is('payroll*') ? 'active' : '' }}" href="{{ url('/payroll') }}">
                 <i class="bi bi-cash-stack"></i> Payroll

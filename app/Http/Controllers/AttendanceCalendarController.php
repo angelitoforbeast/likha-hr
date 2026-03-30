@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AttendanceDay;
 use App\Models\AttendanceOverride;
+use App\Models\DayOff;
 use App\Models\Department;
 use App\Models\Employee;
 use Carbon\Carbon;
@@ -83,9 +84,11 @@ class AttendanceCalendarController extends Controller
             $attendanceIndex[$key] = $day;
         }
 
-        // Preload overrides for these attendance days to show edit indicators
+        // Preload overrides for these attendance days (with updater for detail display)
         $attDayIds = $attendanceDays->pluck('id')->toArray();
-        $overrides = AttendanceOverride::whereIn('attendance_day_id', $attDayIds)
+        $overrides = AttendanceOverride::with('updater')
+            ->whereIn('attendance_day_id', $attDayIds)
+            ->orderBy('created_at', 'asc')
             ->get()
             ->groupBy('attendance_day_id');
 
@@ -109,22 +112,34 @@ class AttendanceCalendarController extends Controller
                     $lateMin = $attDay->computed_late_minutes ?? 0;
                     $earlyMin = $attDay->computed_early_minutes ?? 0;
 
-                    if ($lateMin > 0 && $earlyMin > 0) {
-                        $status = 'late_ut';
-                    } elseif ($lateMin > 0) {
-                        $status = 'late';
-                    } elseif ($earlyMin > 0) {
+                    // Merge late and undertime into single "undertime" status
+                    if ($lateMin > 0 || $earlyMin > 0) {
                         $status = 'undertime';
                     }
 
                     // Check if any overrides exist for this day
-                    $hasOverrides = isset($overrides[$attDay->id]);
+                    $dayOverrides = $overrides[$attDay->id] ?? collect();
+                    $hasOverrides = $dayOverrides->isNotEmpty();
+
+                    // Build per-field override details for modal display
+                    $overrideDetails = [];
+                    foreach ($dayOverrides as $ov) {
+                        $overrideDetails[] = [
+                            'field' => $ov->field,
+                            'old_value' => $ov->old_value,
+                            'new_value' => $ov->new_value,
+                            'reason' => $ov->reason,
+                            'updater' => $ov->updater->name ?? 'Unknown',
+                            'date' => $ov->created_at->format('M d, Y g:i A'),
+                        ];
+                    }
 
                     $empData['days'][$idx] = [
                         'date' => $dateStr,
                         'status' => $status,
                         'attendance' => $attDay,
                         'has_overrides' => $hasOverrides,
+                        'override_details' => $overrideDetails,
                     ];
                 } elseif ($emp->isDayOff($dateStr)) {
                     $empData['days'][$idx] = [
@@ -132,6 +147,7 @@ class AttendanceCalendarController extends Controller
                         'status' => 'day_off',
                         'attendance' => null,
                         'has_overrides' => false,
+                        'override_details' => [],
                     ];
                 } else {
                     $empData['days'][$idx] = [
@@ -139,6 +155,7 @@ class AttendanceCalendarController extends Controller
                         'status' => 'absent',
                         'attendance' => null,
                         'has_overrides' => false,
+                        'override_details' => [],
                     ];
                 }
             }
@@ -151,5 +168,62 @@ class AttendanceCalendarController extends Controller
             'dates', 'totalDays', 'dateFrom', 'dateTo',
             'filterType', 'departmentId', 'employeeId'
         ));
+    }
+
+    /**
+     * Toggle a day off via AJAX (reuses same logic as DayOffCalendarController@toggle).
+     */
+    public function toggleDayOff(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+            'action'      => 'required|in:add_day_off,cancel_day_off,remove_override',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $date = $validated['date'];
+
+        $existing = DayOff::where('employee_id', $employee->id)
+            ->where('off_date', $date)
+            ->first();
+
+        if ($validated['action'] === 'remove_override') {
+            if ($existing) $existing->delete();
+            $message = 'Override removed.';
+        } elseif ($validated['action'] === 'add_day_off') {
+            if ($existing) {
+                $existing->update(['type' => DayOff::TYPE_DAY_OFF, 'remarks' => 'Set via attendance calendar']);
+            } else {
+                DayOff::create([
+                    'employee_id' => $employee->id,
+                    'off_date' => $date,
+                    'type' => DayOff::TYPE_DAY_OFF,
+                    'remarks' => 'Set via attendance calendar',
+                ]);
+            }
+            $message = 'Rest day added.';
+        } elseif ($validated['action'] === 'cancel_day_off') {
+            if ($existing) {
+                $existing->update(['type' => DayOff::TYPE_CANCEL_DAY_OFF, 'remarks' => 'Cancelled via attendance calendar']);
+            } else {
+                DayOff::create([
+                    'employee_id' => $employee->id,
+                    'off_date' => $date,
+                    'type' => DayOff::TYPE_CANCEL_DAY_OFF,
+                    'remarks' => 'Cancelled via attendance calendar',
+                ]);
+            }
+            $message = 'Rest day cancelled (must work).';
+        }
+
+        // Return updated status
+        $isDayOff = $employee->isDayOff($date);
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'is_day_off' => $isDayOff,
+        ]);
     }
 }

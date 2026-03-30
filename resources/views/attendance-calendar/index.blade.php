@@ -10,10 +10,8 @@
     .cal-table td { text-align: center; padding: .35rem .25rem; cursor: pointer; position: relative; min-width: 32px; }
     .cal-table td:hover { background: #e9ecef; }
     .cal-cell-present { background: #d1e7dd !important; color: #0f5132; font-weight: 600; }
-    .cal-cell-late { background: #fff3cd !important; color: #664d03; font-weight: 600; }
-    .cal-cell-undertime { background: #ffe5d0 !important; color: #984c0c; font-weight: 600; }
-    .cal-cell-late-ut { background: #f8d7da !important; color: #842029; font-weight: 600; }
-    .cal-cell-absent { background: #e2e3e5 !important; color: #41464b; font-weight: 600; }
+    .cal-cell-undertime { background: #fff3cd !important; color: #664d03; font-weight: 600; }
+    .cal-cell-absent { background: #f8d7da !important; color: #842029; font-weight: 600; }
     .cal-cell-dayoff { background: #cfe2ff !important; color: #084298; font-weight: 600; }
     .cal-cell-today { border: 2px solid #0d6efd !important; }
     .cal-cell-edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #6f42c1; border-radius: 50%; }
@@ -22,8 +20,12 @@
     .employee-name-col { white-space: nowrap; font-weight: 600; font-size: .8rem; min-width: 140px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
     .time-editable { cursor: pointer; border-bottom: 1px dashed #999; padding: 1px 3px; border-radius: 2px; }
     .time-editable:hover { background: #e2e6ea; }
-    .time-edited { color: #6f42c1 !important; font-weight: 600; }
+    .time-edited { color: #6f42c1 !important; font-weight: 600; background: #fff3cd; border: 1px solid #ffc107; border-radius: 3px; padding: 1px 4px; }
     .override-dot { color: #6f42c1; font-size: .6rem; vertical-align: super; }
+    .override-history { font-size: .78rem; background: #f8f9fa; border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
+    .override-history .ov-entry { border-bottom: 1px solid #e9ecef; padding: 3px 0; }
+    .override-history .ov-entry:last-child { border-bottom: none; }
+    .dayoff-action-btn { font-size: .75rem; padding: 2px 8px; }
 </style>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -86,12 +88,10 @@
 {{-- Legend --}}
 <div class="mb-2">
     <span class="cal-legend"><span class="cal-legend-box" style="background:#d1e7dd"></span> Present</span>
-    <span class="cal-legend"><span class="cal-legend-box" style="background:#fff3cd"></span> Late</span>
-    <span class="cal-legend"><span class="cal-legend-box" style="background:#ffe5d0"></span> Undertime</span>
-    <span class="cal-legend"><span class="cal-legend-box" style="background:#f8d7da"></span> Late + Undertime</span>
-    <span class="cal-legend"><span class="cal-legend-box" style="background:#e2e3e5"></span> Absent</span>
-    <span class="cal-legend"><span class="cal-legend-box" style="background:#cfe2ff"></span> Day Off</span>
-    <span class="cal-legend"><span style="display:inline-block;width:8px;height:8px;background:#6f42c1;border-radius:50;margin-right:2px"></span> Edited</span>
+    <span class="cal-legend"><span class="cal-legend-box" style="background:#fff3cd"></span> Undertime</span>
+    <span class="cal-legend"><span class="cal-legend-box" style="background:#f8d7da"></span> Absent</span>
+    <span class="cal-legend"><span class="cal-legend-box" style="background:#cfe2ff"></span> Rest Day</span>
+    <span class="cal-legend"><span style="display:inline-block;width:8px;height:8px;background:#6f42c1;border-radius:50%;margin-right:2px"></span> Edited</span>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -120,14 +120,13 @@
                     @endforeach
                     <th title="Present">P</th>
                     <th title="Absent">A</th>
-                    <th title="Late">L</th>
                     <th title="Undertime">UT</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($calendarData as $empCal)
                 @php
-                    $countP = 0; $countA = 0; $countL = 0; $countUT = 0;
+                    $countP = 0; $countA = 0; $countUT = 0;
                 @endphp
                 <tr>
                     <td class="employee-name-col text-start" style="position:sticky; left:0; background:#fff; z-index:1;" title="{{ $empCal['employee']->display_name }}">
@@ -150,23 +149,10 @@
                                     $cellText = 'P';
                                     $countP++;
                                     break;
-                                case 'late':
-                                    $cellClass = 'cal-cell-late';
-                                    $cellText = 'L';
-                                    $countP++;
-                                    $countL++;
-                                    break;
                                 case 'undertime':
                                     $cellClass = 'cal-cell-undertime';
                                     $cellText = 'UT';
                                     $countP++;
-                                    $countUT++;
-                                    break;
-                                case 'late_ut':
-                                    $cellClass = 'cal-cell-late-ut';
-                                    $cellText = 'L/UT';
-                                    $countP++;
-                                    $countL++;
                                     $countUT++;
                                     break;
                                 case 'absent':
@@ -176,7 +162,7 @@
                                     break;
                                 case 'day_off':
                                     $cellClass = 'cal-cell-dayoff';
-                                    $cellText = 'DO';
+                                    $cellText = 'RD';
                                     break;
                             }
 
@@ -186,9 +172,16 @@
                             // Build data attributes for modal
                             $dataAttrs = 'data-date="' . $dayInfo['date'] . '"'
                                 . ' data-status="' . $dayInfo['status'] . '"'
-                                . ' data-employee="' . e($empCal['employee']->display_name) . '"';
+                                . ' data-employee="' . e($empCal['employee']->display_name) . '"'
+                                . ' data-employee-id="' . $empCal['employee']->id . '"';
 
                             if ($att) {
+                                // Build override details JSON
+                                $ovDetailsJson = json_encode($dayInfo['override_details'] ?? []);
+
+                                // Check which fields have been edited
+                                $editedFields = collect($dayInfo['override_details'] ?? [])->pluck('field')->unique()->toArray();
+
                                 $dataAttrs .= ' data-att-id="' . $att->id . '"'
                                     . ' data-shift="' . e($att->shift->name ?? 'N/A') . '"'
                                     . ' data-time-in="' . ($att->time_in ? \Carbon\Carbon::parse($att->time_in)->format('H:i') : '') . '"'
@@ -204,7 +197,9 @@
                                     . ' data-early="' . ($att->computed_early_minutes ?? 0) . '"'
                                     . ' data-ot="' . ($att->computed_overtime_minutes ?? 0) . '"'
                                     . ' data-has-overrides="' . ($hasOverrides ? '1' : '0') . '"'
-                                    . ' data-notes="' . e($att->notes ?? '') . '"';
+                                    . ' data-notes="' . e($att->notes ?? '') . '"'
+                                    . ' data-override-details="' . e($ovDetailsJson) . '"'
+                                    . ' data-edited-fields="' . e(implode(',', $editedFields)) . '"';
                             }
                         @endphp
                         <td class="{{ $cellClass }}"
@@ -216,8 +211,7 @@
                     @endforeach
                     <td class="fw-bold text-success">{{ $countP }}</td>
                     <td class="fw-bold text-danger">{{ $countA }}</td>
-                    <td class="fw-bold text-warning">{{ $countL }}</td>
-                    <td class="fw-bold" style="color:#984c0c">{{ $countUT }}</td>
+                    <td class="fw-bold" style="color:#664d03">{{ $countUT }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -233,13 +227,14 @@
 
 {{-- Detail Modal --}}
 <div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:450px;">
         <div class="modal-content">
             <div class="modal-header py-2">
                 <h6 class="modal-title" id="detailTitle">Attendance Detail</h6>
                 <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body py-2">
+                {{-- Present/Undertime detail --}}
                 <div id="detailBody">
                     <table class="table table-sm table-borderless mb-0" style="font-size:.85rem">
                         <tr><td class="text-muted" style="width:100px">Employee</td><td class="fw-semibold" id="dEmployee"></td></tr>
@@ -270,12 +265,32 @@
                         <tr><td class="text-muted">Overtime</td><td id="dOT"></td></tr>
                         <tr id="dNotesRow"><td class="text-muted">Notes</td><td id="dNotes"></td></tr>
                     </table>
-                    <div id="dOverrideIndicator" class="mt-1 small text-muted" style="display:none">
-                        <i class="bi bi-pencil-square text-purple"></i> <span style="color:#6f42c1">This record has been manually edited.</span>
+                    {{-- Override history details --}}
+                    <div id="dOverrideHistory" class="override-history mt-2" style="display:none">
+                        <div class="fw-semibold mb-1" style="color:#6f42c1"><i class="bi bi-pencil-square"></i> Edit History</div>
+                        <div id="dOverrideList"></div>
                     </div>
                 </div>
-                <div id="detailNoData" class="text-center text-muted py-3" style="display:none">
-                    <p class="mb-0" id="dNoDataText"></p>
+
+                {{-- Absent / Day Off detail --}}
+                <div id="detailNoData" class="text-center py-3" style="display:none">
+                    <p class="mb-2 fw-semibold" id="dNoDataText"></p>
+                    <div id="dayOffActions" style="display:none">
+                        <hr class="my-2">
+                        <p class="text-muted small mb-2">Manage rest day for this date:</p>
+                        <div class="d-flex gap-2 justify-content-center flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary dayoff-action-btn" onclick="toggleDayOff('add_day_off')">
+                                <i class="bi bi-plus-circle"></i> Mark as Rest Day
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning dayoff-action-btn" onclick="toggleDayOff('cancel_day_off')">
+                                <i class="bi bi-x-circle"></i> Cancel Rest Day
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger dayoff-action-btn" onclick="toggleDayOff('remove_override')">
+                                <i class="bi bi-trash"></i> Remove Override
+                            </button>
+                        </div>
+                        <div id="dayOffMsg" class="small mt-2" style="display:none"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -324,23 +339,19 @@
     const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
     const editTimeModal = new bootstrap.Modal(document.getElementById('editTimeModal'));
 
-    let currentTd = null; // track which cell is currently open
+    let currentTd = null;
 
     const statusLabels = {
         'present': 'Present',
-        'late': 'Late',
         'undertime': 'Undertime',
-        'late_ut': 'Late + Undertime',
         'absent': 'Absent',
-        'day_off': 'Day Off',
+        'day_off': 'Rest Day',
     };
 
     const statusColors = {
         'present': '#0f5132',
-        'late': '#664d03',
-        'undertime': '#984c0c',
-        'late_ut': '#842029',
-        'absent': '#41464b',
+        'undertime': '#664d03',
+        'absent': '#842029',
         'day_off': '#084298',
     };
 
@@ -381,6 +392,12 @@
             document.getElementById('detailBody').style.display = 'none';
             document.getElementById('detailNoData').style.display = '';
             document.getElementById('dNoDataText').textContent = empName + ' — ' + statusLabels[status];
+            document.getElementById('dNoDataText').style.color = statusColors[status];
+
+            // Show day off action buttons
+            document.getElementById('dayOffActions').style.display = '';
+            document.getElementById('dayOffMsg').style.display = 'none';
+
             detailModal.show();
             return;
         }
@@ -397,11 +414,14 @@
 
         document.getElementById('dShift').textContent = td.dataset.shift || 'N/A';
 
-        // Set time values (display format) and store raw HH:mm in data attribute
-        setTimeDisplay('dTimeIn', td.dataset.timeInDisplay, td.dataset.timeIn);
-        setTimeDisplay('dLunchOut', td.dataset.lunchOutDisplay, td.dataset.lunchOut);
-        setTimeDisplay('dLunchIn', td.dataset.lunchInDisplay, td.dataset.lunchIn);
-        setTimeDisplay('dTimeOut', td.dataset.timeOutDisplay, td.dataset.timeOut);
+        // Set time values with edited field indicators
+        const editedFieldsStr = td.dataset.editedFields || '';
+        const editedFields = editedFieldsStr ? editedFieldsStr.split(',') : [];
+
+        setTimeDisplay('dTimeIn', td.dataset.timeInDisplay, td.dataset.timeIn, editedFields.includes('time_in'));
+        setTimeDisplay('dLunchOut', td.dataset.lunchOutDisplay, td.dataset.lunchOut, editedFields.includes('lunch_out'));
+        setTimeDisplay('dLunchIn', td.dataset.lunchInDisplay, td.dataset.lunchIn, editedFields.includes('lunch_in'));
+        setTimeDisplay('dTimeOut', td.dataset.timeOutDisplay, td.dataset.timeOut, editedFields.includes('time_out'));
 
         document.getElementById('dWork').textContent = fmtMin(td.dataset.work);
         document.getElementById('dLate').textContent = fmtMin(td.dataset.late);
@@ -417,17 +437,48 @@
             notesRow.style.display = 'none';
         }
 
-        // Override indicator
+        // Override history
         const hasOverrides = td.dataset.hasOverrides === '1';
-        document.getElementById('dOverrideIndicator').style.display = hasOverrides ? '' : 'none';
+        const overrideHistoryDiv = document.getElementById('dOverrideHistory');
+        const overrideListDiv = document.getElementById('dOverrideList');
+
+        if (hasOverrides) {
+            try {
+                const overrideDetails = JSON.parse(td.dataset.overrideDetails || '[]');
+                let html = '';
+                overrideDetails.forEach(function(ov) {
+                    const oldVal = ov.old_value || '(empty)';
+                    const newVal = ov.new_value || '(empty)';
+                    html += '<div class="ov-entry">'
+                        + '<strong>' + (fieldLabels[ov.field] || ov.field) + '</strong>: '
+                        + '<span class="text-danger text-decoration-line-through">' + oldVal + '</span>'
+                        + ' &rarr; <span class="text-success fw-semibold">' + newVal + '</span>'
+                        + '<br><small class="text-muted">by ' + ov.updater + ' on ' + ov.date + '</small>'
+                        + (ov.reason ? '<br><small class="fst-italic text-muted">"' + ov.reason + '"</small>' : '')
+                        + '</div>';
+                });
+                overrideListDiv.innerHTML = html;
+                overrideHistoryDiv.style.display = '';
+            } catch (e) {
+                overrideHistoryDiv.style.display = 'none';
+            }
+        } else {
+            overrideHistoryDiv.style.display = 'none';
+        }
 
         detailModal.show();
     }
 
-    function setTimeDisplay(elId, displayVal, rawVal) {
+    function setTimeDisplay(elId, displayVal, rawVal, isEdited) {
         const el = document.getElementById(elId);
         el.textContent = displayVal || '-';
         el.dataset.rawValue = rawVal || '';
+        if (isEdited) {
+            el.classList.add('time-edited');
+            el.innerHTML = (displayVal || '-') + ' <i class="bi bi-pencil-fill" style="font-size:.6rem;color:#6f42c1"></i>';
+        } else {
+            el.classList.remove('time-edited');
+        }
     }
 
     function startEdit(span) {
@@ -444,7 +495,6 @@
         document.getElementById('editError').style.display = 'none';
         document.getElementById('editSuccess').style.display = 'none';
 
-        // Hide detail modal, show edit modal
         detailModal.hide();
         setTimeout(() => editTimeModal.show(), 200);
     }
@@ -499,11 +549,52 @@
         });
     }
 
+    // Day off toggle
+    function toggleDayOff(action) {
+        const empId = currentTd ? currentTd.dataset.employeeId : null;
+        const date = currentTd ? currentTd.dataset.date : null;
+
+        if (!empId || !date) return;
+
+        const msgDiv = document.getElementById('dayOffMsg');
+        msgDiv.style.display = 'none';
+
+        fetch('{{ url("/attendance-calendar/toggle-day-off") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                employee_id: empId,
+                date: date,
+                action: action,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                msgDiv.textContent = data.message + ' Reloading...';
+                msgDiv.className = 'small mt-2 text-success';
+                msgDiv.style.display = '';
+                setTimeout(() => location.reload(), 800);
+            } else {
+                msgDiv.textContent = data.message || 'Error.';
+                msgDiv.className = 'small mt-2 text-danger';
+                msgDiv.style.display = '';
+            }
+        })
+        .catch(err => {
+            msgDiv.textContent = 'Network error. Please try again.';
+            msgDiv.className = 'small mt-2 text-danger';
+            msgDiv.style.display = '';
+        });
+    }
+
     // When edit modal is closed, re-open detail modal
     document.getElementById('editTimeModal').addEventListener('hidden.bs.modal', function () {
-        if (currentTd && !document.getElementById('editSuccess').style.display.includes('')) {
-            // Only re-open if not successfully saved (which triggers reload)
-        }
+        // Only re-open if not successfully saved (which triggers reload)
     });
 </script>
 @endpush

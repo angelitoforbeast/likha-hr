@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
     // Attendance Calendar
     Route::get("/manus-edit-logs", [ManusEditLogController::class, "index"])->name("manus-edit-logs.index");
     Route::get("/attendance-calendar", [AttendanceCalendarController::class, "index"])->name("attendance-calendar.index");
+    Route::post("/attendance-calendar/toggle-day-off", [AttendanceCalendarController::class, "toggleDayOff"])->name("attendance-calendar.toggle-day-off");
 
     // Day Off Calendar
     Route::get('/day-off-calendar', [DayOffCalendarController::class, 'index'])->name('dayoff.index');

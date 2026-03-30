@@ -495,6 +495,151 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('success', $msg);
     }
 
+    /* ── Update Methods (Edit existing records) ── */
+
+    public function updateStatus(Request $request, Employee $employee, EmployeeStatusHistory $status)
+    {
+        $this->guardFeature('employment_status');
+        if ($status->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'employment_status_id' => 'required|exists:employment_statuses,id',
+            'effective_from'       => 'required|date',
+            'effective_until'      => 'nullable|date|after_or_equal:effective_from',
+            'remarks'              => 'nullable|string|max:500',
+        ]);
+
+        $status->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Employment status updated.');
+    }
+
+    public function updateShift(Request $request, Employee $employee, EmployeeShiftAssignment $assignment)
+    {
+        $this->guardFeature('shift_assignments');
+        if ($assignment->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'shift_id'        => 'required|exists:shifts,id',
+            'effective_date'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_date',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        // Check for overlapping assignments (exclude current)
+        $overlap = $this->checkShiftOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null, $assignment->id);
+        if ($overlap) {
+            return redirect()->route('employees.edit', $employee)
+                ->with('error', "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).");
+        }
+
+        $assignment->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Shift assignment updated.');
+    }
+
+    public function updateRate(Request $request, Employee $employee, EmployeeRate $rate)
+    {
+        $this->guardFeature('daily_rates');
+        if ($rate->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'daily_rate'      => 'required|numeric|min:0|max:999999.99',
+            'effective_date'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_date',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        // Check for overlapping rates (exclude current)
+        $overlap = $this->checkRateOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null, $rate->id);
+        if ($overlap) {
+            return redirect()->route('employees.edit', $employee)
+                ->with('error', "Rate overlaps with existing rate (effective {$overlap->effective_date->format('M d, Y')}).");
+        }
+
+        $rate->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Daily rate updated.');
+    }
+
+    public function updateBenefit(Request $request, Employee $employee, EmployeeBenefit $benefit)
+    {
+        $this->guardFeature('benefits_deductions');
+        if ($benefit->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'benefit_type_id' => 'required|exists:benefit_types,id',
+            'amount'          => 'required|numeric|min:0|max:999999.99',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $benefit->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Benefit/deduction updated.');
+    }
+
+    public function updateRestDay(Request $request, Employee $employee, RestDayPattern $restday)
+    {
+        $this->guardFeature('rest_day_pattern');
+        if ($restday->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'day_of_week'     => 'required|integer|between:0,6',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $restday->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Rest day pattern updated.');
+    }
+
+    public function updateDayOff(Request $request, Employee $employee, DayOff $dayoff)
+    {
+        $this->guardFeature('day_off_overrides');
+        if ($dayoff->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'off_date' => 'required|date',
+            'type'     => 'required|in:day_off,cancel_day_off',
+            'remarks'  => 'nullable|string|max:500',
+        ]);
+
+        $dayoff->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Day off override updated.');
+    }
+
+    public function updateCashAdvance(Request $request, Employee $employee, CashAdvance $cashadvance)
+    {
+        $this->guardFeature('cash_advance');
+        if ($cashadvance->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'amount'               => 'required|numeric|min:1|max:999999.99',
+            'deduction_per_cutoff' => 'required|numeric|min:0|max:999999.99',
+            'date_granted'         => 'required|date',
+            'effective_from'       => 'required|date',
+            'effective_until'      => 'nullable|date|after_or_equal:effective_from',
+            'remarks'              => 'nullable|string|max:500',
+            'status'               => 'required|in:active,paid,cancelled',
+        ]);
+
+        $cashadvance->update($validated);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Cash advance updated.');
+    }
+
     /* ── Permission Guard ── */
 
     protected function guardFeature(string $featureKey): void

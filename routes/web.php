@@ -91,6 +91,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/employees/{employee}/day-off/{dayoff}', [EmployeeController::class, 'deleteDayOff'])->name('employees.delete-day-off');
     Route::post('/employees/{employee}/add-cash-advance', [EmployeeController::class, 'addCashAdvance'])->name('employees.add-cash-advance');
     Route::delete('/employees/{employee}/cash-advance/{cashadvance}', [EmployeeController::class, 'deleteCashAdvance'])->name('employees.delete-cash-advance');
+    Route::put('/employees/{employee}/status/{status}', [EmployeeController::class, 'updateStatus'])->name('employees.update-status');
+    Route::put('/employees/{employee}/shift-assignment/{assignment}', [EmployeeController::class, 'updateShift'])->name('employees.update-shift');
+    Route::put('/employees/{employee}/rate/{rate}', [EmployeeController::class, 'updateRate'])->name('employees.update-rate');
+    Route::put('/employees/{employee}/benefit/{benefit}', [EmployeeController::class, 'updateBenefit'])->name('employees.update-benefit');
+    Route::put('/employees/{employee}/rest-day/{restday}', [EmployeeController::class, 'updateRestDay'])->name('employees.update-rest-day');
+    Route::put('/employees/{employee}/day-off/{dayoff}', [EmployeeController::class, 'updateDayOff'])->name('employees.update-day-off');
+    Route::put('/employees/{employee}/cash-advance/{cashadvance}', [EmployeeController::class, 'updateCashAdvance'])->name('employees.update-cash-advance');
 
     // Bulk Operations
     Route::post('/employees/bulk-action', [EmployeeController::class, 'bulkAction'])->name('employees.bulk-action');

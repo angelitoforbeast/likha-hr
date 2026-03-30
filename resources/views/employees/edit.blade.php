@@ -215,20 +215,61 @@
                     </thead>
                     <tbody>
                         @forelse($employee->statusHistory as $sh)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="status-view-{{ $sh->id }}">
                             <td><span class="badge" style="background-color: {{ $sh->employmentStatus->color ?? '#6c757d' }}">{{ $sh->employmentStatus->name }}</span></td>
                             <td>{{ $sh->effective_from->format('M d, Y') }}</td>
                             <td>{{ $sh->effective_until ? $sh->effective_until->format('M d, Y') : '—  Ongoing' }}</td>
                             <td class="small">{{ $sh->remarks ?? '—' }}</td>
                             @if($canEdit('employment_status'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-status', [$employee, $sh]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('status', {{ $sh->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-status', [$employee, $sh]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('employment_status'))
+                        <tr id="status-edit-{{ $sh->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('employment_status') ? 5 : 4 }}">
+                                <form method="POST" action="{{ route('employees.update-status', [$employee, $sh]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Status</label>
+                                            <select name="employment_status_id" class="form-select form-select-sm" required>
+                                                @foreach($employmentStatuses as $es)
+                                                    <option value="{{ $es->id }}" {{ $sh->employment_status_id == $es->id ? 'selected' : '' }}>{{ $es->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_from" class="form-control form-control-sm"
+                                                   value="{{ $sh->effective_from->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $sh->effective_until ? $sh->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $sh->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('status', {{ $sh->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('employment_status') ? 5 : 4 }}" class="text-center text-muted py-3">No employment status set.</td></tr>
                         @endforelse
@@ -300,7 +341,8 @@
                     </thead>
                     <tbody>
                         @forelse($employee->shiftAssignments as $assignment)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="shift-view-{{ $assignment->id }}">
                             <td class="fw-semibold">{{ $assignment->effective_date->format('M d, Y') }}</td>
                             <td>{{ $assignment->effective_until ? $assignment->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td>{{ $assignment->shift->name }}</td>
@@ -314,14 +356,54 @@
                             </td>
                             <td class="small">{{ $assignment->remarks ?? '—' }}</td>
                             @if($canEdit('shift_assignments'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('shift', {{ $assignment->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('shift_assignments'))
+                        <tr id="shift-edit-{{ $assignment->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('shift_assignments') ? 7 : 6 }}">
+                                <form method="POST" action="{{ route('employees.update-shift', [$employee, $assignment]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Shift</label>
+                                            <select name="shift_id" class="form-select form-select-sm" required>
+                                                @foreach($shifts as $shift)
+                                                    <option value="{{ $shift->id }}" {{ $assignment->shift_id == $shift->id ? 'selected' : '' }}>{{ $shift->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_date" class="form-control form-control-sm"
+                                                   value="{{ $assignment->effective_date->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $assignment->effective_until ? $assignment->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $assignment->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('shift', {{ $assignment->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('shift_assignments') ? 7 : 6 }}" class="text-center text-muted py-3">No shift assignments. Will use fallback shift.</td></tr>
                         @endforelse
@@ -392,20 +474,61 @@
                     </thead>
                     <tbody>
                         @forelse($employee->employeeRates as $rate)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="rate-view-{{ $rate->id }}">
                             <td class="fw-semibold">{{ $rate->effective_date->format('M d, Y') }}</td>
                             <td>{{ $rate->effective_until ? $rate->effective_until->format('M d, Y') : '— Ongoing' }}</td>
-                            <td><span class="text-success fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</span></td>
+                            <td class="fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</td>
                             <td class="small">{{ $rate->remarks ?? '—' }}</td>
                             @if($canEdit('daily_rates'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-rate', [$employee, $rate]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('rate', {{ $rate->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-rate', [$employee, $rate]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('daily_rates'))
+                        <tr id="rate-edit-{{ $rate->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('daily_rates') ? 5 : 4 }}">
+                                <form method="POST" action="{{ route('employees.update-rate', [$employee, $rate]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Daily Rate</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">&#8369;</span>
+                                                <input type="number" name="daily_rate" step="0.01" min="0"
+                                                       class="form-control" value="{{ $rate->daily_rate }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_date" class="form-control form-control-sm"
+                                                   value="{{ $rate->effective_date->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $rate->effective_until ? $rate->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $rate->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('rate', {{ $rate->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('daily_rates') ? 5 : 4 }}" class="text-center text-muted py-3">No rates set yet.</td></tr>
                         @endforelse
@@ -485,7 +608,8 @@
                     </thead>
                     <tbody>
                         @forelse($employee->benefits as $ben)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="benefit-view-{{ $ben->id }}">
                             <td>
                                 <span class="badge bg-{{ $ben->benefitType->category === 'deduction' ? 'danger' : ($ben->benefitType->category === 'allowance' ? 'success' : 'info') }}">
                                     {{ $ben->benefitType->name }}
@@ -496,14 +620,62 @@
                             <td>{{ $ben->effective_until ? $ben->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td class="small">{{ $ben->remarks ?? '—' }}</td>
                             @if($canEdit('benefits_deductions'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-benefit', [$employee, $ben]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('benefit', {{ $ben->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-benefit', [$employee, $ben]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('benefits_deductions'))
+                        <tr id="benefit-edit-{{ $ben->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('benefits_deductions') ? 6 : 5 }}">
+                                <form method="POST" action="{{ route('employees.update-benefit', [$employee, $ben]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Type</label>
+                                            <select name="benefit_type_id" class="form-select form-select-sm" required>
+                                                @foreach($benefitTypes as $bt)
+                                                    <option value="{{ $bt->id }}" {{ $ben->benefit_type_id == $bt->id ? 'selected' : '' }}>{{ $bt->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Amount</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">&#8369;</span>
+                                                <input type="number" name="amount" step="0.01" min="0"
+                                                       class="form-control" value="{{ $ben->amount }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_from" class="form-control form-control-sm"
+                                                   value="{{ $ben->effective_from->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $ben->effective_until ? $ben->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $ben->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('benefit', {{ $ben->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('benefits_deductions') ? 6 : 5 }}" class="text-center text-muted py-3">No benefits/deductions set.</td></tr>
                         @endforelse
@@ -575,20 +747,61 @@
                     </thead>
                     <tbody>
                         @forelse($employee->restDayPatterns as $rdp)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="restday-view-{{ $rdp->id }}">
                             <td><span class="badge bg-secondary">{{ $rdp->day_name }}</span></td>
                             <td>{{ $rdp->effective_from->format('M d, Y') }}</td>
                             <td>{{ $rdp->effective_until ? $rdp->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td class="small">{{ $rdp->remarks ?? '—' }}</td>
                             @if($canEdit('rest_day_pattern'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-rest-day', [$employee, $rdp]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('restday', {{ $rdp->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-rest-day', [$employee, $rdp]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('rest_day_pattern'))
+                        <tr id="restday-edit-{{ $rdp->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('rest_day_pattern') ? 5 : 4 }}">
+                                <form method="POST" action="{{ route('employees.update-rest-day', [$employee, $rdp]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Day</label>
+                                            <select name="day_of_week" class="form-select form-select-sm" required>
+                                                @foreach(\App\Models\RestDayPattern::$dayNames as $num => $name)
+                                                    <option value="{{ $num }}" {{ $rdp->day_of_week == $num ? 'selected' : '' }}>{{ $name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_from" class="form-control form-control-sm"
+                                                   value="{{ $rdp->effective_from->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $rdp->effective_until ? $rdp->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $rdp->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('restday', {{ $rdp->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('rest_day_pattern') ? 5 : 4 }}" class="text-center text-muted py-3">No rest day pattern set.</td></tr>
                         @endforelse
@@ -653,7 +866,8 @@
                     </thead>
                     <tbody>
                         @forelse($employee->dayOffs->sortByDesc('off_date') as $doff)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="dayoff-view-{{ $doff->id }}">
                             <td class="fw-semibold">{{ $doff->off_date->format('M d, Y (l)') }}</td>
                             <td>
                                 @if($doff->type === 'day_off')
@@ -664,14 +878,48 @@
                             </td>
                             <td class="small">{{ $doff->remarks ?? '—' }}</td>
                             @if($canEdit('day_off_overrides'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-day-off', [$employee, $doff]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('dayoff', {{ $doff->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-day-off', [$employee, $doff]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('day_off_overrides'))
+                        <tr id="dayoff-edit-{{ $doff->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('day_off_overrides') ? 4 : 3 }}">
+                                <form method="POST" action="{{ route('employees.update-day-off', [$employee, $doff]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Date</label>
+                                            <input type="date" name="off_date" class="form-control form-control-sm"
+                                                   value="{{ $doff->off_date->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Type</label>
+                                            <select name="type" class="form-select form-select-sm" required>
+                                                <option value="day_off" {{ $doff->type === 'day_off' ? 'selected' : '' }}>Extra Day Off</option>
+                                                <option value="cancel_day_off" {{ $doff->type === 'cancel_day_off' ? 'selected' : '' }}>Cancel Day Off</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $doff->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('dayoff', {{ $doff->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('day_off_overrides') ? 4 : 3 }}" class="text-center text-muted py-3">No day off overrides.</td></tr>
                         @endforelse
@@ -756,7 +1004,8 @@
                     </thead>
                     <tbody>
                         @forelse($employee->cashAdvances as $ca)
-                        <tr>
+                        {{-- Display Row --}}
+                        <tr id="cashadvance-view-{{ $ca->id }}">
                             <td>{{ $ca->date_granted->format('M d, Y') }}</td>
                             <td class="fw-semibold">&#8369; {{ number_format($ca->amount, 2) }}</td>
                             <td>&#8369; {{ number_format($ca->deduction_per_cutoff, 2) }}</td>
@@ -768,14 +1017,75 @@
                             <td><span class="badge bg-{{ $ca->status === 'active' ? 'warning' : 'success' }}">{{ ucfirst($ca->status) }}</span></td>
                             <td class="small">{{ $ca->remarks ?? '—' }}</td>
                             @if($canEdit('cash_advance'))
-                            <td>
-                                <form method="POST" action="{{ route('employees.delete-cash-advance', [$employee, $ca]) }}" onsubmit="return confirm('Remove?')">
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('cashadvance', {{ $ca->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-cash-advance', [$employee, $ca]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>
                             @endif
                         </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('cash_advance'))
+                        <tr id="cashadvance-edit-{{ $ca->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('cash_advance') ? 7 : 6 }}">
+                                <form method="POST" action="{{ route('employees.update-cash-advance', [$employee, $ca]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Amount</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">&#8369;</span>
+                                                <input type="number" name="amount" step="0.01" min="1"
+                                                       class="form-control" value="{{ $ca->amount }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Deduction/Cutoff</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">&#8369;</span>
+                                                <input type="number" name="deduction_per_cutoff" step="0.01" min="0"
+                                                       class="form-control" value="{{ $ca->deduction_per_cutoff }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label small fw-semibold">Granted</label>
+                                            <input type="date" name="date_granted" class="form-control form-control-sm"
+                                                   value="{{ $ca->date_granted->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_from" class="form-control form-control-sm"
+                                                   value="{{ $ca->effective_from->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $ca->effective_until ? $ca->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label small fw-semibold">Status</label>
+                                            <select name="status" class="form-select form-select-sm" required>
+                                                <option value="active" {{ $ca->status === 'active' ? 'selected' : '' }}>Active</option>
+                                                <option value="paid" {{ $ca->status === 'paid' ? 'selected' : '' }}>Paid</option>
+                                                <option value="cancelled" {{ $ca->status === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $ca->remarks }}">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i></button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('cashadvance', {{ $ca->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @empty
                         <tr><td colspan="{{ $canEdit('cash_advance') ? 7 : 6 }}" class="text-center text-muted py-3">No cash advances.</td></tr>
                         @endforelse
@@ -791,6 +1101,21 @@
 
 @push('scripts')
 <script>
+    // Toggle edit row visibility
+    function toggleEdit(section, id) {
+        const viewRow = document.getElementById(section + '-view-' + id);
+        const editRow = document.getElementById(section + '-edit-' + id);
+        if (viewRow && editRow) {
+            if (editRow.style.display === 'none') {
+                viewRow.style.display = 'none';
+                editRow.style.display = '';
+            } else {
+                viewRow.style.display = '';
+                editRow.style.display = 'none';
+            }
+        }
+    }
+
     // Fallback shift preview
     const fallbackSelect = document.getElementById('default_shift_id');
     const fallbackPreview = document.getElementById('fallbackShiftPreview');

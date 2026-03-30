@@ -7,13 +7,23 @@
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="mb-0">Employee List</h5>
+        @php
+            $hasAnyFilter = request()->filled('search') || request()->has('status') || request()->filled('department_id') || request()->has('has_department');
+            $defaultStatus = $hasAnyFilter ? request('status', '') : 'active';
+            $defaultHasDept = $hasAnyFilter ? request('has_department', '') : '1';
+        @endphp
         <form method="GET" class="d-flex gap-2 flex-wrap">
             <input type="text" name="search" class="form-control form-control-sm" placeholder="Search name..."
                    value="{{ request('search') }}" style="width:160px">
             <select name="status" class="form-select form-select-sm" style="width:130px">
                 <option value="">All Status</option>
-                <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                <option value="active" {{ $defaultStatus == 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ $defaultStatus == 'inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+            <select name="has_department" class="form-select form-select-sm" style="width:160px">
+                <option value="">All (Dept/No Dept)</option>
+                <option value="1" {{ $defaultHasDept == '1' ? 'selected' : '' }}>With Department</option>
+                <option value="0" {{ $defaultHasDept == '0' ? 'selected' : '' }}>No Department</option>
             </select>
             <select name="department_id" class="form-select form-select-sm" style="width:160px">
                 <option value="">All Departments</option>
@@ -24,6 +34,9 @@
                 @endforeach
             </select>
             <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+            @if($hasAnyFilter)
+            <a href="{{ route('employees.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+            @endif
         </form>
     </div>
 

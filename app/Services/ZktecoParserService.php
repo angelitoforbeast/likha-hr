@@ -154,7 +154,7 @@ class ZktecoParserService
 
             $employee = Employee::updateOrCreate(
                 ['zkteco_id' => $zktecoId],
-                ['full_name' => $fullName, 'status' => 'active']
+                ['full_name' => $fullName]
             );
 
             $userMap[$zktecoId] = $employee->id;
@@ -193,7 +193,7 @@ class ZktecoParserService
 
             $employee = Employee::updateOrCreate(
                 ['zkteco_id' => $zktecoId],
-                ['full_name' => $fullName, 'status' => 'active']
+                ['full_name' => $fullName]
             );
 
             $userMap[$zktecoId] = $employee->id;

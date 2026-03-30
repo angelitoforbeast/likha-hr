@@ -98,6 +98,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/employees/{employee}/rest-day/{restday}', [EmployeeController::class, 'updateRestDay'])->name('employees.update-rest-day');
     Route::put('/employees/{employee}/day-off/{dayoff}', [EmployeeController::class, 'updateDayOff'])->name('employees.update-day-off');
     Route::put('/employees/{employee}/cash-advance/{cashadvance}', [EmployeeController::class, 'updateCashAdvance'])->name('employees.update-cash-advance');
+    Route::post('/employees/{employee}/add-active-status', [EmployeeController::class, 'addActiveStatus'])->name('employees.add-active-status');
+    Route::put('/employees/{employee}/active-status/{activestatus}', [EmployeeController::class, 'updateActiveStatus'])->name('employees.update-active-status');
+    Route::delete('/employees/{employee}/active-status/{activestatus}', [EmployeeController::class, 'deleteActiveStatus'])->name('employees.delete-active-status');
 
     // Bulk Operations
     Route::post('/employees/bulk-action', [EmployeeController::class, 'bulkAction'])->name('employees.bulk-action');

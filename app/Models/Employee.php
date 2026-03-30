@@ -120,6 +120,11 @@ class Employee extends Model
         return $this->hasMany(DayOff::class);
     }
 
+    public function activeStatuses(): HasMany
+    {
+        return $this->hasMany(EmployeeActiveStatus::class)->orderByDesc('effective_from');
+    }
+
     public function cashAdvances(): HasMany
     {
         return $this->hasMany(CashAdvance::class)->orderByDesc('date_granted');

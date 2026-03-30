@@ -50,11 +50,13 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="status" class="form-label fw-semibold">Status</label>
-                        <select name="status" id="status" class="form-select" {{ !$canEdit('basic_information') ? 'disabled' : '' }}>
-                            <option value="active" {{ $employee->status === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="inactive" {{ $employee->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                        </select>
+                        <label class="form-label fw-semibold">Current Status</label>
+                        <div>
+                            <span class="badge bg-{{ $employee->status === 'active' ? 'success' : 'secondary' }} fs-6">
+                                {{ ucfirst($employee->status) }}
+                            </span>
+                            <small class="text-muted ms-2">Managed via Active/Inactive Status section below</small>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -152,6 +154,128 @@
 
     {{-- Right Column --}}
     <div class="{{ $canView('basic_information') ? 'col-lg-8' : 'col-lg-12' }}">
+
+        {{-- Active/Inactive Status --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-toggle-on"></i> Active / Inactive Status</h6>
+                </div>
+                @if($canEdit('basic_information'))
+                <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addActiveStatusForm">
+                    <i class="bi bi-plus-lg"></i> Add Status
+                </button>
+                @endif
+            </div>
+            @if($canEdit('basic_information'))
+            <div class="collapse" id="addActiveStatusForm">
+                <div class="card-body border-bottom bg-light">
+                    <form method="POST" action="{{ route('employees.add-active-status', $employee) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Status</label>
+                                <select name="status" class="form-select form-select-sm" required>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="effective_from" class="form-control form-control-sm"
+                                       value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>
+                                <input type="date" name="effective_until" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Remarks</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="e.g. Resigned, AWOL, Rehired">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endif
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Status</th><th>From</th><th>Until</th><th>Remarks</th>
+                            @if($canEdit('basic_information'))<th>Actions</th>@endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($employee->activeStatuses->sortByDesc('effective_from') as $as)
+                        {{-- Display Row --}}
+                        <tr id="activestatus-view-{{ $as->id }}">
+                            <td>
+                                <span class="badge bg-{{ $as->status === 'active' ? 'success' : 'secondary' }}">
+                                    {{ ucfirst($as->status) }}
+                                </span>
+                            </td>
+                            <td>{{ $as->effective_from->format('M d, Y') }}</td>
+                            <td>{{ $as->effective_until ? $as->effective_until->format('M d, Y') : '— Ongoing' }}</td>
+                            <td class="small">{{ $as->remarks ?? '—' }}</td>
+                            @if($canEdit('basic_information'))
+                            <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('activestatus', {{ $as->id }})"><i class="bi bi-pencil"></i></button>
+                                <form method="POST" action="{{ route('employees.delete-active-status', [$employee, $as]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                            @endif
+                        </tr>
+                        {{-- Edit Row --}}
+                        @if($canEdit('basic_information'))
+                        <tr id="activestatus-edit-{{ $as->id }}" style="display:none;" class="table-warning">
+                            <td colspan="{{ $canEdit('basic_information') ? 5 : 4 }}">
+                                <form method="POST" action="{{ route('employees.update-active-status', [$employee, $as]) }}">
+                                    @csrf @method('PUT')
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Status</label>
+                                            <select name="status" class="form-select form-select-sm" required>
+                                                <option value="active" {{ $as->status === 'active' ? 'selected' : '' }}>Active</option>
+                                                <option value="inactive" {{ $as->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_from" class="form-control form-control-sm"
+                                                   value="{{ $as->effective_from->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="{{ $as->effective_until ? $as->effective_until->format('Y-m-d') : '' }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="{{ $as->remarks }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('activestatus', {{ $as->id }})"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
+                        @empty
+                        <tr><td colspan="{{ $canEdit('basic_information') ? 5 : 4 }}" class="text-center text-muted py-3">No active/inactive status history. Employee defaults to Active.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         {{-- Employment Status History --}}
         @if($canView('employment_status'))

@@ -17,6 +17,7 @@ use App\Models\RestDayPattern;
 use App\Models\Shift;
 use App\Models\FeaturePermission;
 use Illuminate\Http\Request;
+use App\Models\EmployeeActiveStatus;
 use Illuminate\Support\Facades\Auth;
 
 class EmployeeController extends Controller
@@ -33,12 +34,28 @@ class EmployeeController extends Controller
             });
         }
 
+        // Default filter: active + with department (when no filters explicitly set)
+        $hasAnyFilter = $request->filled('search') || $request->has('status') || $request->filled('department_id') || $request->has('has_department');
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        } elseif (!$hasAnyFilter) {
+            // Default: show active only
+            $query->where('status', 'active');
         }
 
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->department_id);
+        }
+
+        // "Has Department" filter
+        if ($request->has('has_department') && $request->has_department == '1') {
+            $query->whereNotNull('department_id');
+        } elseif ($request->has('has_department') && $request->has_department == '0') {
+            $query->whereNull('department_id');
+        } elseif (!$hasAnyFilter) {
+            // Default: with department only
+            $query->whereNotNull('department_id');
         }
 
         $employees = $query->orderBy('full_name')->paginate(25);
@@ -71,6 +88,7 @@ class EmployeeController extends Controller
             'restDayPatterns',
             'dayOffs',
             'cashAdvances',
+            'activeStatuses',
         ]);
 
         $userRole = Auth::user()->role;
@@ -86,7 +104,6 @@ class EmployeeController extends Controller
     {
         $validated = $request->validate([
             'actual_name'                  => 'nullable|string|max:255',
-            'status'                       => 'required|in:active,inactive',
             'default_shift_id'             => 'nullable|exists:shifts,id',
             'department_id'                => 'nullable|exists:departments,id',
             'schedule_mode'                => 'required|in:department,manual',
@@ -638,6 +655,52 @@ class EmployeeController extends Controller
 
         return redirect()->route('employees.edit', $employee)
             ->with('success', 'Cash advance updated.');
+    }
+
+    /* ── Active/Inactive Status ── */
+
+    public function addActiveStatus(Request $request, Employee $employee)
+    {
+        $validated = $request->validate([
+            'status'          => 'required|in:active,inactive',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $employee->activeStatuses()->create($validated);
+        EmployeeActiveStatus::syncEmployeeStatus($employee->id);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Active/Inactive status added.');
+    }
+
+    public function updateActiveStatus(Request $request, Employee $employee, EmployeeActiveStatus $activestatus)
+    {
+        if ($activestatus->employee_id !== $employee->id) abort(403);
+
+        $validated = $request->validate([
+            'status'          => 'required|in:active,inactive',
+            'effective_from'  => 'required|date',
+            'effective_until' => 'nullable|date|after_or_equal:effective_from',
+            'remarks'         => 'nullable|string|max:500',
+        ]);
+
+        $activestatus->update($validated);
+        EmployeeActiveStatus::syncEmployeeStatus($employee->id);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Active/Inactive status updated.');
+    }
+
+    public function deleteActiveStatus(Employee $employee, EmployeeActiveStatus $activestatus)
+    {
+        if ($activestatus->employee_id !== $employee->id) abort(403);
+        $activestatus->delete();
+        EmployeeActiveStatus::syncEmployeeStatus($employee->id);
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Active/Inactive status removed.');
     }
 
     /* ── Permission Guard ── */

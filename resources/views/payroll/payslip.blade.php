@@ -133,7 +133,12 @@
         </div>
 
         {{-- EARNINGS Section (if any) --}}
-        @php $earnings = $item->earnings_breakdown ?? []; @endphp
+        @php
+            $earnings = $item->earnings_breakdown ?? [];
+            // Separate holiday guaranteed earnings from regular earnings
+            $regularEarnings = array_filter($earnings, fn($e) => ($e['type'] ?? '') !== 'holiday_guaranteed');
+            $holidayGuaranteedEarnings = array_filter($earnings, fn($e) => ($e['type'] ?? '') === 'holiday_guaranteed');
+        @endphp
         @if(count($earnings) > 0)
         <div class="payslip-divider"></div>
         <div class="payslip-section-title"><i class="bi bi-plus-circle"></i> Earnings</div>
@@ -144,7 +149,7 @@
                 {{ $earning['name'] }}
                 @if(($earning['type'] ?? '') === 'per_day' && isset($earning['days']))
                     <span class="text-muted small">({{ $earning['days'] }} days &times; &#8369;{{ number_format($earning['rate'] ?? 0, 2) }})</span>
-                @elseif(($earning['type'] ?? '') === 'holiday' && isset($earning['days']))
+                @elseif(in_array($earning['type'] ?? '', ['holiday', 'holiday_guaranteed']) && isset($earning['days']))
                     <span class="text-muted small">({{ $earning['days'] }} day{{ $earning['days'] > 1 ? 's' : '' }} &times; &#8369;{{ number_format($earning['rate'] ?? 0, 2) }})</span>
                 @endif
             </span>
@@ -242,13 +247,14 @@
                     $typeLabel = match($bd['type'] ?? 'regular') {
                         'rest_day' => 'Rest Day',
                         'rest_day_worked' => "\u{26A0} RD-P (NOT COUNTED)",
-                        'holiday' => 'Holiday',
+                        'holiday' => '<i class="bi bi-star-fill text-warning"></i> Holiday',
                         'absent' => 'Absent',
                         default => 'Regular',
                     };
 
-                    // Accumulate totals (only for counted days)
-                    if (!$isNotCounted) {
+                    // Accumulate totals (only for counted days, exclude holiday rows)
+                    $isHolidayRow = (($bd['type'] ?? '') === 'holiday');
+                    if (!$isNotCounted && !$isHolidayRow) {
                         $totalBdHours += ($bd['hours'] ?? 0);
                         $totalBdLate += ($bd['late'] ?? 0);
                         $totalBdUT += ($bd['undertime'] ?? 0);
@@ -284,6 +290,49 @@
                 </tr>
             </tfoot>
         </table>
+        </div>
+        @endif
+
+        {{-- HOLIDAY EARNINGS DETAIL (separate table) --}}
+        @php $holidayDetail = $item->holiday_earnings_detail ?? []; @endphp
+        @if(count($holidayDetail) > 0)
+        <div class="payslip-divider"></div>
+        <div class="payslip-section-title"><i class="bi bi-star-fill text-warning"></i> Holiday Earnings Detail</div>
+
+        <div style="overflow-x:auto;">
+        <table class="table table-sm table-bordered mb-2" style="font-size:0.78rem;">
+            <thead style="background: #fff3cd;">
+                <tr>
+                    <th>Date</th>
+                    <th>Holiday</th>
+                    <th>Type</th>
+                    <th class="text-end">Hours Worked</th>
+                    <th class="text-end">Guaranteed Pay (100%)</th>
+                </tr>
+            </thead>
+            <tbody>
+            @php $totalHolidayGuaranteed = 0; @endphp
+            @foreach($holidayDetail as $hd)
+                @php $totalHolidayGuaranteed += ($hd['guaranteed'] ?? 0); @endphp
+                <tr class="table-warning">
+                    <td>{{ \Carbon\Carbon::parse($hd['date'])->format('M d') }}</td>
+                    <td>{{ $hd['holiday_name'] }}</td>
+                    <td>{{ ucfirst($hd['holiday_type'] ?? 'regular') }}</td>
+                    <td class="text-end">{{ $hd['hours_worked'] ?? 0 }}h / {{ $hd['hours_required'] ?? 8 }}h</td>
+                    <td class="text-end text-success fw-bold">+&#8369;{{ number_format($hd['guaranteed'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+            <tfoot style="background: #fff3cd; font-weight: 700; font-size: 0.78rem;">
+                <tr>
+                    <td colspan="4" class="text-end">Total Holiday Guaranteed Pay</td>
+                    <td class="text-end text-success">+&#8369;{{ number_format($totalHolidayGuaranteed, 2) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+        <div class="small text-muted mb-2">
+            <em>Holiday guaranteed pay (100%) is paid regardless of attendance. The pro-rated worked amount is shown in the daily breakdown above.</em>
         </div>
         @endif
 

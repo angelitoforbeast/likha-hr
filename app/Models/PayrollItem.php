@@ -36,6 +36,7 @@ class PayrollItem extends Model
         'final_pay',
         'notes',
         'daily_breakdown',
+        'holiday_earnings_detail',
     ];
 
     protected $casts = [
@@ -61,6 +62,7 @@ class PayrollItem extends Model
         'adjustments' => 'decimal:2',
         'final_pay' => 'decimal:2',
         'daily_breakdown' => 'array',
+        'holiday_earnings_detail' => 'array',
     ];
 
     public function payrollRun(): BelongsTo

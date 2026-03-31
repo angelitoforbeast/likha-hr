@@ -13,6 +13,8 @@
     .cal-cell-undertime { background: #fff3cd !important; color: #664d03; font-weight: 600; }
     .cal-cell-absent { background: #f8d7da !important; color: #842029; font-weight: 600; }
     .cal-cell-dayoff { background: #cfe2ff !important; color: #084298; font-weight: 600; }
+    .cal-cell-rdpresent { background: #ff4444 !important; color: #fff !important; font-weight: 700; animation: rdp-blink 1.2s ease-in-out infinite; }
+    @keyframes rdp-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     .cal-cell-today { border: 2px solid #0d6efd !important; }
     .cal-cell-edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #6f42c1; border-radius: 50%; }
     .cal-legend { display: inline-flex; align-items: center; gap: .25rem; margin-right: 1rem; font-size: .8rem; }
@@ -91,6 +93,7 @@
     <span class="cal-legend"><span class="cal-legend-box" style="background:#fff3cd"></span> Undertime</span>
     <span class="cal-legend"><span class="cal-legend-box" style="background:#f8d7da"></span> Absent</span>
     <span class="cal-legend"><span class="cal-legend-box" style="background:#cfe2ff"></span> Rest Day</span>
+    <span class="cal-legend"><span class="cal-legend-box" style="background:#ff4444"></span> <strong style="color:#ff4444">RD-P (Rest Day Worked!)</strong></span>
     <span class="cal-legend"><span style="display:inline-block;width:8px;height:8px;background:#6f42c1;border-radius:50%;margin-right:2px"></span> Edited</span>
 </div>
 
@@ -154,6 +157,10 @@
                                     $cellText = 'UT';
                                     $countP++;
                                     $countUT++;
+                                    break;
+                                case 'rd_present':
+                                    $cellClass = 'cal-cell-rdpresent';
+                                    $cellText = 'RD-P';
                                     break;
                                 case 'absent':
                                     $cellClass = 'cal-cell-absent';

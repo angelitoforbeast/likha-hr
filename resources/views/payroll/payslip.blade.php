@@ -217,37 +217,72 @@
                 </tr>
             </thead>
             <tbody>
+            @php
+                $totalBdHours = 0;
+                $totalBdLate = 0;
+                $totalBdUT = 0;
+                $totalBdOT = 0;
+                $totalBdAmount = 0;
+            @endphp
             @foreach($breakdown as $bd)
                 @php
+                    $isNotCounted = ($bd['not_counted'] ?? false);
                     $rowClass = '';
-                    if (($bd['type'] ?? '') === 'rest_day') $rowClass = 'table-secondary';
-                    elseif (($bd['type'] ?? '') === 'rest_day_worked') $rowClass = 'table-info';
-                    elseif (($bd['type'] ?? '') === 'holiday') $rowClass = 'table-warning';
-                    elseif (($bd['type'] ?? '') === 'absent') $rowClass = 'table-danger';
+                    $rowStyle = '';
+                    if (($bd['type'] ?? '') === 'rest_day') {
+                        $rowClass = 'table-secondary';
+                    } elseif (($bd['type'] ?? '') === 'rest_day_worked') {
+                        // ALARMING: worked on rest day but NOT counted
+                        $rowStyle = 'background: #ff4444 !important; color: #fff !important; font-weight: 700;';
+                    } elseif (($bd['type'] ?? '') === 'holiday') {
+                        $rowClass = 'table-warning';
+                    } elseif (($bd['type'] ?? '') === 'absent') {
+                        $rowClass = 'table-danger';
+                    }
                     $typeLabel = match($bd['type'] ?? 'regular') {
                         'rest_day' => 'Rest Day',
-                        'rest_day_worked' => 'RD Worked',
+                        'rest_day_worked' => "\u{26A0} RD-P (NOT COUNTED)",
                         'holiday' => 'Holiday',
                         'absent' => 'Absent',
                         default => 'Regular',
                     };
+
+                    // Accumulate totals (only for counted days)
+                    if (!$isNotCounted) {
+                        $totalBdHours += ($bd['hours'] ?? 0);
+                        $totalBdLate += ($bd['late'] ?? 0);
+                        $totalBdUT += ($bd['undertime'] ?? 0);
+                        $totalBdOT += ($bd['ot'] ?? 0);
+                        $totalBdAmount += ($bd['amount'] ?? 0);
+                    }
                 @endphp
-                <tr class="{{ $rowClass }}">
+                <tr class="{{ $rowClass }}" style="{{ $rowStyle }}">
                     <td>{{ \Carbon\Carbon::parse($bd['date'])->format('M d') }}</td>
-                    <td>{{ $typeLabel }}</td>
+                    <td>{!! $typeLabel !!}</td>
                     <td class="text-center">{{ $bd['time_in'] ?? '—' }}</td>
                     <td class="text-center">{{ $bd['lunch_out'] ?? '—' }}</td>
                     <td class="text-center">{{ $bd['lunch_in'] ?? '—' }}</td>
                     <td class="text-center">{{ $bd['time_out'] ?? '—' }}</td>
                     <td class="text-end">{{ $bd['hours'] ?? 0 }}h</td>
-                    <td class="text-end {{ ($bd['late'] ?? 0) > 0 ? 'text-danger' : '' }}">{{ ($bd['late'] ?? 0) > 0 ? $bd['late'] . 'm' : '—' }}</td>
-                    <td class="text-end {{ ($bd['undertime'] ?? 0) > 0 ? 'text-danger' : '' }}">{{ ($bd['undertime'] ?? 0) > 0 ? $bd['undertime'] . 'm' : '—' }}</td>
-                    <td class="text-end {{ ($bd['ot'] ?? 0) > 0 ? 'text-success' : '' }}">{{ ($bd['ot'] ?? 0) > 0 ? $bd['ot'] . 'm' : '—' }}</td>
+                    <td class="text-end {{ ($bd['late'] ?? 0) > 0 ? ($isNotCounted ? '' : 'text-danger') : '' }}">{{ ($bd['late'] ?? 0) > 0 ? $bd['late'] . 'm' : '—' }}</td>
+                    <td class="text-end {{ ($bd['undertime'] ?? 0) > 0 ? ($isNotCounted ? '' : 'text-danger') : '' }}">{{ ($bd['undertime'] ?? 0) > 0 ? $bd['undertime'] . 'm' : '—' }}</td>
+                    <td class="text-end {{ ($bd['ot'] ?? 0) > 0 ? ($isNotCounted ? '' : 'text-success') : '' }}">{{ ($bd['ot'] ?? 0) > 0 ? $bd['ot'] . 'm' : '—' }}</td>
                     <td class="text-end">&#8369;{{ number_format($bd['rate'] ?? $item->daily_rate, 2) }}</td>
-                    <td class="text-end">&#8369;{{ number_format($bd['amount'] ?? 0, 2) }}</td>
+                    <td class="text-end">@if($isNotCounted)<s style="opacity:0.6">&#8369;0.00</s>@else&#8369;{{ number_format($bd['amount'] ?? 0, 2) }}@endif</td>
                 </tr>
             @endforeach
             </tbody>
+            <tfoot class="table-dark fw-bold" style="font-size:0.78rem;">
+                <tr>
+                    <td colspan="6" class="text-end">TOTALS</td>
+                    <td class="text-end">{{ round($totalBdHours, 1) }}h</td>
+                    <td class="text-end">{{ $totalBdLate > 0 ? $totalBdLate . 'm' : '—' }}</td>
+                    <td class="text-end">{{ $totalBdUT > 0 ? $totalBdUT . 'm' : '—' }}</td>
+                    <td class="text-end">{{ $totalBdOT > 0 ? $totalBdOT . 'm' : '—' }}</td>
+                    <td></td>
+                    <td class="text-end">&#8369;{{ number_format($totalBdAmount, 2) }}</td>
+                </tr>
+            </tfoot>
         </table>
         </div>
         @endif

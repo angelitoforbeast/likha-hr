@@ -107,13 +107,19 @@ class AttendanceCalendarController extends Controller
 
                 $attDay = $attendanceIndex[$key] ?? null;
 
+                // Check if this date is a day off for this employee
+                $isDayOff = $emp->isDayOff($dateStr);
+
                 if ($attDay) {
                     $status = 'present';
                     $lateMin = $attDay->computed_late_minutes ?? 0;
                     $earlyMin = $attDay->computed_early_minutes ?? 0;
 
-                    // Merge late and undertime into single "undertime" status
-                    if ($lateMin > 0 || $earlyMin > 0) {
+                    // Check if worked on a rest day — alarming!
+                    if ($isDayOff) {
+                        $status = 'rd_present';
+                    } elseif ($lateMin > 0 || $earlyMin > 0) {
+                        // Merge late and undertime into single "undertime" status
                         $status = 'undertime';
                     }
 
@@ -141,7 +147,7 @@ class AttendanceCalendarController extends Controller
                         'has_overrides' => $hasOverrides,
                         'override_details' => $overrideDetails,
                     ];
-                } elseif ($emp->isDayOff($dateStr)) {
+                } elseif ($isDayOff) {
                     $empData['days'][$idx] = [
                         'date' => $dateStr,
                         'status' => 'day_off',

@@ -154,11 +154,9 @@ class PayrollService
             $isRestDay = $employee->isDayOff($dateStr);
             $holiday = Holiday::getHolidayForDate($dateStr);
 
-            if ($isRestDay && (int) $day->payable_work_minutes > 0) {
-                // Rest day but employee worked — count as regular day worked (Option C)
-                $daysWorked++;
-            } elseif ($isRestDay) {
-                // Rest day — no attendance, don't count
+            if ($isRestDay) {
+                // Rest day — whether worked or not, do NOT count in payroll
+                // Still build breakdown entry below but skip all pay computation
             } elseif ($holiday && $isHolidayEligible) {
                 // Holiday-eligible employee working on a holiday
                 // Don't count in regular daysWorked (basic pay), but track for holiday premium
@@ -168,7 +166,36 @@ class PayrollService
                 $daysWorked++;
             }
 
-            // Accumulate minutes for tracking regardless
+            // Skip all accumulation for rest day work
+            if ($isRestDay) {
+                // Don't accumulate any minutes or deductions for rest days
+                // Build breakdown entry and continue
+                $dayRate = EmployeeRate::getActiveRate($employee->id, $dateStr) ?? $dailyRate;
+                $dayPayable = (int) $day->payable_work_minutes;
+                $dayHours = round($dayPayable / 60, 2);
+
+                $dailyBreakdown[] = [
+                    'date'       => $dateStr,
+                    'type'       => $dayPayable > 0 ? 'rest_day_worked' : 'rest_day',
+                    'status'     => $dayPayable > 0 ? 'RD-P' : 'Rest Day',
+                    'time_in'    => $day->time_in ? $day->time_in->format('H:i') : null,
+                    'lunch_out'  => $day->lunch_out ? $day->lunch_out->format('H:i') : null,
+                    'lunch_in'   => $day->lunch_in ? $day->lunch_in->format('H:i') : null,
+                    'time_out'   => $day->time_out ? $day->time_out->format('H:i') : null,
+                    'work_mins'  => $dayPayable,
+                    'hours'      => $dayHours,
+                    'rate'       => $dayRate,
+                    'late'       => (int) $day->computed_late_minutes,
+                    'early'      => (int) $day->computed_early_minutes,
+                    'undertime'  => 0,
+                    'ot'         => (int) $day->computed_overtime_minutes,
+                    'amount'     => 0, // NOT COUNTED — rest day work
+                    'not_counted' => true,
+                ];
+                continue; // Skip to next attendance day
+            }
+
+            // Accumulate minutes for tracking (non-rest-day only)
             $totalWorkMinutes += $day->payable_work_minutes;
             $totalLateMinutes += $day->computed_late_minutes;
             $totalEarlyMinutes += $day->computed_early_minutes;
@@ -209,10 +236,15 @@ class PayrollService
             $dayTotalDeduct = $dayLate + $dayEarly + $dayUndertime;
 
             $dayType = 'regular';
-            if ($isRestDay && $dayPayable > 0) $dayType = 'rest_day_worked';
-            elseif ($isRestDay) $dayType = 'rest_day';
-            elseif ($holiday) $dayType = 'holiday';
+            if ($holiday) $dayType = 'holiday';
             elseif ($day->status === 'Absent' || $dayPayable <= 0) $dayType = 'absent';
+
+            // For holiday days, compute amount with multiplier
+            $breakdownAmount = $dayDailyAmount;
+            if ($dayType === 'holiday' && $isHolidayEligible && $holiday) {
+                $multiplier = $holiday->type === 'regular' ? $this->regularHolidayWorkedRate : $this->specialHolidayWorkedRate;
+                $breakdownAmount = round($dayRate * $multiplier, 2);
+            }
 
             $dailyBreakdown[] = [
                 'date'       => $dateStr,
@@ -229,7 +261,7 @@ class PayrollService
                 'early'      => $dayEarly,
                 'undertime'  => $dayUndertime,
                 'ot'         => (int) $day->computed_overtime_minutes,
-                'amount'     => $dayDailyAmount,
+                'amount'     => $breakdownAmount,
             ];
         }
 

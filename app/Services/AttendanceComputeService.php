@@ -592,6 +592,13 @@ class AttendanceComputeService
             return $result;
         }
 
+        // 1-punch-only scenario: Time In exists but no Time Out and no Lunch punches
+        // This means only 1 punch was recorded — treat as absent (0 work minutes)
+        // HR can manually override Time Out if the employee actually worked
+        if (!$timeOut && !$lunchOut && !$lunchIn) {
+            return $result;
+        }
+
         $shiftStart = Carbon::parse($workDate . ' ' . $shift->start_time);
         $shiftEnd = Carbon::parse($workDate . ' ' . $shift->end_time);
         $shiftLunchStart = $shift->lunch_start ? Carbon::parse($workDate . ' ' . $shift->lunch_start) : null;

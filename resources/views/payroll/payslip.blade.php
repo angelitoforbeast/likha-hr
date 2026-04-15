@@ -93,17 +93,10 @@
 
         @php
             $storedGross = $item->base_pay + ($item->absence_deduction ?? 0) + ($item->late_deduction ?? 0) + ($item->early_deduction ?? 0);
-            $simpleGross = $item->daily_rate * $item->required_mandays;
-            $isMultiRate = abs($storedGross - $simpleGross) > 1;
         @endphp
         <div class="payslip-row">
-            @if($isMultiRate)
-                <span>Gross Basic ({{ $item->required_mandays }} days, variable rate)</span>
-                <span>&#8369;{{ number_format($storedGross, 2) }}</span>
-            @else
-                <span>Gross Basic ({{ $item->required_mandays }} days &times; &#8369;{{ number_format($item->daily_rate, 2) }})</span>
-                <span>&#8369;{{ number_format($simpleGross, 2) }}</span>
-            @endif
+            <span>Gross Basic ({{ $item->days_worked }} days worked)</span>
+            <span>&#8369;{{ number_format($storedGross, 2) }}</span>
         </div>
 
         @if($item->absent_days > 0)
@@ -252,12 +245,14 @@
                         default => 'Regular',
                     };
 
-                    // Accumulate totals (only for counted days, exclude holiday rows)
+                    // Accumulate totals (include holiday rows in totals now)
                     $isHolidayRow = (($bd['type'] ?? '') === 'holiday');
-                    if (!$isNotCounted && !$isHolidayRow) {
+                    if (!$isNotCounted) {
                         $totalBdHours += ($bd['hours'] ?? 0);
-                        $totalBdLate += ($bd['late'] ?? 0);
-                        $totalBdUT += ($bd['undertime'] ?? 0);
+                        if (!$isHolidayRow) {
+                            $totalBdLate += ($bd['late'] ?? 0);
+                            $totalBdUT += ($bd['undertime'] ?? 0);
+                        }
                         $totalBdOT += ($bd['ot'] ?? 0);
                         $totalBdAmount += ($bd['amount'] ?? 0);
                     }
@@ -307,13 +302,13 @@
                     <th>Holiday</th>
                     <th>Type</th>
                     <th class="text-end">Hours Worked</th>
-                    <th class="text-end">Guaranteed Pay (100%)</th>
+                    <th class="text-end">Holiday Premium (Pro-rated)</th>
                 </tr>
             </thead>
             <tbody>
-            @php $totalHolidayGuaranteed = 0; @endphp
+            @php $totalHolidayPremium = 0; @endphp
             @foreach($holidayDetail as $hd)
-                @php $totalHolidayGuaranteed += ($hd['guaranteed'] ?? 0); @endphp
+                @php $totalHolidayPremium += ($hd['guaranteed'] ?? 0); @endphp
                 <tr class="table-warning">
                     <td>{{ \Carbon\Carbon::parse($hd['date'])->format('M d') }}</td>
                     <td>{{ $hd['holiday_name'] }}</td>
@@ -325,14 +320,14 @@
             </tbody>
             <tfoot style="background: #fff3cd; font-weight: 700; font-size: 0.78rem;">
                 <tr>
-                    <td colspan="4" class="text-end">Total Holiday Guaranteed Pay</td>
-                    <td class="text-end text-success">+&#8369;{{ number_format($totalHolidayGuaranteed, 2) }}</td>
+                    <td colspan="4" class="text-end">Total Holiday Premium</td>
+                    <td class="text-end text-success">+&#8369;{{ number_format($totalHolidayPremium, 2) }}</td>
                 </tr>
             </tfoot>
         </table>
         </div>
         <div class="small text-muted mb-2">
-            <em>Holiday guaranteed pay (100%) is paid regardless of attendance. The pro-rated worked amount is shown in the daily breakdown above.</em>
+            <em>Holiday premium is pro-rated based on actual hours worked (double pay). Basic pay portion is included in the daily breakdown above.</em>
         </div>
         @endif
 

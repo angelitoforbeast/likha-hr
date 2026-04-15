@@ -170,8 +170,9 @@ class PayrollService
                 // Still build breakdown entry below but skip all pay computation
             } elseif ($holiday && $isHolidayEligible) {
                 // Holiday-eligible employee working on a holiday
-                // Don't count in regular daysWorked (basic pay), but track for holiday premium
+                // Count in daysWorked so holiday worked amounts are included in basic pay
                 $holidayDaysWorked++;
+                $daysWorked++;
             } else {
                 // Regular working day (or non-eligible employee on a holiday)
                 $daysWorked++;
@@ -249,8 +250,16 @@ class PayrollService
             }
 
             // Accumulate per-day gross basic (rate for each worked day)
+            // For holiday days: use pro-rated amount (actual hours / required hours × rate)
+            // For regular days: use full day rate
             if (!$isRestDay || $dayPayable > 0) {
-                $perDayGrossBasic += $dayRate;
+                if ($isHolidayDay) {
+                    // Pro-rated: only count what they actually worked
+                    $proRatedAmount = $dayRequired > 0 ? round($dayRate * ($dayPayable / $dayRequired), 2) : 0;
+                    $perDayGrossBasic += $proRatedAmount;
+                } else {
+                    $perDayGrossBasic += $dayRate;
+                }
             }
 
             // Build daily breakdown entry
@@ -275,7 +284,7 @@ class PayrollService
                     'holiday_name' => $holiday->name ?? 'Holiday',
                     'holiday_type' => $holiday->type,
                     'rate'         => $dayRate,
-                    'guaranteed'   => $dayRate, // 100% guaranteed pay
+                    'guaranteed'   => $dayDailyAmount, // pro-rated holiday premium (same as basic pay portion)
                     'hours_worked' => $dayHours,
                     'hours_required' => round($dayRequired / 60, 2),
                 ];
@@ -328,7 +337,8 @@ class PayrollService
         $absentDays = max(0, $requiredMandays - $daysWorked);
 
         // 7. Total days actually worked (regular + holiday) — for Rice Allowance etc.
-        $totalDaysActuallyWorked = $daysWorked + $holidayDaysWorked;
+        // Note: daysWorked already includes holidayDaysWorked (added in the loop above)
+        $totalDaysActuallyWorked = $daysWorked;
 
         // 8. Compute total days decimal (for backward compatibility)
         $shift = $employee->getShiftForDate($startStr);
@@ -369,9 +379,16 @@ class PayrollService
             $earlyDeduction = round($perDayEarlyDeduction, 2);
             $undertimeDeduction = round($perDayUndertimeDeduction, 2);
         } else {
-            // Single rate: traditional formula
-            $grossBasic = round($dailyRate * $requiredMandays, 2);
-            $absenceDeduction = round($dailyRate * $absentDays, 2);
+            // Single rate: use per-day accumulated gross basic
+            // This accounts for holiday days being pro-rated (not full day rate)
+            // grossBasic = sum of regular day rates + pro-rated holiday amounts
+            $grossBasic = round($perDayGrossBasic, 2);
+            // For absent days, add their full rate to gross so we can deduct it
+            $absenceDeduction = 0;
+            if ($absentDays > 0) {
+                $absenceDeduction = round($dailyRate * $absentDays, 2);
+                $grossBasic += $absenceDeduction; // Add to gross so deduction brings it back down
+            }
             $lateDeduction = $this->computeMinuteBasedAmount($totalLateMinutes, $dailyRate);
             $earlyDeduction = $this->computeMinuteBasedAmount($totalEarlyMinutes, $dailyRate);
             $undertimeDeduction = $this->computeMinuteBasedAmount($totalUndertimeMinutes, $dailyRate);
@@ -393,22 +410,38 @@ class PayrollService
         $activeBenefits = $employee->getActiveBenefitsForDate($endStr);
 
         // --- Holiday Pay Earnings (for eligible employees) ---
-        // NEW APPROACH: Holiday worked = guaranteed 100% of daily rate (separate from breakdown)
-        // The breakdown already shows pro-rated amount based on actual hours worked.
-        // The guaranteed 100% is the EXTRA pay on top of what's in the breakdown.
+        // DOUBLE PAY APPROACH: Holiday worked = pro-rated premium (same as basic pay portion)
+        // Basic pay (in breakdown) = pro-rated based on actual hours worked
+        // Holiday premium (here) = also pro-rated based on actual hours worked
+        // Half-day = half pay on BOTH basic and premium
 
-        // Regular Holiday + WORKED = guaranteed 100% daily rate (the pro-rated worked amount is already in breakdown)
+        // Regular Holiday + WORKED = pro-rated holiday premium (same as basic pay portion)
+        // Double pay concept: basic pay (pro-rated, in breakdown) + holiday premium (pro-rated, here)
+        // Half-day = half pay on both basic AND holiday premium
         if ($regularHolidaysWorked > 0 && $dailyRate > 0) {
             $amount = 0;
             $regularHolidayDatesWorked = $mandaysData['regular_holiday_dates'] ?? [];
             foreach ($regularHolidayDatesWorked as $hDate) {
                 if (isset($attendanceDateSet[$hDate])) {
                     $hRate = EmployeeRate::getActiveRate($employee->id, $hDate) ?? $dailyRate;
-                    $amount += round($hRate * $this->regularHolidayNotWorkedRate, 2); // 100% guaranteed
+                    // Find the actual hours worked for this holiday from daily breakdown
+                    $hPayable = 0;
+                    $hRequired = $this->standardMinutesPerDay;
+                    foreach ($dailyBreakdown as $bd) {
+                        if ($bd['date'] === $hDate && $bd['type'] === 'holiday') {
+                            $hPayable = $bd['work_mins'] ?? 0;
+                            break;
+                        }
+                    }
+                    $hShift = $employee->getShiftForDate($hDate);
+                    $hRequired = $hShift?->required_work_minutes ?? $this->standardMinutesPerDay;
+                    // Pro-rated: (actual hours / required hours) × rate
+                    $proRated = $hRequired > 0 ? round($hRate * ($hPayable / $hRequired), 2) : 0;
+                    $amount += $proRated;
                 }
             }
             $earningsBreakdown[] = [
-                'name' => 'Regular Holiday Pay (Guaranteed 100%)',
+                'name' => 'Regular Holiday Pay (Double Pay Premium)',
                 'type' => 'holiday_guaranteed',
                 'rate' => $dailyRate,
                 'days' => $regularHolidaysWorked,
@@ -437,21 +470,27 @@ class PayrollService
             $totalEarnings += $amount;
         }
 
-        // Special Non-Working + WORKED = guaranteed 100% (pro-rated worked amount already in breakdown)
-        // For special holidays: total = pro-rated 130% (in breakdown) + 0 extra
-        // Actually for special: worked = 130% total. Breakdown shows pro-rated portion.
-        // The extra above 100% is: (multiplier - 1) × rate × (hours/required)
-        // But simpler: guaranteed = rate × (multiplier - 1.0) for the premium portion
-        // Wait — special holiday worked: employee gets 130% total.
-        // Breakdown shows: pro-rated based on hours (e.g., 7.73/8 × rate = worked portion)
-        // The 30% premium: rate × 0.30 guaranteed
+        // Special Non-Working + WORKED = pro-rated 30% premium
+        // Breakdown already has pro-rated basic pay portion. Premium is also pro-rated.
         if ($specialHolidaysWorked > 0 && $dailyRate > 0) {
             $amount = 0;
             $specialHolidayDatesAll = $mandaysData['special_holiday_dates'] ?? [];
             foreach ($specialHolidayDatesAll as $hDate) {
                 if (isset($attendanceDateSet[$hDate])) {
                     $hRate = EmployeeRate::getActiveRate($employee->id, $hDate) ?? $dailyRate;
-                    $amount += round($hRate * ($this->specialHolidayWorkedRate - 1.00), 2); // 30% premium
+                    // Pro-rated 30% premium based on actual hours
+                    $hPayable = 0;
+                    $hRequired = $this->standardMinutesPerDay;
+                    foreach ($dailyBreakdown as $bd) {
+                        if ($bd['date'] === $hDate && $bd['type'] === 'holiday') {
+                            $hPayable = $bd['work_mins'] ?? 0;
+                            break;
+                        }
+                    }
+                    $hShift = $employee->getShiftForDate($hDate);
+                    $hRequired = $hShift?->required_work_minutes ?? $this->standardMinutesPerDay;
+                    $proRated = $hRequired > 0 ? round($hRate * ($this->specialHolidayWorkedRate - 1.00) * ($hPayable / $hRequired), 2) : 0;
+                    $amount += $proRated;
                 }
             }
             $earningsBreakdown[] = [

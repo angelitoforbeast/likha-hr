@@ -185,6 +185,8 @@
                                 {{ $timeVal ?: '—' }}
                                 @if($isEdited)
                                     <i class="bi bi-pencil-fill text-primary" style="font-size:0.65rem;"></i>
+                                @elseif(!$timeVal)
+                                    <i class="bi bi-pencil text-muted" style="font-size:0.6rem; opacity:0.5;"></i>
                                 @endif
                             </span>
                         </td>
@@ -244,11 +246,37 @@
                         </td>
                         <td>{{ $row->work_date->format('M d, Y') }}</td>
                         <td><span class="badge bg-danger" style="font-size:0.7rem;">Absent</span></td>
+                        @if(auth()->user()->role === 'ceo')
+                        <td>
+                            <select class="form-select form-select-sm absent-shift-select"
+                                    data-employee-id="{{ $row->employee->id }}"
+                                    data-work-date="{{ $row->work_date->format('Y-m-d') }}"
+                                    style="width:120px; font-size:0.8rem;">
+                                <option value="">—</option>
+                                @foreach($shifts as $shift)
+                                    <option value="{{ $shift->id }}">{{ $shift->name }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+                        @foreach(['time_in', 'lunch_out', 'lunch_in', 'time_out'] as $absentField)
+                        <td class="text-center">
+                            <span class="absent-time-cell" role="button"
+                                  data-employee-id="{{ $row->employee->id }}"
+                                  data-work-date="{{ $row->work_date->format('Y-m-d') }}"
+                                  data-field="{{ $absentField }}"
+                            >
+                                —
+                                <i class="bi bi-plus-circle text-danger" style="font-size:0.6rem;"></i>
+                            </span>
+                        </td>
+                        @endforeach
+                        @else
                         <td class="text-muted">—</td>
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
+                        @endif
                         <td class="text-center">0</td>
                         <td class="text-center">0</td>
                         <td class="text-center">0</td>
@@ -373,6 +401,16 @@
     .flatpickr-input {
         background-color: #fff !important;
     }
+    .absent-time-cell {
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+    .absent-time-cell:hover {
+        background: #ffcdd2;
+        text-decoration: underline;
+    }
 </style>
 @endpush
 
@@ -455,6 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const value = this.dataset.value;
 
             document.getElementById('override-day-id').value = dayId;
+            document.getElementById('override-day-id').dataset.isAbsent = 'false';
             document.getElementById('override-field').value = field;
             document.getElementById('override-field-display').value = field.replace(/_/g, ' ').toUpperCase();
             document.getElementById('override-new-value').value = value;
@@ -468,7 +507,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ========== SAVE OVERRIDE ==========
     document.getElementById('override-save').addEventListener('click', function() {
-        const dayId = document.getElementById('override-day-id').value;
+        const dayIdEl = document.getElementById('override-day-id');
+        let dayId = dayIdEl.value;
+        const isAbsent = dayIdEl.dataset.isAbsent === 'true';
         const field = document.getElementById('override-field').value;
         const clearVal = document.getElementById('override-clear').checked;
         const newValue = clearVal ? '' : document.getElementById('override-new-value').value;
@@ -480,6 +521,51 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        if (!newValue && !clearVal) {
+            document.getElementById('override-error').textContent = 'Please enter a time value.';
+            document.getElementById('override-error').classList.remove('d-none');
+            return;
+        }
+
+        // If absent row, first create attendance day, then override
+        if (isAbsent && !dayId) {
+            const employeeId = dayIdEl.dataset.absentEmployeeId;
+            const workDate = dayIdEl.dataset.absentWorkDate;
+
+            fetch('{{ route("attendance.create-day") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    employee_id: employeeId,
+                    work_date: workDate,
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.attendance_day_id) {
+                    // Now save the override with the new day ID
+                    dayIdEl.value = data.attendance_day_id;
+                    dayIdEl.dataset.isAbsent = 'false';
+                    saveOverride(data.attendance_day_id, field, newValue, reason);
+                } else {
+                    document.getElementById('override-error').textContent = data.message || 'Error creating attendance day.';
+                    document.getElementById('override-error').classList.remove('d-none');
+                }
+            })
+            .catch(err => {
+                document.getElementById('override-error').textContent = 'Network error creating attendance day.';
+                document.getElementById('override-error').classList.remove('d-none');
+            });
+        } else {
+            saveOverride(dayId, field, newValue, reason);
+        }
+    });
+
+    function saveOverride(dayId, field, newValue, reason) {
         fetch('{{ route("attendance.override") }}', {
             method: 'POST',
             headers: {
@@ -508,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('override-error').textContent = 'Network error. Please try again.';
             document.getElementById('override-error').classList.remove('d-none');
         });
-    });
+    }
 
     // ========== SHIFT DROPDOWN CHANGE ==========
     document.querySelectorAll('.shift-select').forEach(select => {
@@ -643,6 +729,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('forceEndDate').value = endDate;
                 document.getElementById('forceRecomputeForm').submit();
             }
+        });
+    });
+
+    // ========== ABSENT ROW CLICK -> CREATE DAY & OVERRIDE ==========
+    document.querySelectorAll('.absent-time-cell').forEach(cell => {
+        cell.addEventListener('click', function(e) {
+            const employeeId = this.dataset.employeeId;
+            const workDate = this.dataset.workDate;
+            const field = this.dataset.field;
+
+            // First, create the attendance day record, then open override modal
+            document.getElementById('override-field').value = field;
+            document.getElementById('override-field-display').value = field.replace(/_/g, ' ').toUpperCase();
+            document.getElementById('override-new-value').value = '';
+            document.getElementById('override-reason').value = '';
+            document.getElementById('override-clear').checked = false;
+            document.getElementById('override-error').classList.add('d-none');
+
+            // Store absent context for the save handler
+            document.getElementById('override-day-id').value = '';
+            document.getElementById('override-day-id').dataset.absentEmployeeId = employeeId;
+            document.getElementById('override-day-id').dataset.absentWorkDate = workDate;
+            document.getElementById('override-day-id').dataset.isAbsent = 'true';
+
+            new bootstrap.Modal(document.getElementById('overrideModal')).show();
         });
     });
 

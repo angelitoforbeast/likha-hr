@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/attendance/export-csv', [AttendanceController::class, 'exportCsv'])->name('attendance.export-csv');
     Route::get('/attendance/print', [AttendanceController::class, 'printView'])->name('attendance.print');
     Route::post('/attendance/override', [AttendanceController::class, 'override'])->name('attendance.override');
+    Route::post('/attendance/create-day', [AttendanceController::class, 'createDay'])->name('attendance.create-day');
     Route::post('/attendance/force-compute', [AttendanceController::class, 'forceCompute'])->name('attendance.force-compute');
     Route::get('/attendance/count-overrides', [AttendanceController::class, 'countOverrides'])->name('attendance.count-overrides');
     Route::get('/attendance/cutoff-dates', [AttendanceController::class, 'cutoffDates'])->name('attendance.cutoff-dates');

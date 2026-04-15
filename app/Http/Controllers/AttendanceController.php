@@ -319,6 +319,66 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Create an attendance day record for an absent day (CEO only).
+     */
+    public function createDay(Request $request)
+    {
+        // Only CEO can create attendance days for absent rows
+        if (Auth::user()->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. CEO access required.'], 403);
+        }
+
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'work_date'   => 'required|date',
+        ]);
+
+        $employee = Employee::findOrFail($request->employee_id);
+        $workDate = Carbon::parse($request->work_date);
+
+        // Check if attendance day already exists
+        $existing = AttendanceDay::where('employee_id', $employee->id)
+            ->whereDate('work_date', $workDate)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'attendance_day_id' => $existing->id,
+                'message' => 'Attendance day already exists.',
+            ]);
+        }
+
+        // Find the employee's default shift
+        $shift = $employee->shift;
+
+        // Create a blank attendance day
+        $day = AttendanceDay::create([
+            'employee_id' => $employee->id,
+            'work_date'   => $workDate,
+            'shift_id'    => $shift ? $shift->id : null,
+            'time_in'     => null,
+            'lunch_out'   => null,
+            'lunch_in'    => null,
+            'time_out'    => null,
+            'computed_work_minutes'  => 0,
+            'computed_late_minutes'  => 0,
+            'computed_early_minutes' => 0,
+            'computed_ot_minutes'    => 0,
+            'computed_ut_minutes'    => 0,
+            'payable_minutes'        => 0,
+            'needs_review'           => true,
+            'notes'                  => 'Manually created by CEO from absent row.',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'attendance_day_id' => $day->id,
+            'message' => 'Attendance day created.',
+        ]);
+    }
+
+    /**
      * Export current filter as CSV.
      */
     public function exportCsv(Request $request): StreamedResponse

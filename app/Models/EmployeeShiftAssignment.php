@@ -14,11 +14,13 @@ class EmployeeShiftAssignment extends Model
         'employee_id',
         'shift_id',
         'effective_date',
+        'effective_until',
         'remarks',
     ];
 
     protected $casts = [
-        'effective_date' => 'date',
+        'effective_date'  => 'date',
+        'effective_until' => 'date',
     ];
 
     public function employee(): BelongsTo

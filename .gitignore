@@ -19,3 +19,4 @@ yarn-error.log
 /.vscode
 storage/framework/sessions/*
 \!storage/framework/sessions/.gitkeep
+.claude/

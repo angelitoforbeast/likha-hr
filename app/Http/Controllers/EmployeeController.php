@@ -135,15 +135,28 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        // Check for overlapping assignments
-        $overlap = $this->checkShiftOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null);
+        $newStart = $validated['effective_date'];
+
+        // Auto-close any open-ended shift that starts before the new shift
+        $openShifts = EmployeeShiftAssignment::where('employee_id', $employee->id)
+            ->whereNull('effective_until')
+            ->where('effective_date', '<', $newStart)
+            ->get();
+
+        foreach ($openShifts as $openShift) {
+            $openShift->effective_until = Carbon::parse($newStart)->subDay()->format('Y-m-d');
+            $openShift->save();
+        }
+
+        // Check for remaining overlaps (with closed-end assignments)
+        $overlap = $this->checkShiftOverlap($employee->id, $newStart, $validated['effective_until'] ?? null);
         if ($overlap) {
             return redirect()->route('employees.edit', $employee)
                 ->with('error', "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).");
         }
 
         $employee->shiftAssignments()->create($validated);
-        $message = "Shift assignment added effective {$validated['effective_date']}.";
+        $message = "Shift assignment added effective {$newStart}." . ($openShifts->count() ? ' Previous open shift auto-closed.' : '');
 
         if ($employee->isDepartmentMode()) {
             $employee->update(['schedule_mode' => Employee::MODE_MANUAL]);

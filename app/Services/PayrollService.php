@@ -107,7 +107,6 @@ class PayrollService
         // 2. Compute required mandays
         $mandaysData = $employee->computeRequiredMandays($startStr, $endStr);
         $requiredMandays = $mandaysData['required_mandays'];
-        $isHolidayEligible = $mandaysData['holiday_eligible'];
 
         // 3. Get attendance days (days actually worked)
         $attendanceDays = AttendanceDay::where('employee_id', $employee->id)
@@ -164,11 +163,12 @@ class PayrollService
 
             $isRestDay = $employee->isDayOff($dateStr);
             $holiday = Holiday::getHolidayForDate($dateStr);
+            $isHolidayEligibleForDay = $employee->isHolidayEligibleForDate($dateStr);
 
             if ($isRestDay) {
                 // Rest day — whether worked or not, do NOT count in payroll
                 // Still build breakdown entry below but skip all pay computation
-            } elseif ($holiday && $isHolidayEligible) {
+            } elseif ($holiday && $isHolidayEligibleForDay) {
                 // Holiday-eligible employee working on a holiday
                 // Count in daysWorked so holiday worked amounts are included in basic pay
                 $holidayDaysWorked++;
@@ -228,7 +228,7 @@ class PayrollService
             // Get per-day rate
             $dayRate = EmployeeRate::getActiveRate($employee->id, $dateStr) ?? $dailyRate;
 
-            $isHolidayDay = ($holiday && $isHolidayEligible);
+            $isHolidayDay = ($holiday && $isHolidayEligibleForDay);
 
             // Separate holiday late/UT from regular late/UT
             if ($isHolidayDay) {
@@ -267,13 +267,13 @@ class PayrollService
             $dayDailyAmount = $dayRequired > 0 ? round($dayRate * ($dayPayable / $dayRequired), 2) : 0;
 
             $dayType = 'regular';
-            if ($holiday) $dayType = 'holiday';
+            if ($holiday && $isHolidayEligibleForDay) $dayType = 'holiday';
             elseif ($day->status === 'Absent' || $dayPayable <= 0) $dayType = 'absent';
 
             // For holiday days: amount = pro-rated based on actual hours worked
             // (late/UT already reflected in reduced amount, no separate deduction)
             $breakdownAmount = $dayDailyAmount;
-            if ($dayType === 'holiday' && $isHolidayEligible && $holiday) {
+            if ($dayType === 'holiday' && $isHolidayEligibleForDay && $holiday) {
                 // Pro-rated: (actual hours / required hours) × daily rate
                 // This naturally reduces amount when late or half-day
                 $breakdownAmount = $dayDailyAmount; // already pro-rated from payable/required
@@ -309,27 +309,25 @@ class PayrollService
             ];
         }
 
-        // 5. For eligible employees, check each holiday date to determine worked vs not worked
-        if ($isHolidayEligible) {
-            // Check Regular Holidays
-            $regularHolidayDates = $mandaysData['regular_holiday_dates'] ?? [];
-            foreach ($regularHolidayDates as $hDate) {
-                if (isset($attendanceDateSet[$hDate])) {
-                    $regularHolidaysWorked++;
-                } else {
-                    $regularHolidaysNotWorked++;
-                }
+        // 5. Check each holiday date to determine worked vs not worked
+        // Note: holiday dates returned by computeRequiredMandays are already filtered
+        // to only include dates where the employee was holiday-eligible on that specific date.
+        $regularHolidayDates = $mandaysData['regular_holiday_dates'] ?? [];
+        foreach ($regularHolidayDates as $hDate) {
+            if (isset($attendanceDateSet[$hDate])) {
+                $regularHolidaysWorked++;
+            } else {
+                $regularHolidaysNotWorked++;
             }
+        }
 
-            // Check Special Non-Working Holidays
-            $specialHolidayDates = $mandaysData['special_holiday_dates'] ?? [];
-            foreach ($specialHolidayDates as $hDate) {
-                if (isset($attendanceDateSet[$hDate])) {
-                    $specialHolidaysWorked++;
-                } else {
-                    $specialHolidaysNotWorked++;
-                    // Special Non-Working + not worked = no pay, no deduction (nothing to do)
-                }
+        $specialHolidayDates = $mandaysData['special_holiday_dates'] ?? [];
+        foreach ($specialHolidayDates as $hDate) {
+            if (isset($attendanceDateSet[$hDate])) {
+                $specialHolidaysWorked++;
+            } else {
+                $specialHolidaysNotWorked++;
+                // Special Non-Working + not worked = no pay, no deduction (nothing to do)
             }
         }
 

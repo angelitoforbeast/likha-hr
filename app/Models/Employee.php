@@ -276,22 +276,19 @@ class Employee extends Model
         $specialHolidayDates = [];
         $restDayDates = [];
 
-        // Check if employee's current status is holiday-eligible
-        $status = $this->getStatusForDate($endDate);
-        $isHolidayEligible = $status ? $status->holiday_eligible : true; // default eligible if no status
-
         foreach ($period as $day) {
             $dateStr = $day->format('Y-m-d');
             $calendarDays++;
 
             $isRestDay = $this->isDayOff($dateStr);
             $holiday = Holiday::getHolidayForDate($dateStr);
+            $isHolidayEligibleForDay = $this->isHolidayEligibleForDate($dateStr);
 
             if ($isRestDay) {
                 $restDays++;
                 $restDayDates[] = $dateStr;
-            } elseif ($holiday && $isHolidayEligible) {
-                // Only count as holiday if employee is eligible
+            } elseif ($holiday && $isHolidayEligibleForDay) {
+                // Only count as holiday if employee is eligible on this specific date
                 $holidays++;
                 $holidayDates[] = $dateStr;
                 if ($holiday->type === Holiday::TYPE_REGULAR) {
@@ -302,7 +299,7 @@ class Employee extends Model
                     $specialHolidayDates[] = $dateStr;
                 }
             } else {
-                // Not eligible for holiday = treated as regular working day
+                // Not eligible for holiday OR no holiday = treated as regular working day
                 $requiredDays++;
                 $requiredDates[] = $dateStr;
             }
@@ -320,8 +317,17 @@ class Employee extends Model
             'regular_holiday_dates' => $regularHolidayDates,
             'special_holiday_dates' => $specialHolidayDates,
             'rest_day_dates' => $restDayDates,
-            'holiday_eligible' => $isHolidayEligible,
         ];
+    }
+
+    /**
+     * Check if employee is holiday-eligible on a specific date.
+     * Returns true if no status is set (default eligible).
+     */
+    public function isHolidayEligibleForDate(string $date): bool
+    {
+        $status = $this->getStatusForDate($date);
+        return $status ? (bool) $status->holiday_eligible : true;
     }
 
     /* ── Cash Advance Helpers ── */

@@ -163,12 +163,31 @@ class AttendanceController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        // Get employees that have records in this date range (for name filter)
-        $employeeIdsInRange = $filteredEmployees->pluck('id')->toArray();
-        $employeesInRange = $filteredEmployees->sortBy('full_name');
+        // Employees with actual attendance records in this date range (for employee dropdown)
+        $employeeIdsWithAttendance = AttendanceDay::whereBetween('work_date', [$startDate, $endDate])
+            ->distinct()
+            ->pluck('employee_id')
+            ->toArray();
+
+        // Cascade employee dropdown by selected department (if any)
+        $employeesInRangeQuery = Employee::whereIn('id', $employeeIdsWithAttendance);
+        if ($request->filled('department_id')) {
+            $employeesInRangeQuery->where('department_id', $request->department_id);
+        }
+        $employeesInRange = $employeesInRangeQuery->orderBy('full_name')->get();
+
+        // Departments with at least one employee that has attendance in this date range
+        $departmentIdsInRange = Employee::whereIn('id', $employeeIdsWithAttendance)
+            ->whereNotNull('department_id')
+            ->distinct()
+            ->pluck('department_id')
+            ->toArray();
+        $departmentsInRange = Department::whereIn('id', $departmentIdsInRange)
+            ->orderBy('name')
+            ->get();
 
         return view('attendance.index', compact(
-            'days', 'employees', 'employeesInRange', 'shifts', 'departments',
+            'days', 'employees', 'employeesInRange', 'shifts', 'departments', 'departmentsInRange',
             'startDate', 'endDate', 'overrides'
         ));
     }

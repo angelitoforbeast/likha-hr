@@ -76,7 +76,7 @@
                 <label class="form-label small fw-semibold">Department</label>
                 <select name="department_id" class="form-select form-select-sm" id="filterDepartment">
                     <option value="">All Departments</option>
-                    @foreach($departments as $dept)
+                    @foreach($departmentsInRange as $dept)
                         <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
                             {{ $dept->name }}
                         </option>

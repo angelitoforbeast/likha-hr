@@ -277,6 +277,12 @@
                         <div class="fw-semibold mb-1" style="color:#6f42c1"><i class="bi bi-pencil-square"></i> Edit History</div>
                         <div id="dOverrideList"></div>
                     </div>
+                    {{-- View Raw Punches button --}}
+                    <div class="mt-2 text-center">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="openPunchesModal()">
+                            <i class="bi bi-clock-history"></i> View Raw Punches
+                        </button>
+                    </div>
                 </div>
 
                 {{-- Absent / Day Off detail --}}
@@ -297,6 +303,11 @@
                             </button>
                         </div>
                         <div id="dayOffMsg" class="small mt-2" style="display:none"></div>
+                    </div>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="openPunchesModal()">
+                            <i class="bi bi-clock-history"></i> View Raw Punches
+                        </button>
                     </div>
                 </div>
             </div>
@@ -333,6 +344,35 @@
         </div>
     </div>
 </div>
+
+{{-- Raw Punches Modal --}}
+<div class="modal fade" id="punchesModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">
+                    <i class="bi bi-clock-history"></i>
+                    Raw Punches
+                </h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <div class="small text-muted mb-2">
+                    <span id="pEmployee" class="fw-semibold"></span> — <span id="pDate"></span>
+                </div>
+                <div id="punchesLoading" class="text-center text-muted py-3" style="display:none">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <div class="small mt-1">Loading...</div>
+                </div>
+                <div id="punchesEmpty" class="text-center text-muted py-3" style="display:none">
+                    <i class="bi bi-info-circle"></i> No raw punches recorded for this date.
+                </div>
+                <ol id="punchesList" class="list-group list-group-numbered list-group-flush" style="font-family: monospace;"></ol>
+                <div class="small text-muted mt-2"><span id="pCount">0</span> punches total.</div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -345,8 +385,50 @@
 
     const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
     const editTimeModal = new bootstrap.Modal(document.getElementById('editTimeModal'));
+    const punchesModal = new bootstrap.Modal(document.getElementById('punchesModal'));
 
     let currentTd = null;
+
+    function openPunchesModal() {
+        if (!currentTd) return;
+        const employeeId = currentTd.getAttribute('data-employee-id');
+        const employeeName = currentTd.getAttribute('data-employee') || '';
+        const date = currentTd.getAttribute('data-date');
+
+        document.getElementById('pEmployee').textContent = employeeName;
+        document.getElementById('pDate').textContent = date;
+        document.getElementById('punchesList').innerHTML = '';
+        document.getElementById('punchesEmpty').style.display = 'none';
+        document.getElementById('punchesLoading').style.display = '';
+        document.getElementById('pCount').textContent = '0';
+        punchesModal.show();
+
+        fetch(`{{ route('attendance.punches') }}?employee_id=${encodeURIComponent(employeeId)}&date=${encodeURIComponent(date)}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('punchesLoading').style.display = 'none';
+            document.getElementById('pCount').textContent = data.count || 0;
+            const list = document.getElementById('punchesList');
+            list.innerHTML = '';
+            if (!data.punches || data.punches.length === 0) {
+                document.getElementById('punchesEmpty').style.display = '';
+                return;
+            }
+            data.punches.forEach(p => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item py-1 px-2';
+                li.textContent = `${p.time}  (${p.time_display})`;
+                list.appendChild(li);
+            });
+        })
+        .catch(() => {
+            document.getElementById('punchesLoading').style.display = 'none';
+            document.getElementById('punchesEmpty').style.display = '';
+            document.getElementById('punchesEmpty').textContent = 'Failed to load punches.';
+        });
+    }
 
     const statusLabels = {
         'present': 'Present',

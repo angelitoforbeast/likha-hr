@@ -129,6 +129,7 @@
                         <th class="text-center sortable" data-col="11">Early <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="text-center sortable" data-col="12">OT <i class="bi bi-arrow-down-up small"></i></th>
                         <th class="text-center sortable" data-col="13">Payable <i class="bi bi-arrow-down-up small"></i></th>
+                        <th class="text-center">Punches</th>
                         <th class="text-center">Review</th>
                     </tr>
                 </thead>
@@ -203,6 +204,16 @@
                         </td>
                         <td class="text-center fw-bold">{{ $day->payable_work_minutes }}</td>
                         <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 view-punches-btn"
+                                    data-employee-id="{{ $row->employee->id }}"
+                                    data-employee-name="{{ $row->employee->display_name ?? '' }}"
+                                    data-date="{{ $row->work_date->format('Y-m-d') }}"
+                                    title="View raw punches"
+                                    style="font-size:0.7rem;">
+                                <i class="bi bi-clock-history"></i> View
+                            </button>
+                        </td>
+                        <td class="text-center">
                             @if($day->needs_review)
                                 <span class="badge bg-warning text-dark">YES</span>
                             @else
@@ -232,6 +243,16 @@
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 view-punches-btn"
+                                    data-employee-id="{{ $row->employee->id }}"
+                                    data-employee-name="{{ $row->employee->display_name ?? '' }}"
+                                    data-date="{{ $row->work_date->format('Y-m-d') }}"
+                                    title="View raw punches"
+                                    style="font-size:0.7rem;">
+                                <i class="bi bi-clock-history"></i> View
+                            </button>
+                        </td>
                         <td class="text-center text-muted">—</td>
                     </tr>
                     @elseif($row->type === 'absent')
@@ -282,12 +303,22 @@
                         <td class="text-center">0</td>
                         <td class="text-center">0</td>
                         <td class="text-center">0</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 view-punches-btn"
+                                    data-employee-id="{{ $row->employee->id }}"
+                                    data-employee-name="{{ $row->employee->display_name ?? '' }}"
+                                    data-date="{{ $row->work_date->format('Y-m-d') }}"
+                                    title="View raw punches"
+                                    style="font-size:0.7rem;">
+                                <i class="bi bi-clock-history"></i> View
+                            </button>
+                        </td>
                         <td class="text-center text-muted">—</td>
                     </tr>
                     @endif
                     @empty
                     <tr>
-                        <td colspan="15" class="text-center text-muted py-4">
+                        <td colspan="16" class="text-center text-muted py-4">
                             No attendance records found. Try adjusting filters or compute attendance first.
                         </td>
                     </tr>
@@ -336,6 +367,35 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="override-save">Save Override</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Raw Punches Modal (read-only) --}}
+<div class="modal fade" id="punchesModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">
+                    <i class="bi bi-clock-history"></i>
+                    Raw Punches
+                </h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <div class="small text-muted mb-2">
+                    <span id="pEmployee" class="fw-semibold"></span> — <span id="pDate"></span>
+                </div>
+                <div id="punchesLoading" class="text-center text-muted py-3" style="display:none">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <div class="small mt-1">Loading...</div>
+                </div>
+                <div id="punchesEmpty" class="text-center text-muted py-3" style="display:none">
+                    <i class="bi bi-info-circle"></i> No raw punches recorded for this date.
+                </div>
+                <ol id="punchesList" class="list-group list-group-numbered list-group-flush" style="font-family: monospace;"></ol>
+                <div class="small text-muted mt-2"><span id="pCount">0</span> punches total.</div>
             </div>
         </div>
     </div>
@@ -418,6 +478,49 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // ========== RAW PUNCHES MODAL ==========
+    const punchesModalEl = document.getElementById('punchesModal');
+    const punchesModal = punchesModalEl ? new bootstrap.Modal(punchesModalEl) : null;
+    document.querySelectorAll('.view-punches-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const employeeId = this.dataset.employeeId;
+            const employeeName = this.dataset.employeeName;
+            const date = this.dataset.date;
+            document.getElementById('pEmployee').textContent = employeeName;
+            document.getElementById('pDate').textContent = date;
+            document.getElementById('punchesList').innerHTML = '';
+            document.getElementById('punchesEmpty').style.display = 'none';
+            document.getElementById('punchesLoading').style.display = '';
+            document.getElementById('pCount').textContent = '0';
+            punchesModal.show();
+            fetch(`{{ route('attendance.punches') }}?employee_id=${encodeURIComponent(employeeId)}&date=${encodeURIComponent(date)}`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('punchesLoading').style.display = 'none';
+                document.getElementById('pCount').textContent = data.count || 0;
+                const list = document.getElementById('punchesList');
+                list.innerHTML = '';
+                if (!data.punches || data.punches.length === 0) {
+                    document.getElementById('punchesEmpty').style.display = '';
+                    return;
+                }
+                data.punches.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item py-1 px-2';
+                    li.textContent = `${p.time}  (${p.time_display})`;
+                    list.appendChild(li);
+                });
+            })
+            .catch(() => {
+                document.getElementById('punchesLoading').style.display = 'none';
+                document.getElementById('punchesEmpty').style.display = '';
+                document.getElementById('punchesEmpty').textContent = 'Failed to load punches.';
+            });
+        });
+    });
 
     // ========== FLATPICKR DATE RANGE ==========
     const fp = flatpickr('#dateRangePicker', {

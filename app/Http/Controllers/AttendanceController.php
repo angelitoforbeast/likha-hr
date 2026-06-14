@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceDay;
+use App\Models\AttendanceLog;
 use App\Models\AttendanceOverride;
 use App\Models\CutoffRule;
 use App\Models\Department;
@@ -198,6 +199,36 @@ class AttendanceController extends Controller
             });
 
         return response()->json($employees);
+    }
+
+    /**
+     * Return raw ZKTeco punches for an employee on a given date (read-only).
+     */
+    public function punches(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $start = Carbon::parse($validated['date'])->startOfDay();
+        $end = Carbon::parse($validated['date'])->endOfDay();
+
+        $logs = AttendanceLog::where('employee_id', $employee->id)
+            ->whereBetween('punched_at', [$start, $end])
+            ->orderBy('punched_at')
+            ->get(['punched_at']);
+
+        return response()->json([
+            'employee_name' => $employee->display_name,
+            'date'    => $validated['date'],
+            'count'   => $logs->count(),
+            'punches' => $logs->map(fn ($l) => [
+                'time'         => $l->punched_at->format('H:i:s'),
+                'time_display' => $l->punched_at->format('g:i:s A'),
+            ])->values(),
+        ]);
     }
 
     /**

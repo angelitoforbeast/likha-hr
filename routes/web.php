@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/attendance/count-overrides', [AttendanceController::class, 'countOverrides'])->name('attendance.count-overrides');
     Route::get('/attendance/cutoff-dates', [AttendanceController::class, 'cutoffDates'])->name('attendance.cutoff-dates');
     Route::get('/attendance/employees-in-range', [AttendanceController::class, 'employeesInRange'])->name('attendance.employees-in-range');
+    Route::get('/attendance/punches', [AttendanceController::class, 'punches'])->name('attendance.punches');
 
     // Payroll (Phase 4)
     Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');

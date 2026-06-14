@@ -574,6 +574,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========== AUTO-SEARCH ON FILTER CHANGE ==========
     ['filterEmployee', 'filterDepartment', 'filterReview'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', function() {
+            // When department changes, reset employee filter so dropdowns stay consistent
+            if (id === 'filterDepartment') {
+                const empSelect = document.getElementById('filterEmployee');
+                if (empSelect) empSelect.value = '';
+            }
             submitFilter();
         });
     });

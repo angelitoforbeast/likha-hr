@@ -11,14 +11,21 @@
     <style>
         body { background-color: #f4f6f9; }
         .sidebar {
-            min-height: 100vh;
+            height: 100vh;
             background: #212529;
             color: #fff;
             width: 250px;
             position: fixed;
             top: 0; left: 0;
             z-index: 100;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,.3) transparent;
         }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 3px; }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }
         .sidebar .nav-link { color: rgba(255,255,255,.7); padding: .75rem 1.25rem; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,.1); }
         .sidebar .nav-link i { margin-right: .5rem; width: 20px; text-align: center; }

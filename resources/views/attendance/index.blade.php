@@ -24,19 +24,23 @@
                     <i class="bi bi-calculator"></i> Compute Attendance
                 </button>
             </div>
+            @if(auth()->user() && auth()->user()->role === 'ceo')
             <div class="col-auto">
                 <button type="button" class="btn btn-sm btn-outline-danger" id="forceRecomputeBtn">
                     <i class="bi bi-arrow-repeat"></i> Force Recompute
                 </button>
             </div>
+            @endif
         </form>
 
-        {{-- Hidden Force Recompute Form --}}
+        @if(auth()->user() && auth()->user()->role === 'ceo')
+        {{-- Hidden Force Recompute Form (CEO only) --}}
         <form method="POST" action="{{ route('attendance.force-compute') }}" id="forceRecomputeForm" class="d-none">
             @csrf
             <input type="hidden" name="start_date" id="forceStartDate">
             <input type="hidden" name="end_date" id="forceEndDate">
         </form>
+        @endif
     </div>
 </div>
 

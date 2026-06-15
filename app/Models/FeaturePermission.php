@@ -80,12 +80,22 @@ class FeaturePermission extends Model
     }
 
     /**
-     * Check if a role can access a nav item.
-     * CEO always returns true (override).
+     * Check if a role can access a nav item (used by route middleware).
+     * CEO always returns true (URL access bypass — CEO cannot be locked out of routes).
      */
     public static function canAccessNav(string $role, string $navKey): bool
     {
         if ($role === 'ceo') return true;
+        return self::canView($role, $navKey);
+    }
+
+    /**
+     * Check if a nav item should appear in the sidebar for a given role (visual only).
+     * Respects the per-role checkbox even for CEO so CEO can declutter their sidebar.
+     * Note: URL access is still permitted via canAccessNav() for CEO.
+     */
+    public static function canSeeInSidebar(string $role, string $navKey): bool
+    {
         return self::canView($role, $navKey);
     }
 

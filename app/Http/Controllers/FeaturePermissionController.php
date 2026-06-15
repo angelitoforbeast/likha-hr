@@ -42,12 +42,6 @@ class FeaturePermissionController extends Controller
             $canView = ($viewVal === '1' || $viewVal === 1 || $viewVal === true);
             $canEdit = ($editVal === '1' || $editVal === 1 || $editVal === true);
 
-            // CEO always has full access — cannot be revoked
-            if ($perm->role === 'ceo') {
-                $canView = true;
-                $canEdit = true;
-            }
-
             // If can_edit is true, can_view must also be true
             if ($canEdit) {
                 $canView = true;

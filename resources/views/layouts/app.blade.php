@@ -40,7 +40,9 @@
         </div>
         @php
             $userRole = Auth::user()->role ?? '';
-            $canNav = fn($key) => \App\Models\FeaturePermission::canAccessNav($userRole, $key);
+            // Sidebar uses canSeeInSidebar — respects CEO's own checkbox so CEO can declutter.
+            // URL access is separately protected by middleware (which bypasses for CEO).
+            $canNav = fn($key) => \App\Models\FeaturePermission::canSeeInSidebar($userRole, $key);
         @endphp
         <nav class="nav flex-column mt-2">
             @if($canNav('nav_dashboard'))
@@ -101,8 +103,13 @@
             @php
                 $showEmpStatuses = $canNav('nav_settings_employment_statuses');
                 $showHolidays    = $canNav('nav_settings_holidays');
-                $showFeaturePerms = ($userRole === 'ceo');
-                $showSettingsParent = $canNav('nav_settings') && ($showEmpStatuses || $showHolidays || $showFeaturePerms);
+                $showFeaturePerms = ($userRole === 'ceo'); // Failsafe: CEO ALWAYS sees Feature Permissions link
+                // Settings parent is shown when:
+                //  - CEO: always (so Feature Permissions failsafe is reachable), regardless of nav_settings checkbox
+                //  - Others: only if nav_settings is checked AND at least one sub-item is visible
+                $showSettingsParent = $userRole === 'ceo'
+                    ? true
+                    : ($canNav('nav_settings') && ($showEmpStatuses || $showHolidays));
             @endphp
             @if($showSettingsParent)
             <div class="nav-item">

@@ -22,8 +22,9 @@
         <div class="card-header bg-white">
             <h6 class="mb-0"><i class="bi bi-list-ul"></i> Navigation Visibility</h6>
             <small class="text-muted">
-                Control which sidebar menu items are visible per role.
-                <strong>CEO always sees everything</strong> (cannot be unchecked).
+                Control which sidebar menu items appear per role.
+                <strong>CEO can declutter their own sidebar</strong> by unchecking items — URL access is still kept for CEO.
+                Other roles are fully blocked (sidebar + URL) when unchecked.
             </small>
         </div>
         <div class="card-body p-0">
@@ -53,13 +54,8 @@
                                            type="checkbox"
                                            name="permissions[{{ $featureKey }}][{{ $roleKey }}][can_view]"
                                            value="1"
-                                           {{ ($feature['roles'][$roleKey]['can_view'] ?? false) ? 'checked' : '' }}
-                                           {{ $roleKey === 'ceo' ? 'disabled checked' : '' }}>
+                                           {{ ($feature['roles'][$roleKey]['can_view'] ?? false) ? 'checked' : '' }}>
                                 </div>
-                                @if($roleKey === 'ceo')
-                                    {{-- Force CEO to true regardless --}}
-                                    <input type="hidden" name="permissions[{{ $featureKey }}][{{ $roleKey }}][can_view]" value="1">
-                                @endif
                             </td>
                             @endforeach
                         </tr>

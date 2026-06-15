@@ -15,10 +15,11 @@ class FeaturePermissionController extends Controller
             abort(403, 'Only CEO can manage feature permissions.');
         }
 
-        $matrix = FeaturePermission::getMatrix();
+        $navMatrix      = FeaturePermission::getMatrixByCategory('navigation');
+        $employeeMatrix = FeaturePermission::getMatrixByCategory('employee_section');
         $roles = ['ceo' => 'CEO', 'admin' => 'Admin', 'hr_staff' => 'HR Staff'];
 
-        return view('settings.feature-permissions', compact('matrix', 'roles'));
+        return view('settings.feature-permissions', compact('navMatrix', 'employeeMatrix', 'roles'));
     }
 
     public function update(Request $request)
@@ -34,11 +35,18 @@ class FeaturePermissionController extends Controller
         $allPerms = FeaturePermission::all();
 
         foreach ($allPerms as $perm) {
-            $viewKey = "permissions.{$perm->feature_key}.{$perm->role}.can_view";
-            $editKey = "permissions.{$perm->feature_key}.{$perm->role}.can_edit";
+            // Read the actual submitted values — hidden inputs default to "0" when checkbox unchecked
+            $viewVal = data_get($permissions, "{$perm->feature_key}.{$perm->role}.can_view", '0');
+            $editVal = data_get($permissions, "{$perm->feature_key}.{$perm->role}.can_edit", '0');
 
-            $canView = $request->has($viewKey) || data_get($permissions, "{$perm->feature_key}.{$perm->role}.can_view", false);
-            $canEdit = $request->has($editKey) || data_get($permissions, "{$perm->feature_key}.{$perm->role}.can_edit", false);
+            $canView = ($viewVal === '1' || $viewVal === 1 || $viewVal === true);
+            $canEdit = ($editVal === '1' || $editVal === 1 || $editVal === true);
+
+            // CEO always has full access — cannot be revoked
+            if ($perm->role === 'ceo') {
+                $canView = true;
+                $canEdit = true;
+            }
 
             // If can_edit is true, can_view must also be true
             if ($canEdit) {

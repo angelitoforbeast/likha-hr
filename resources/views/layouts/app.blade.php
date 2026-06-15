@@ -38,59 +38,97 @@
         <div class="sidebar-brand">
             <i class="bi bi-clock-history"></i> HR Attendance
         </div>
+        @php
+            $userRole = Auth::user()->role ?? '';
+            $canNav = fn($key) => \App\Models\FeaturePermission::canAccessNav($userRole, $key);
+        @endphp
         <nav class="nav flex-column mt-2">
+            @if($canNav('nav_dashboard'))
             <a class="nav-link {{ request()->is('dashboard*') ? 'active' : '' }}" href="{{ url('/dashboard') }}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            @endif
+            @if($canNav('nav_import'))
             <a class="nav-link {{ request()->is('import*') ? 'active' : '' }}" href="{{ url('/import') }}">
                 <i class="bi bi-upload"></i> Import Attendance
             </a>
+            @endif
+            @if($canNav('nav_attendance'))
             <a class="nav-link {{ request()->is('attendance', 'attendance/*') ? 'active' : '' }}" href="{{ url('/attendance') }}">
                 <i class="bi bi-calendar-check"></i> Attendance Viewer
             </a>
+            @endif
+            @if($canNav('nav_attendance_calendar'))
             <a class="nav-link {{ request()->is("attendance-calendar*") ? "active" : "" }}" href="{{ url("/attendance-calendar") }}">
                 <i class="bi bi-calendar2-week"></i> Attendance Calendar
             </a>
+            @endif
+            @if($canNav('nav_payroll'))
             <a class="nav-link {{ request()->is('payroll*') ? 'active' : '' }}" href="{{ url('/payroll') }}">
                 <i class="bi bi-cash-stack"></i> Payroll
             </a>
+            @endif
+            @if($canNav('nav_employees'))
             <a class="nav-link {{ request()->is('employees*') ? 'active' : '' }}" href="{{ url('/employees') }}">
                 <i class="bi bi-people"></i> Employees
             </a>
+            @endif
+            @if($canNav('nav_shifts'))
             <a class="nav-link {{ request()->is('shifts*') ? 'active' : '' }}" href="{{ url('/shifts') }}">
                 <i class="bi bi-clock"></i> Shifts
             </a>
+            @endif
+            @if($canNav('nav_departments'))
             <a class="nav-link {{ request()->is('departments*') ? 'active' : '' }}" href="{{ url('/departments') }}">
                 <i class="bi bi-diagram-3"></i> Departments
             </a>
+            @endif
+            @if($canNav('nav_day_off_calendar'))
             <a class="nav-link {{ request()->is('day-off-calendar*') ? 'active' : '' }}" href="{{ url('/day-off-calendar') }}">
                 <i class="bi bi-calendar-x"></i> Day Off Calendar
             </a>
+            @endif
+            @if($canNav('nav_users'))
             <a class="nav-link {{ request()->is('users*') ? 'active' : '' }}" href="{{ url('/users') }}">
                 <i class="bi bi-person-gear"></i> User Management
             </a>
+            @endif
+            @if($canNav('nav_edit_logs'))
             <a class="nav-link {{ request()->is("manus-edit-logs*") ? "active" : "" }}" href="{{ url("/manus-edit-logs") }}">
                 <i class="bi bi-journal-code"></i> Edit Logs
             </a>
+            @endif
+            @php
+                $showEmpStatuses = $canNav('nav_settings_employment_statuses');
+                $showHolidays    = $canNav('nav_settings_holidays');
+                $showFeaturePerms = ($userRole === 'ceo');
+                $showSettingsParent = $canNav('nav_settings') && ($showEmpStatuses || $showHolidays || $showFeaturePerms);
+            @endphp
+            @if($showSettingsParent)
             <div class="nav-item">
                 <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('settings*') ? 'active' : '' }}" data-bs-toggle="collapse" href="#settingsMenu" role="button">
                     <span><i class="bi bi-gear"></i> Settings</span>
                     <i class="bi bi-chevron-down small"></i>
                 </a>
                 <div class="collapse {{ request()->is('settings*') ? 'show' : '' }}" id="settingsMenu">
+                    @if($showEmpStatuses)
                     <a class="nav-link ps-4 py-2 {{ request()->is('settings/employment-statuses*') ? 'active' : '' }}" href="{{ url('/settings/employment-statuses') }}">
                         <i class="bi bi-tags"></i> Employment Statuses
                     </a>
+                    @endif
+                    @if($showHolidays)
                     <a class="nav-link ps-4 py-2 {{ request()->is('settings/holidays*') ? 'active' : '' }}" href="{{ url('/settings/holidays') }}">
                         <i class="bi bi-calendar-heart"></i> Holiday Calendar
                     </a>
-                    @if(Auth::user() && Auth::user()->role === 'ceo')
+                    @endif
+                    @if($showFeaturePerms)
                     <a class="nav-link ps-4 py-2 {{ request()->is('settings/feature-permissions*') ? 'active' : '' }}" href="{{ url('/settings/feature-permissions') }}">
                         <i class="bi bi-shield-lock"></i> Feature Permissions
                     </a>
                     @endif
                 </div>
             </div>
+            @endif
         </nav>
     </div>
 

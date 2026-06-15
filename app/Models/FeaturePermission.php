@@ -9,6 +9,7 @@ class FeaturePermission extends Model
     protected $fillable = [
         'feature_key',
         'feature_label',
+        'category',
         'role',
         'can_view',
         'can_edit',
@@ -76,5 +77,42 @@ class FeaturePermission extends Model
     {
         $perm = self::where('role', $role)->where('feature_key', $featureKey)->first();
         return $perm ? $perm->can_edit : false;
+    }
+
+    /**
+     * Check if a role can access a nav item.
+     * CEO always returns true (override).
+     */
+    public static function canAccessNav(string $role, string $navKey): bool
+    {
+        if ($role === 'ceo') return true;
+        return self::canView($role, $navKey);
+    }
+
+    /**
+     * Get the full permission matrix filtered by category.
+     */
+    public static function getMatrixByCategory(string $category): array
+    {
+        $all = self::where('category', $category)
+            ->orderBy('sort_order')
+            ->orderByRaw("FIELD(role, 'ceo', 'admin', 'hr_staff')")
+            ->get();
+        $matrix = [];
+        foreach ($all as $p) {
+            if (!isset($matrix[$p->feature_key])) {
+                $matrix[$p->feature_key] = [
+                    'label'      => $p->feature_label,
+                    'sort_order' => $p->sort_order,
+                    'category'   => $p->category,
+                    'roles'      => [],
+                ];
+            }
+            $matrix[$p->feature_key]['roles'][$p->role] = [
+                'can_view' => $p->can_view,
+                'can_edit' => $p->can_edit,
+            ];
+        }
+        return $matrix;
     }
 }

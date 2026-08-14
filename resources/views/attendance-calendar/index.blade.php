@@ -375,12 +375,12 @@
                             </td>
                         </tr>
                         @endforeach
-                        <tr><td colspan="2"><hr class="my-1"></td></tr>
-                        <tr><td class="text-muted">Work</td><td id="dWork"></td></tr>
-                        <tr><td class="text-muted">Late</td><td id="dLate"></td></tr>
-                        <tr><td class="text-muted">Undertime</td><td id="dEarly"></td></tr>
-                        <tr><td class="text-muted">Overtime</td><td id="dOT"></td></tr>
-                        <tr id="dNotesRow"><td class="text-muted">Notes</td><td id="dNotes"></td></tr>
+                        <tr class="computed-row"><td colspan="2"><hr class="my-1"></td></tr>
+                        <tr class="computed-row"><td class="text-muted">Work</td><td id="dWork"></td></tr>
+                        <tr class="computed-row"><td class="text-muted">Late</td><td id="dLate"></td></tr>
+                        <tr class="computed-row"><td class="text-muted">Undertime</td><td id="dEarly"></td></tr>
+                        <tr class="computed-row"><td class="text-muted">Overtime</td><td id="dOT"></td></tr>
+                        <tr id="dNotesRow" class="computed-row"><td class="text-muted">Notes</td><td id="dNotes"></td></tr>
                     </table>
                     {{-- Override history details --}}
                     <div id="dOverrideHistory" class="override-history mt-2" style="display:none">
@@ -411,41 +411,8 @@
                 </div>
 
                 {{-- Absent / Day Off detail --}}
-                <div id="detailNoData" class="text-center py-3" style="display:none">
-                    <p class="mb-2 fw-semibold" id="dNoDataText"></p>
-                    <div id="dayOffActions" style="display:none">
-                        <hr class="my-2">
-                        <p class="text-muted small mb-2">Manage rest day for this date:</p>
-                        <div class="d-flex gap-2 justify-content-center flex-wrap">
-                            <button class="btn btn-sm btn-outline-primary dayoff-action-btn" onclick="toggleDayOff('add_day_off')">
-                                <i class="bi bi-plus-circle"></i> Mark as Rest Day
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning dayoff-action-btn" onclick="toggleDayOff('cancel_day_off')">
-                                <i class="bi bi-x-circle"></i> Cancel Rest Day
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger dayoff-action-btn" onclick="toggleDayOff('remove_override')">
-                                <i class="bi bi-trash"></i> Remove Override
-                            </button>
-                        </div>
-                        <div id="dayOffMsg" class="small mt-2" style="display:none"></div>
-                    </div>
-                    @if(auth()->user() && auth()->user()->role === 'ceo')
-                    {{-- CEO-only: Add attendance record for absent/day-off dates so times can be entered manually --}}
-                    <div id="dAddAttendanceBox" class="mt-3" style="display:none">
-                        <hr class="my-2">
-                        <p class="text-muted small mb-2">No attendance record for this date. Add one to enter Time In / Out manually:</p>
-                        <button type="button" class="btn btn-sm btn-primary" id="dAddAttendanceBtn" onclick="addAttendanceRecord()">
-                            <i class="bi bi-plus-circle"></i> Add Attendance Record
-                        </button>
-                        <div id="dAddAttendanceMsg" class="small mt-2" style="display:none"></div>
-                    </div>
-                    @endif
-                    <div class="mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="openPunchesModal()">
-                            <i class="bi bi-clock-history"></i> View Raw Punches
-                        </button>
-                    </div>
-                </div>
+                {{-- Legacy container (no longer used; kept as empty stub so JS won't crash on missing element) --}}
+                <div id="detailNoData" style="display:none"></div>
             </div>
         </div>
     </div>
@@ -749,33 +716,15 @@
 
         document.getElementById('detailTitle').textContent = empName + ' — ' + date;
 
-        if (status === 'absent' || status === 'day_off') {
-            document.getElementById('detailBody').style.display = 'none';
-            document.getElementById('detailNoData').style.display = '';
-            document.getElementById('dNoDataText').textContent = empName + ' — ' + statusLabels[status];
-            document.getElementById('dNoDataText').style.color = statusColors[status];
-
-            // Show day off action buttons
-            document.getElementById('dayOffActions').style.display = '';
-            document.getElementById('dayOffMsg').style.display = 'none';
-
-            // CEO-only: expose "Add Attendance Record" button so CEO can enter time-in/out manually
-            // for an absent cell (or a day-off where they still want to record work).
-            const addBox = document.getElementById('dAddAttendanceBox');
-            if (addBox) {
-                addBox.style.display = '';
-                const addMsg = document.getElementById('dAddAttendanceMsg');
-                if (addMsg) addMsg.style.display = 'none';
-                const addBtn = document.getElementById('dAddAttendanceBtn');
-                if (addBtn) addBtn.disabled = false;
-            }
-
-            detailModal.show();
-            return;
-        }
-
+        // Always show detailBody — the time editors, shift editor, day-off actions all live there
+        // so the modal works uniformly for present / absent / day-off cells.
         document.getElementById('detailBody').style.display = '';
-        document.getElementById('detailNoData').style.display = 'none';
+        const nodata = document.getElementById('detailNoData');
+        if (nodata) nodata.style.display = 'none';
+
+        // Toggle computed-values and edit-history rows: only meaningful when an attendance_day exists.
+        const hasAttendance = !!td.dataset.attId;
+        toggleComputedRowsVisibility(hasAttendance);
 
         document.getElementById('dEmployee').textContent = empName;
         document.getElementById('dDate').textContent = date;
@@ -920,18 +869,24 @@
         });
     }
 
-    // CEO: create a blank AttendanceDay for an absent/day-off cell so times can be entered manually.
-    // On success, page reloads and the cell becomes editable via the normal Present modal flow.
-    function addAttendanceRecord() {
-        if (!currentTd) return;
+    // Hide/show computed metric rows (Work / Late / UT / OT / Notes) and edit history.
+    // These are only meaningful when an AttendanceDay exists for the cell.
+    function toggleComputedRowsVisibility(hasAttendance) {
+        document.querySelectorAll('.computed-row').forEach(el => {
+            el.style.display = hasAttendance ? '' : 'none';
+        });
+        const hist = document.getElementById('dOverrideHistory');
+        if (hist) hist.style.display = 'none'; // openDetail will show it again if there are overrides
+    }
+
+    // Ensure an AttendanceDay exists for the current cell before saving a time override.
+    // Returns a Promise resolving to the attendance_day_id (existing or newly created), or null on failure.
+    function ensureAttendanceDay() {
+        if (!currentTd) return Promise.resolve(null);
+        if (currentTd.dataset.attId) return Promise.resolve(currentTd.dataset.attId);
         const empId = currentTd.dataset.employeeId;
         const date  = currentTd.dataset.date;
-        const btn   = document.getElementById('dAddAttendanceBtn');
-        const msg   = document.getElementById('dAddAttendanceMsg');
-        msg.style.display = 'none';
-        btn.disabled = true;
-
-        fetch('{{ url("/attendance-calendar/create-day") }}', {
+        return fetch('{{ url("/attendance-calendar/create-day") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -942,24 +897,13 @@
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                msg.textContent = data.message + ' Reloading…';
-                msg.className = 'small mt-2 text-success';
-                msg.style.display = '';
-                setTimeout(() => location.reload(), 700);
-            } else {
-                msg.textContent = data.message || 'Error.';
-                msg.className = 'small mt-2 text-danger';
-                msg.style.display = '';
-                btn.disabled = false;
+            if (data.success && data.attendance_day_id) {
+                currentTd.dataset.attId = data.attendance_day_id;
+                return data.attendance_day_id;
             }
+            return null;
         })
-        .catch(() => {
-            msg.textContent = 'Network error.';
-            msg.className = 'small mt-2 text-danger';
-            msg.style.display = '';
-            btn.disabled = false;
-        });
+        .catch(() => null);
     }
 
     // Reveal the inline editor for a time field (hides the read-only display).
@@ -997,12 +941,11 @@
             });
         });
 
-        // Inline save button: validates reason, POSTs the value for its field, reloads on success.
+        // Inline save button: validates reason, ensures an AttendanceDay exists (auto-creates for
+        // absent/day-off cells), POSTs the value for its field, reloads on success.
         document.querySelectorAll('.time-save-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 if (!currentTd) return;
-                const attId = currentTd.dataset.attId;
-                if (!attId) return;
                 const field  = this.dataset.field;
                 const input  = document.getElementById('dInput_'  + field);
                 const reason = document.getElementById('dReason_' + field);
@@ -1021,39 +964,50 @@
                 }
 
                 this.disabled = true;
-                fetch('{{ url("/attendance-calendar/override-time") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        attendance_day_id: attId,
-                        field: field,
-                        new_value: newVal,
-                        reason: reasonVal,
-                    }),
-                })
-                .then(r => r.json())
-                .then(data => {
-                    this.disabled = false;
-                    if (data.success) {
-                        msg.textContent = 'Saved. Reloading…';
-                        msg.className = 'small mt-1 text-success';
-                        msg.style.display = '';
-                        setTimeout(() => location.reload(), 500);
-                    } else {
-                        msg.textContent = data.message || 'Error.';
+                const saveBtn = this;
+
+                ensureAttendanceDay().then(attId => {
+                    if (!attId) {
+                        saveBtn.disabled = false;
+                        msg.textContent = 'Could not create attendance record. CEO access may be required.';
                         msg.className = 'small mt-1 text-danger';
                         msg.style.display = '';
+                        return;
                     }
-                })
-                .catch(() => {
-                    this.disabled = false;
-                    msg.textContent = 'Network error.';
-                    msg.className = 'small mt-1 text-danger';
-                    msg.style.display = '';
+                    fetch('{{ url("/attendance-calendar/override-time") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            attendance_day_id: attId,
+                            field: field,
+                            new_value: newVal,
+                            reason: reasonVal,
+                        }),
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        saveBtn.disabled = false;
+                        if (data.success) {
+                            msg.textContent = 'Saved. Reloading…';
+                            msg.className = 'small mt-1 text-success';
+                            msg.style.display = '';
+                            setTimeout(() => location.reload(), 500);
+                        } else {
+                            msg.textContent = data.message || 'Error.';
+                            msg.className = 'small mt-1 text-danger';
+                            msg.style.display = '';
+                        }
+                    })
+                    .catch(() => {
+                        saveBtn.disabled = false;
+                        msg.textContent = 'Network error.';
+                        msg.className = 'small mt-1 text-danger';
+                        msg.style.display = '';
+                    });
                 });
             });
         });

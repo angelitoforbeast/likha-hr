@@ -35,12 +35,18 @@ class EmployeeShiftAssignment extends Model
 
     /**
      * Get the active shift for an employee on a given date.
-     * Returns the assignment with the latest effective_date <= $date.
+     * Returns the assignment whose date range contains $date, preferring the
+     * most-recently-started one (so single-day overrides win over open-ended
+     * ongoing shifts on the day that overrides them).
      */
     public static function getActiveShift(int $employeeId, string $date): ?Shift
     {
         $assignment = static::where('employee_id', $employeeId)
             ->where('effective_date', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
             ->orderByDesc('effective_date')
             ->first();
 

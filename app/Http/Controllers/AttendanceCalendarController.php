@@ -7,6 +7,8 @@ use App\Models\AttendanceOverride;
 use App\Models\DayOff;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeShiftAssignment;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -124,6 +126,7 @@ class AttendanceCalendarController extends Controller
                 // Used both for the modal (schedule/lunch display) and the cell overlay (when show_shift toggle is on).
                 $shiftForDay = $emp->getShiftForDate($dateStr);
                 $shiftInfo = $shiftForDay ? [
+                    'id'          => $shiftForDay->id,
                     'name'        => $shiftForDay->name,
                     'start'       => Carbon::parse($shiftForDay->start_time)->format('g:i A'),
                     'end'         => Carbon::parse($shiftForDay->end_time)->format('g:i A'),
@@ -132,6 +135,7 @@ class AttendanceCalendarController extends Controller
                     'lunch_start' => Carbon::parse($shiftForDay->lunch_start)->format('g:i A'),
                     'lunch_end'   => Carbon::parse($shiftForDay->lunch_end)->format('g:i A'),
                 ] : null;
+                $shiftIdForDay = $shiftForDay?->id;
 
                 if ($attDay) {
                     $status = 'present';
@@ -170,6 +174,7 @@ class AttendanceCalendarController extends Controller
                         'has_overrides' => $hasOverrides,
                         'override_details' => $overrideDetails,
                         'shift' => $shiftInfo,
+                        'shift_id' => $shiftIdForDay,
                     ];
                 } elseif ($isDayOff) {
                     $empData['days'][$idx] = [
@@ -179,6 +184,7 @@ class AttendanceCalendarController extends Controller
                         'has_overrides' => false,
                         'override_details' => [],
                         'shift' => $shiftInfo,
+                        'shift_id' => $shiftIdForDay,
                     ];
                 } else {
                     $empData['days'][$idx] = [
@@ -188,6 +194,7 @@ class AttendanceCalendarController extends Controller
                         'has_overrides' => false,
                         'override_details' => [],
                         'shift' => $shiftInfo,
+                        'shift_id' => $shiftIdForDay,
                     ];
                 }
             }
@@ -195,11 +202,51 @@ class AttendanceCalendarController extends Controller
             $calendarData[] = $empData;
         }
 
+        // Shifts list for the per-cell shift-edit dropdown in the modal.
+        $shifts = Shift::orderBy('name')->get();
+
         return view('attendance-calendar.index', compact(
             'departments', 'employees', 'calendarData',
             'dates', 'totalDays', 'dateFrom', 'dateTo',
-            'filterType', 'departmentId', 'employeeId', 'showShift'
+            'filterType', 'departmentId', 'employeeId', 'showShift', 'shifts'
         ));
+    }
+
+    /**
+     * Assign or replace a single-day shift override for one employee/date.
+     * Creates an EmployeeShiftAssignment with effective_date == effective_until.
+     * Existing longer-range assignments are left intact — the fixed getActiveShift
+     * gives precedence to this same-day record for that specific date only.
+     */
+    public function assignShiftForDate(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+            'shift_id'    => 'required|exists:shifts,id',
+        ]);
+
+        // Replace any existing single-day override for this employee/date first.
+        EmployeeShiftAssignment::where('employee_id', $validated['employee_id'])
+            ->where('effective_date', $validated['date'])
+            ->where('effective_until', $validated['date'])
+            ->delete();
+
+        $assignment = EmployeeShiftAssignment::create([
+            'employee_id'     => $validated['employee_id'],
+            'shift_id'        => $validated['shift_id'],
+            'effective_date'  => $validated['date'],
+            'effective_until' => $validated['date'],
+            'remarks'         => 'Set via attendance calendar',
+        ]);
+
+        $shift = Shift::find($validated['shift_id']);
+
+        return response()->json([
+            'success'    => true,
+            'message'    => 'Shift updated for this date.',
+            'shift_name' => $shift?->name,
+        ]);
     }
 
     /**

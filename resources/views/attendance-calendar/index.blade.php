@@ -196,10 +196,14 @@
 
                             // Shift info for this date (from shift assignment or fallback default)
                             $shiftForCell = $dayInfo['shift'] ?? null;
+                            $shiftIdForCell = $dayInfo['shift_id'] ?? null;
                             if ($shiftForCell) {
                                 $dataAttrs .= ' data-shift-name="' . e($shiftForCell['name']) . '"'
                                     . ' data-shift-schedule="' . e($shiftForCell['start'] . ' — ' . $shiftForCell['end']) . '"'
                                     . ' data-shift-lunch="' . e($shiftForCell['lunch_start'] . ' — ' . $shiftForCell['lunch_end']) . '"';
+                                if ($shiftIdForCell) {
+                                    $dataAttrs .= ' data-shift-id="' . $shiftIdForCell . '"';
+                                }
                             }
 
                             if ($att) {
@@ -273,7 +277,34 @@
                         <tr><td class="text-muted" style="width:100px">Employee</td><td class="fw-semibold" id="dEmployee"></td></tr>
                         <tr><td class="text-muted">Date</td><td class="fw-semibold" id="dDate"></td></tr>
                         <tr><td class="text-muted">Status</td><td class="fw-semibold" id="dStatus"></td></tr>
-                        <tr><td class="text-muted">Shift</td><td id="dShift"></td></tr>
+                        <tr>
+                            <td class="text-muted">Shift</td>
+                            <td>
+                                <span id="dShift"></span>
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-1" style="font-size:.75rem" onclick="showShiftEditor()" title="Change shift for this date">
+                                    <i class="bi bi-pencil-square"></i> change
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="dShiftEditorRow" style="display:none">
+                            <td class="text-muted">New Shift</td>
+                            <td>
+                                <div class="d-flex gap-1 align-items-center">
+                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:180px">
+                                        @foreach($shifts as $shift)
+                                            <option value="{{ $shift->id }}">{{ $shift->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-success py-0 px-2" onclick="saveShiftForDay()" title="Save">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="cancelShiftEditor()" title="Cancel">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <div id="dShiftEditorMsg" class="small mt-1" style="display:none"></div>
+                            </td>
+                        </tr>
                         <tr id="dScheduleRow"><td class="text-muted">Schedule</td><td id="dSchedule"></td></tr>
                         <tr id="dLunchBreakRow"><td class="text-muted">Lunch Break</td><td id="dLunchBreak" class="text-info"></td></tr>
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
@@ -512,6 +543,52 @@
         return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
     }
 
+    // Per-cell shift editor — show/hide the inline dropdown and save a single-day override.
+    function showShiftEditor() {
+        document.getElementById('dShiftEditorRow').style.display = '';
+        document.getElementById('dShiftEditorMsg').style.display = 'none';
+    }
+    function cancelShiftEditor() {
+        document.getElementById('dShiftEditorRow').style.display = 'none';
+        document.getElementById('dShiftEditorMsg').style.display = 'none';
+    }
+    function saveShiftForDay() {
+        if (!currentTd) return;
+        const empId  = currentTd.dataset.employeeId;
+        const date   = currentTd.dataset.date;
+        const shiftId = document.getElementById('dShiftSelect').value;
+        const msg    = document.getElementById('dShiftEditorMsg');
+        msg.style.display = 'none';
+
+        fetch('{{ url("/attendance-calendar/assign-shift") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ employee_id: empId, date: date, shift_id: shiftId }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                msg.textContent = data.message + ' Reloading...';
+                msg.className = 'small mt-1 text-success';
+                msg.style.display = '';
+                setTimeout(() => location.reload(), 700);
+            } else {
+                msg.textContent = data.message || 'Error.';
+                msg.className = 'small mt-1 text-danger';
+                msg.style.display = '';
+            }
+        })
+        .catch(() => {
+            msg.textContent = 'Network error. Please try again.';
+            msg.className = 'small mt-1 text-danger';
+            msg.style.display = '';
+        });
+    }
+
     // Populate the Schedule and Lunch Break rows in the detail modal from the cell's data-* attributes.
     // Hides the rows entirely when no shift is resolved for the date.
     function setShiftScheduleRows(td) {
@@ -542,6 +619,16 @@
         // Clear any lingering day-off status messages from a previous modal open
         const presentMsg = document.getElementById('dayOffMsgPresent');
         if (presentMsg) presentMsg.style.display = 'none';
+
+        // Reset the inline shift editor and preselect the current shift for this cell
+        const editorRow = document.getElementById('dShiftEditorRow');
+        if (editorRow) editorRow.style.display = 'none';
+        const shiftSelect = document.getElementById('dShiftSelect');
+        if (shiftSelect && td.dataset.shiftId) {
+            shiftSelect.value = td.dataset.shiftId;
+        }
+        const shiftMsg = document.getElementById('dShiftEditorMsg');
+        if (shiftMsg) shiftMsg.style.display = 'none';
 
         document.getElementById('detailTitle').textContent = empName + ' — ' + date;
 

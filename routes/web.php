@@ -151,6 +151,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('feature:nav_attendance_calendar')->group(function () {
         Route::get("/attendance-calendar", [AttendanceCalendarController::class, "index"])->name("attendance-calendar.index");
         Route::post("/attendance-calendar/toggle-day-off", [AttendanceCalendarController::class, "toggleDayOff"])->name("attendance-calendar.toggle-day-off");
+        Route::post("/attendance-calendar/assign-shift", [AttendanceCalendarController::class, "assignShiftForDate"])->name("attendance-calendar.assign-shift");
     });
 
     // Day Off Calendar

@@ -35,12 +35,17 @@ class DepartmentShiftAssignment extends Model
 
     /**
      * Get the active shift for a department on a given date.
-     * Returns the assignment with the latest effective_date <= $date.
+     * Returns the assignment whose date range contains $date, preferring the
+     * most-recently-started one.
      */
     public static function getActiveShift(int $departmentId, string $date): ?Shift
     {
         $assignment = static::where('department_id', $departmentId)
             ->where('effective_date', '<=', $date)
+            ->where(function ($q) use ($date) {
+                $q->whereNull('effective_until')
+                  ->orWhere('effective_until', '>=', $date);
+            })
             ->orderByDesc('effective_date')
             ->first();
 

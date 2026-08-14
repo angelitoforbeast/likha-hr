@@ -24,6 +24,9 @@
     .time-editable:hover { background: #e2e6ea; }
     .time-edited { color: #6f42c1 !important; font-weight: 600; background: #fff3cd; border: 1px solid #ffc107; border-radius: 3px; padding: 1px 4px; }
     .time-input.time-input-edited { border-color: #ffc107; box-shadow: 0 0 0 .1rem rgba(255, 193, 7, .25); background: #fff8e1; font-weight: 600; }
+    .time-display-value { cursor: pointer; padding: 2px 4px; border-radius: 3px; border-bottom: 1px dashed #999; }
+    .time-display-value:hover { background: #e9ecef; }
+    .time-display-value.time-display-edited { background: #fff3cd; border: 1px solid #ffc107; color: #6f42c1; font-weight: 600; }
     .override-dot { color: #6f42c1; font-size: .6rem; vertical-align: super; }
     .override-history { font-size: .78rem; background: #f8f9fa; border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
     .override-history .ov-entry { border-bottom: 1px solid #e9ecef; padding: 3px 0; }
@@ -330,24 +333,43 @@
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
                         @foreach([['field'=>'time_in','label'=>'Time In'],['field'=>'lunch_out','label'=>'Lunch Out'],['field'=>'lunch_in','label'=>'Lunch In'],['field'=>'time_out','label'=>'Time Out']] as $tf)
                         <tr>
-                            <td class="text-muted">{{ $tf['label'] }}</td>
+                            <td class="text-muted align-top pt-2">{{ $tf['label'] }}</td>
                             <td>
-                                <div class="d-flex gap-1 align-items-center flex-wrap">
-                                    <input type="time" step="1" class="form-control form-control-sm time-input"
-                                           id="dInput_{{ $tf['field'] }}" data-field="{{ $tf['field'] }}"
-                                           style="max-width:130px">
-                                    <select class="form-select form-select-sm punch-picker"
-                                            data-target="dInput_{{ $tf['field'] }}"
-                                            title="Pick from raw punches"
-                                            style="max-width:110px">
-                                        <option value="">Punches…</option>
-                                    </select>
-                                    <button type="button"
-                                            class="btn btn-sm btn-success py-0 px-2 time-save-btn"
-                                            data-field="{{ $tf['field'] }}"
-                                            title="Save">
-                                        <i class="bi bi-check-lg"></i>
+                                {{-- Display mode (shown by default) --}}
+                                <div id="dDisplay_{{ $tf['field'] }}">
+                                    <span id="dText_{{ $tf['field'] }}" class="time-display-value" data-field="{{ $tf['field'] }}"
+                                          onclick="showTimeEditor('{{ $tf['field'] }}')" role="button"
+                                          title="Click to edit">-</span>
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1"
+                                            onclick="showTimeEditor('{{ $tf['field'] }}')" title="Edit">
+                                        <i class="bi bi-pencil-square" style="font-size:.75rem"></i>
                                     </button>
+                                </div>
+                                {{-- Edit mode (hidden by default, appears on click) --}}
+                                <div id="dEditor_{{ $tf['field'] }}" style="display:none">
+                                    <div class="d-flex gap-1 align-items-center flex-wrap">
+                                        <input type="time" step="1" class="form-control form-control-sm time-input"
+                                               id="dInput_{{ $tf['field'] }}" data-field="{{ $tf['field'] }}"
+                                               style="max-width:130px">
+                                        <select class="form-select form-select-sm punch-picker"
+                                                data-target="dInput_{{ $tf['field'] }}"
+                                                title="Pick from raw punches"
+                                                style="max-width:110px">
+                                            <option value="">Punches…</option>
+                                        </select>
+                                        <button type="button" class="btn btn-sm btn-success py-0 px-2 time-save-btn"
+                                                data-field="{{ $tf['field'] }}" title="Save">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                onclick="cancelTimeEditor('{{ $tf['field'] }}')" title="Cancel">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <input type="text" class="form-control form-control-sm mt-1 time-reason"
+                                           id="dReason_{{ $tf['field'] }}"
+                                           placeholder="Reason (required, min 3 chars)"
+                                           minlength="3" maxlength="500">
                                 </div>
                                 <div id="dMsg_{{ $tf['field'] }}" class="small mt-1" style="display:none"></div>
                             </td>
@@ -744,20 +766,33 @@
         document.getElementById('dShift').textContent = td.dataset.shiftName || td.dataset.shift || 'N/A';
         setShiftScheduleRows(td);
 
-        // Prefill inline time inputs with current H:i values (add ':00' seconds so the input shows seconds)
-        setTimeInputValue('dInput_time_in',  td.dataset.timeIn);
-        setTimeInputValue('dInput_lunch_out', td.dataset.lunchOut);
-        setTimeInputValue('dInput_lunch_in',  td.dataset.lunchIn);
-        setTimeInputValue('dInput_time_out',  td.dataset.timeOut);
-
-        // Highlight inputs whose field has an override + reset per-row messages
+        // Populate display value + prefill input for each time field.
+        // Editors are collapsed by default; user clicks to reveal.
+        const rowConfig = {
+            time_in:   { display: td.dataset.timeInDisplay,   raw: td.dataset.timeIn },
+            lunch_out: { display: td.dataset.lunchOutDisplay, raw: td.dataset.lunchOut },
+            lunch_in:  { display: td.dataset.lunchInDisplay,  raw: td.dataset.lunchIn },
+            time_out:  { display: td.dataset.timeOutDisplay,  raw: td.dataset.timeOut },
+        };
         const editedFieldsStr = td.dataset.editedFields || '';
         const editedFields = editedFieldsStr ? editedFieldsStr.split(',') : [];
-        ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
-            const input = document.getElementById('dInput_' + f);
-            if (input) input.classList.toggle('time-input-edited', editedFields.includes(f));
-            const m = document.getElementById('dMsg_' + f);
-            if (m) m.style.display = 'none';
+
+        Object.entries(rowConfig).forEach(([field, cfg]) => {
+            const text = document.getElementById('dText_' + field);
+            if (text) {
+                text.textContent = cfg.display || '-';
+                text.classList.toggle('time-display-edited', editedFields.includes(field));
+            }
+            setTimeInputValue('dInput_' + field, cfg.raw);
+            // Reset editor visibility, reason, and messages for each open
+            const editor = document.getElementById('dEditor_' + field);
+            if (editor) editor.style.display = 'none';
+            const disp = document.getElementById('dDisplay_' + field);
+            if (disp) disp.style.display = '';
+            const reason = document.getElementById('dReason_' + field);
+            if (reason) reason.value = '';
+            const msg = document.getElementById('dMsg_' + field);
+            if (msg) msg.style.display = 'none';
         });
 
         // Fetch raw punches once and populate all 4 punch pickers
@@ -863,6 +898,30 @@
         });
     }
 
+    // Reveal the inline editor for a time field (hides the read-only display).
+    function showTimeEditor(field) {
+        const disp = document.getElementById('dDisplay_' + field);
+        const editor = document.getElementById('dEditor_' + field);
+        const msg = document.getElementById('dMsg_' + field);
+        if (disp) disp.style.display = 'none';
+        if (editor) editor.style.display = '';
+        if (msg) msg.style.display = 'none';
+        const reason = document.getElementById('dReason_' + field);
+        if (reason) reason.focus();
+    }
+
+    // Collapse the editor back to display mode without saving.
+    function cancelTimeEditor(field) {
+        const disp = document.getElementById('dDisplay_' + field);
+        const editor = document.getElementById('dEditor_' + field);
+        const msg = document.getElementById('dMsg_' + field);
+        const reason = document.getElementById('dReason_' + field);
+        if (editor) editor.style.display = 'none';
+        if (disp) disp.style.display = '';
+        if (msg) msg.style.display = 'none';
+        if (reason) reason.value = '';
+    }
+
     // Wire up the punch pickers and inline save buttons (once, on DOM ready).
     document.addEventListener('DOMContentLoaded', function () {
         // Selecting a raw punch fills the matching time input.
@@ -874,19 +933,30 @@
             });
         });
 
-        // Inline save button: POSTs the value for its field to the calendar override endpoint.
+        // Inline save button: validates reason, POSTs the value for its field, reloads on success.
         document.querySelectorAll('.time-save-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 if (!currentTd) return;
                 const attId = currentTd.dataset.attId;
                 if (!attId) return;
-                const field = this.dataset.field;
-                const input = document.getElementById('dInput_' + field);
-                const msg   = document.getElementById('dMsg_' + field);
+                const field  = this.dataset.field;
+                const input  = document.getElementById('dInput_'  + field);
+                const reason = document.getElementById('dReason_' + field);
+                const msg    = document.getElementById('dMsg_'    + field);
                 const newVal = input?.value || '';
-                msg.style.display = 'none';
-                this.disabled = true;
+                const reasonVal = (reason?.value || '').trim();
 
+                msg.style.display = 'none';
+
+                if (reasonVal.length < 3) {
+                    msg.textContent = 'Reason is required (min 3 characters).';
+                    msg.className = 'small mt-1 text-danger';
+                    msg.style.display = '';
+                    reason?.focus();
+                    return;
+                }
+
+                this.disabled = true;
                 fetch('{{ url("/attendance-calendar/override-time") }}', {
                     method: 'POST',
                     headers: {
@@ -898,6 +968,7 @@
                         attendance_day_id: attId,
                         field: field,
                         new_value: newVal,
+                        reason: reasonVal,
                     }),
                 })
                 .then(r => r.json())

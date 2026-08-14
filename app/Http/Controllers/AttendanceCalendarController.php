@@ -292,13 +292,13 @@ class AttendanceCalendarController extends Controller
             'attendance_day_id' => 'required|exists:attendance_days,id',
             'field'             => 'required|in:time_in,lunch_out,lunch_in,time_out',
             'new_value'         => 'nullable|string', // H:i or H:i:s, empty to clear
-            'reason'            => 'nullable|string|max:500',
+            'reason'            => 'required|string|min:3|max:500',
         ]);
 
         $day   = AttendanceDay::findOrFail($validated['attendance_day_id']);
         $field = $validated['field'];
         $newValue = $validated['new_value'] ?? null;
-        $reason   = $validated['reason'] ?: 'Edited via attendance calendar';
+        $reason   = $validated['reason'];
 
         $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : null;
 

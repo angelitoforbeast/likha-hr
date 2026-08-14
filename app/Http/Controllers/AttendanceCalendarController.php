@@ -405,6 +405,111 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
+     * "Fill from Shift Schedule" — one-click sets Time In, Lunch Out, Lunch In, Time Out
+     * to the values from the employee's shift for that date. Handy for retroactively logging
+     * a normal working day when the ZKTeco didn't capture punches. Auto-creates the AttendanceDay,
+     * writes an AttendanceOverride audit row per field, recomputes, and returns fresh values.
+     */
+    public function fillFromShift(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+            'reason'      => 'required|string|min:3|max:500',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $dateStr  = $validated['date'];
+        $reason   = $validated['reason'];
+
+        $shift = $employee->getShiftForDate($dateStr);
+        if (!$shift) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No shift assigned for this employee on this date. Assign a shift first.',
+            ], 422);
+        }
+
+        // Ensure an AttendanceDay exists (create blank if needed).
+        $day = AttendanceDay::where('employee_id', $employee->id)
+            ->whereDate('work_date', $dateStr)
+            ->first();
+
+        $createdDay = false;
+        if (!$day) {
+            if (Auth::user()?->role !== 'ceo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No attendance record for this date. Only CEO can create one.',
+                ], 403);
+            }
+            $day = AttendanceDay::create([
+                'employee_id'            => $employee->id,
+                'work_date'              => Carbon::parse($dateStr),
+                'shift_id'               => $shift->id,
+                'computed_work_minutes'  => 0,
+                'computed_late_minutes'  => 0,
+                'computed_early_minutes' => 0,
+                'computed_overtime_minutes' => 0,
+                'payable_work_minutes'   => 0,
+                'needs_review'           => true,
+                'notes'                  => 'Auto-created via Fill from Shift Schedule',
+            ]);
+            $createdDay = true;
+        }
+
+        // Map each attendance field to its corresponding shift time.
+        $mapping = [
+            'time_in'   => Carbon::parse($shift->start_time)->format('H:i:s'),
+            'lunch_out' => Carbon::parse($shift->lunch_start)->format('H:i:s'),
+            'lunch_in'  => Carbon::parse($shift->lunch_end)->format('H:i:s'),
+            'time_out'  => Carbon::parse($shift->end_time)->format('H:i:s'),
+        ];
+
+        foreach ($mapping as $field => $timeStr) {
+            $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : null;
+
+            $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $timeStr);
+
+            AttendanceOverride::create([
+                'attendance_day_id' => $day->id,
+                'employee_id'       => $day->employee_id,
+                'work_date'         => $day->work_date,
+                'field'             => $field,
+                'old_value'         => $oldValue,
+                'new_value'         => $timeStr,
+                'reason'            => $reason,
+                'updated_by'        => Auth::id(),
+            ]);
+        }
+        $day->save();
+
+        // Recompute once so metrics reflect all 4 new values in a single pass.
+        $day->load('shift');
+        $service = new AttendanceComputeService();
+        $service->recomputeDay($day);
+        $day->refresh();
+
+        return response()->json([
+            'success'      => true,
+            'message'      => 'Filled from shift schedule.',
+            'created_day'  => $createdDay,
+            'values' => [
+                'time_in'   => ['display' => Carbon::parse($day->time_in)->format('g:i A'),   'raw' => Carbon::parse($day->time_in)->format('H:i:s')],
+                'lunch_out' => ['display' => Carbon::parse($day->lunch_out)->format('g:i A'), 'raw' => Carbon::parse($day->lunch_out)->format('H:i:s')],
+                'lunch_in'  => ['display' => Carbon::parse($day->lunch_in)->format('g:i A'),  'raw' => Carbon::parse($day->lunch_in)->format('H:i:s')],
+                'time_out'  => ['display' => Carbon::parse($day->time_out)->format('g:i A'),  'raw' => Carbon::parse($day->time_out)->format('H:i:s')],
+            ],
+            'metrics' => [
+                'work_minutes'     => (int) $day->computed_work_minutes,
+                'late_minutes'     => (int) $day->computed_late_minutes,
+                'early_minutes'    => (int) $day->computed_early_minutes,
+                'overtime_minutes' => (int) $day->computed_overtime_minutes,
+            ],
+        ]);
+    }
+
+    /**
      * Recompute a single employee/date without touching overrides.
      * Silent — used internally after per-cell edits.
      */

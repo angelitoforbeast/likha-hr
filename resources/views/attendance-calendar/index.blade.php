@@ -330,6 +330,28 @@
                         </tr>
                         <tr id="dScheduleRow"><td class="text-muted">Schedule</td><td id="dSchedule"></td></tr>
                         <tr id="dLunchBreakRow"><td class="text-muted">Lunch Break</td><td id="dLunchBreak" class="text-info"></td></tr>
+                        <tr>
+                            <td colspan="2" class="pt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary w-100" id="dFillFromShiftBtn" onclick="showFillFromShiftForm()">
+                                    <i class="bi bi-calendar-check"></i> Fill Whole Day from Shift Schedule
+                                </button>
+                                <div id="dFillFromShiftForm" class="mt-2" style="display:none">
+                                    <input type="text" class="form-control form-control-sm mb-1"
+                                           id="dFillReason"
+                                           placeholder="Reason (required, min 3 chars)"
+                                           minlength="3" maxlength="500">
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-success flex-fill" onclick="submitFillFromShift()">
+                                            <i class="bi bi-check-lg"></i> Apply
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hideFillFromShiftForm()">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div id="dFillMsg" class="small mt-1" style="display:none"></div>
+                                </div>
+                            </td>
+                        </tr>
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
                         @foreach([['field'=>'time_in','label'=>'Time In'],['field'=>'lunch_out','label'=>'Lunch Out'],['field'=>'lunch_in','label'=>'Lunch In'],['field'=>'time_out','label'=>'Time Out']] as $tf)
                         <tr>
@@ -731,6 +753,9 @@
         const shiftMsg = document.getElementById('dShiftEditorMsg');
         if (shiftMsg) shiftMsg.style.display = 'none';
 
+        // Reset the "Fill from Shift" inline form
+        if (typeof hideFillFromShiftForm === 'function') hideFillFromShiftForm();
+
         document.getElementById('detailTitle').textContent = empName + ' — ' + date;
 
         // Always show detailBody — the time editors, shift editor, day-off actions all live there
@@ -884,6 +909,69 @@
                 p.disabled = false;
             });
         });
+    }
+
+    // "Fill Whole Day from Shift" — show the reason input inline (so user can enter it and hit Apply).
+    function showFillFromShiftForm() {
+        document.getElementById('dFillFromShiftForm').style.display = '';
+        document.getElementById('dFillFromShiftBtn').style.display = 'none';
+        document.getElementById('dFillMsg').style.display = 'none';
+        document.getElementById('dFillReason').focus();
+    }
+    function hideFillFromShiftForm() {
+        document.getElementById('dFillFromShiftForm').style.display = 'none';
+        document.getElementById('dFillFromShiftBtn').style.display = '';
+        document.getElementById('dFillReason').value = '';
+        document.getElementById('dFillMsg').style.display = 'none';
+    }
+    function submitFillFromShift() {
+        if (!currentTd) return;
+        const empId  = currentTd.dataset.employeeId;
+        const date   = currentTd.dataset.date;
+        const reason = (document.getElementById('dFillReason').value || '').trim();
+        const msg    = document.getElementById('dFillMsg');
+        msg.style.display = 'none';
+
+        if (reason.length < 3) {
+            flashMessage(msg, 'Reason is required (min 3 chars).', false);
+            document.getElementById('dFillReason').focus();
+            return;
+        }
+
+        fetch('{{ url("/attendance-calendar/fill-from-shift") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ employee_id: empId, date: date, reason: reason }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Apply all 4 field values + metrics in one pass so the modal reflects the whole day.
+                ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
+                    const v = data.values?.[f];
+                    if (v) applyTimeFieldUpdate(f, v.display, v.raw, data.metrics);
+                });
+                hideFillFromShiftForm();
+                // Show fleeting success on the whole-day button area for feedback
+                const btn = document.getElementById('dFillFromShiftBtn');
+                if (btn) {
+                    const oldHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> Applied — will refresh on close';
+                    btn.classList.add('btn-success'); btn.classList.remove('btn-outline-primary');
+                    setTimeout(() => {
+                        btn.innerHTML = oldHtml;
+                        btn.classList.remove('btn-success'); btn.classList.add('btn-outline-primary');
+                    }, 2000);
+                }
+            } else {
+                flashMessage(msg, data.message || 'Error.', false);
+            }
+        })
+        .catch(() => flashMessage(msg, 'Network error.', false));
     }
 
     // After a successful save/delete: reflect the new value in the display + collapse the editor,

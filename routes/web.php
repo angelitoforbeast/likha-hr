@@ -153,6 +153,7 @@ Route::middleware('auth')->group(function () {
         Route::post("/attendance-calendar/toggle-day-off", [AttendanceCalendarController::class, "toggleDayOff"])->name("attendance-calendar.toggle-day-off");
         Route::post("/attendance-calendar/assign-shift", [AttendanceCalendarController::class, "assignShiftForDate"])->name("attendance-calendar.assign-shift");
         Route::post("/attendance-calendar/compute", [AttendanceCalendarController::class, "computeRange"])->name("attendance-calendar.compute");
+        Route::post("/attendance-calendar/override-time", [AttendanceCalendarController::class, "overrideTime"])->name("attendance-calendar.override-time");
     });
 
     // Day Off Calendar

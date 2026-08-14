@@ -13,6 +13,7 @@ use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceCalendarController extends Controller
 {
@@ -277,6 +278,62 @@ class AttendanceCalendarController extends Controller
             'success' => true,
             'message' => "Computed attendance: {$stats['processed']} days processed, {$stats['errors']} errors.",
             'stats'   => $stats,
+        ]);
+    }
+
+    /**
+     * Override a time field (Time In / Lunch Out / Lunch In / Time Out) for a single AttendanceDay
+     * from the inline editor in the calendar's detail modal. Also records the AttendanceOverride
+     * audit row, recomputes the day, and returns fresh values for the UI to reflect immediately.
+     */
+    public function overrideTime(Request $request)
+    {
+        $validated = $request->validate([
+            'attendance_day_id' => 'required|exists:attendance_days,id',
+            'field'             => 'required|in:time_in,lunch_out,lunch_in,time_out',
+            'new_value'         => 'nullable|string', // H:i or H:i:s, empty to clear
+            'reason'            => 'nullable|string|max:500',
+        ]);
+
+        $day   = AttendanceDay::findOrFail($validated['attendance_day_id']);
+        $field = $validated['field'];
+        $newValue = $validated['new_value'] ?? null;
+        $reason   = $validated['reason'] ?: 'Edited via attendance calendar';
+
+        $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : null;
+
+        if ($newValue) {
+            // Accept H:i or H:i:s
+            $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $newValue);
+        } else {
+            $day->{$field} = null;
+        }
+        $day->save();
+
+        AttendanceOverride::create([
+            'attendance_day_id' => $day->id,
+            'employee_id'       => $day->employee_id,
+            'work_date'         => $day->work_date,
+            'field'             => $field,
+            'old_value'         => $oldValue,
+            'new_value'         => $newValue,
+            'reason'            => $reason,
+            'updated_by'        => Auth::id(),
+        ]);
+
+        // Recompute the day so late/early/OT/status reflect the new value.
+        $day->load('shift');
+        $service = new AttendanceComputeService();
+        $service->recomputeDay($day);
+
+        $day->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Saved.',
+            'field'   => $field,
+            'value_display' => $day->{$field} ? Carbon::parse($day->{$field})->format('g:i A') : '-',
+            'value_raw'     => $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : '',
         ]);
     }
 

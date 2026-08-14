@@ -23,6 +23,7 @@
     .time-editable { cursor: pointer; border-bottom: 1px dashed #999; padding: 1px 3px; border-radius: 2px; }
     .time-editable:hover { background: #e2e6ea; }
     .time-edited { color: #6f42c1 !important; font-weight: 600; background: #fff3cd; border: 1px solid #ffc107; border-radius: 3px; padding: 1px 4px; }
+    .time-input.time-input-edited { border-color: #ffc107; box-shadow: 0 0 0 .1rem rgba(255, 193, 7, .25); background: #fff8e1; font-weight: 600; }
     .override-dot { color: #6f42c1; font-size: .6rem; vertical-align: super; }
     .override-history { font-size: .78rem; background: #f8f9fa; border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
     .override-history .ov-entry { border-bottom: 1px solid #e9ecef; padding: 3px 0; }
@@ -327,22 +328,31 @@
                         <tr id="dScheduleRow"><td class="text-muted">Schedule</td><td id="dSchedule"></td></tr>
                         <tr id="dLunchBreakRow"><td class="text-muted">Lunch Break</td><td id="dLunchBreak" class="text-info"></td></tr>
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
+                        @foreach([['field'=>'time_in','label'=>'Time In'],['field'=>'lunch_out','label'=>'Lunch Out'],['field'=>'lunch_in','label'=>'Lunch In'],['field'=>'time_out','label'=>'Time Out']] as $tf)
                         <tr>
-                            <td class="text-muted">Time In</td>
-                            <td><span class="time-editable" id="dTimeIn" data-field="time_in" onclick="startEdit(this)"></span></td>
+                            <td class="text-muted">{{ $tf['label'] }}</td>
+                            <td>
+                                <div class="d-flex gap-1 align-items-center flex-wrap">
+                                    <input type="time" step="1" class="form-control form-control-sm time-input"
+                                           id="dInput_{{ $tf['field'] }}" data-field="{{ $tf['field'] }}"
+                                           style="max-width:130px">
+                                    <select class="form-select form-select-sm punch-picker"
+                                            data-target="dInput_{{ $tf['field'] }}"
+                                            title="Pick from raw punches"
+                                            style="max-width:110px">
+                                        <option value="">Punches…</option>
+                                    </select>
+                                    <button type="button"
+                                            class="btn btn-sm btn-success py-0 px-2 time-save-btn"
+                                            data-field="{{ $tf['field'] }}"
+                                            title="Save">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </div>
+                                <div id="dMsg_{{ $tf['field'] }}" class="small mt-1" style="display:none"></div>
+                            </td>
                         </tr>
-                        <tr>
-                            <td class="text-muted">Lunch Out</td>
-                            <td><span class="time-editable" id="dLunchOut" data-field="lunch_out" onclick="startEdit(this)"></span></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Lunch In</td>
-                            <td><span class="time-editable" id="dLunchIn" data-field="lunch_in" onclick="startEdit(this)"></span></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Time Out</td>
-                            <td><span class="time-editable" id="dTimeOut" data-field="time_out" onclick="startEdit(this)"></span></td>
-                        </tr>
+                        @endforeach
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
                         <tr><td class="text-muted">Work</td><td id="dWork"></td></tr>
                         <tr><td class="text-muted">Late</td><td id="dLate"></td></tr>
@@ -734,14 +744,24 @@
         document.getElementById('dShift').textContent = td.dataset.shiftName || td.dataset.shift || 'N/A';
         setShiftScheduleRows(td);
 
-        // Set time values with edited field indicators
+        // Prefill inline time inputs with current H:i values (add ':00' seconds so the input shows seconds)
+        setTimeInputValue('dInput_time_in',  td.dataset.timeIn);
+        setTimeInputValue('dInput_lunch_out', td.dataset.lunchOut);
+        setTimeInputValue('dInput_lunch_in',  td.dataset.lunchIn);
+        setTimeInputValue('dInput_time_out',  td.dataset.timeOut);
+
+        // Highlight inputs whose field has an override + reset per-row messages
         const editedFieldsStr = td.dataset.editedFields || '';
         const editedFields = editedFieldsStr ? editedFieldsStr.split(',') : [];
+        ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
+            const input = document.getElementById('dInput_' + f);
+            if (input) input.classList.toggle('time-input-edited', editedFields.includes(f));
+            const m = document.getElementById('dMsg_' + f);
+            if (m) m.style.display = 'none';
+        });
 
-        setTimeDisplay('dTimeIn', td.dataset.timeInDisplay, td.dataset.timeIn, editedFields.includes('time_in'));
-        setTimeDisplay('dLunchOut', td.dataset.lunchOutDisplay, td.dataset.lunchOut, editedFields.includes('lunch_out'));
-        setTimeDisplay('dLunchIn', td.dataset.lunchInDisplay, td.dataset.lunchIn, editedFields.includes('lunch_in'));
-        setTimeDisplay('dTimeOut', td.dataset.timeOutDisplay, td.dataset.timeOut, editedFields.includes('time_out'));
+        // Fetch raw punches once and populate all 4 punch pickers
+        loadPunchesIntoPickers(td.dataset.employeeId, td.dataset.date);
 
         document.getElementById('dWork').textContent = fmtMin(td.dataset.work);
         document.getElementById('dLate').textContent = fmtMin(td.dataset.late);
@@ -791,6 +811,7 @@
 
     function setTimeDisplay(elId, displayVal, rawVal, isEdited) {
         const el = document.getElementById(elId);
+        if (!el) return;
         el.textContent = displayVal || '-';
         el.dataset.rawValue = rawVal || '';
         if (isEdited) {
@@ -800,6 +821,108 @@
             el.classList.remove('time-edited');
         }
     }
+
+    // Prefill a time input with H:i:s from an H:i value (adds ':00' seconds if not present).
+    function setTimeInputValue(inputId, hhmm) {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        if (!hhmm) { el.value = ''; return; }
+        const parts = hhmm.split(':');
+        while (parts.length < 3) parts.push('00');
+        el.value = parts.slice(0, 3).map(p => p.padStart(2, '0')).join(':');
+    }
+
+    // Fetch raw punches for this employee/date once, populate all 4 punch-picker dropdowns.
+    function loadPunchesIntoPickers(employeeId, date) {
+        const pickers = document.querySelectorAll('.punch-picker');
+        // Reset dropdowns while loading
+        pickers.forEach(p => {
+            p.innerHTML = '<option value="">Loading…</option>';
+            p.disabled = true;
+        });
+        fetch(`{{ route('attendance.punches') }}?employee_id=${encodeURIComponent(employeeId)}&date=${encodeURIComponent(date)}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const punches = data.punches || [];
+            pickers.forEach(p => {
+                let html = '<option value="">Punches…</option>';
+                punches.forEach(pu => {
+                    html += `<option value="${pu.time}">${pu.time}</option>`;
+                });
+                p.innerHTML = html;
+                p.disabled = false;
+            });
+        })
+        .catch(() => {
+            pickers.forEach(p => {
+                p.innerHTML = '<option value="">(failed to load)</option>';
+                p.disabled = false;
+            });
+        });
+    }
+
+    // Wire up the punch pickers and inline save buttons (once, on DOM ready).
+    document.addEventListener('DOMContentLoaded', function () {
+        // Selecting a raw punch fills the matching time input.
+        document.querySelectorAll('.punch-picker').forEach(picker => {
+            picker.addEventListener('change', function () {
+                if (!this.value) return;
+                const target = document.getElementById(this.dataset.target);
+                if (target) target.value = this.value;
+            });
+        });
+
+        // Inline save button: POSTs the value for its field to the calendar override endpoint.
+        document.querySelectorAll('.time-save-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                if (!currentTd) return;
+                const attId = currentTd.dataset.attId;
+                if (!attId) return;
+                const field = this.dataset.field;
+                const input = document.getElementById('dInput_' + field);
+                const msg   = document.getElementById('dMsg_' + field);
+                const newVal = input?.value || '';
+                msg.style.display = 'none';
+                this.disabled = true;
+
+                fetch('{{ url("/attendance-calendar/override-time") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        attendance_day_id: attId,
+                        field: field,
+                        new_value: newVal,
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    this.disabled = false;
+                    if (data.success) {
+                        msg.textContent = 'Saved. Reloading…';
+                        msg.className = 'small mt-1 text-success';
+                        msg.style.display = '';
+                        setTimeout(() => location.reload(), 500);
+                    } else {
+                        msg.textContent = data.message || 'Error.';
+                        msg.className = 'small mt-1 text-danger';
+                        msg.style.display = '';
+                    }
+                })
+                .catch(() => {
+                    this.disabled = false;
+                    msg.textContent = 'Network error.';
+                    msg.className = 'small mt-1 text-danger';
+                    msg.style.display = '';
+                });
+            });
+        });
+    });
 
     function startEdit(span) {
         const field = span.dataset.field;

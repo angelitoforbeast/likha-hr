@@ -83,6 +83,11 @@
                 <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> View</button>
             </div>
             <div class="col-auto">
+                <button type="button" class="btn btn-sm btn-warning" id="computeAttendanceBtn" title="Recompute attendance for the visible date range (respects manual overrides)">
+                    <i class="bi bi-calculator"></i> <span id="computeAttendanceLabel">Compute Attendance</span>
+                </button>
+            </div>
+            <div class="col-auto">
                 @php
                     $rangeDays = \Carbon\Carbon::parse($dateFrom)->diffInDays(\Carbon\Carbon::parse($dateTo)) + 1;
                     $prevFrom = \Carbon\Carbon::parse($dateFrom)->subDays($rangeDays)->format('Y-m-d');
@@ -290,13 +295,19 @@
                             <td class="text-muted">New Shift</td>
                             <td>
                                 <div class="d-flex gap-1 align-items-center">
-                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:180px" onchange="updateShiftPreview()">
+                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:280px" onchange="updateShiftPreview()">
                                         @foreach($shifts as $shift)
+                                            @php
+                                                $sStart = \Carbon\Carbon::parse($shift->start_time)->format('H:i');
+                                                $sEnd   = \Carbon\Carbon::parse($shift->end_time)->format('H:i');
+                                                $lStart = \Carbon\Carbon::parse($shift->lunch_start)->format('H:i');
+                                                $lEnd   = \Carbon\Carbon::parse($shift->lunch_end)->format('H:i');
+                                            @endphp
                                             <option value="{{ $shift->id }}"
                                                     data-start="{{ \Carbon\Carbon::parse($shift->start_time)->format('g:i A') }}"
                                                     data-end="{{ \Carbon\Carbon::parse($shift->end_time)->format('g:i A') }}"
                                                     data-lunch-start="{{ \Carbon\Carbon::parse($shift->lunch_start)->format('g:i A') }}"
-                                                    data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}">{{ $shift->name }}</option>
+                                                    data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}">{{ $shift->name }} ({{ $sStart }}-{{ $sEnd }}, Lunch {{ $lStart }}-{{ $lEnd }})</option>
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-sm btn-success py-0 px-2" onclick="saveShiftForDay()" title="Save">
@@ -550,6 +561,49 @@
         const h12 = h % 12 || 12;
         return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
     }
+
+    // Manual "Compute Attendance" button — bulk recompute for the visible date range.
+    // Uses the calendar's date_from / date_to inputs. Respects manual overrides.
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('computeAttendanceBtn');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            const dateFrom = document.querySelector('input[name="date_from"]')?.value;
+            const dateTo   = document.querySelector('input[name="date_to"]')?.value;
+            if (!dateFrom || !dateTo) { alert('Please set a date range first.'); return; }
+
+            const label = document.getElementById('computeAttendanceLabel');
+            const origText = label.textContent;
+            label.textContent = 'Computing...';
+            btn.disabled = true;
+
+            fetch('{{ url("/attendance-calendar/compute") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ start_date: dateFrom, end_date: dateTo }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    label.textContent = 'Done — reloading...';
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    label.textContent = origText;
+                    btn.disabled = false;
+                    alert('Error: ' + (data.message || 'Unknown'));
+                }
+            })
+            .catch(() => {
+                label.textContent = origText;
+                btn.disabled = false;
+                alert('Network error. Please try again.');
+            });
+        });
+    });
 
     // Per-cell shift editor — show/hide the inline dropdown and save a single-day override.
     function showShiftEditor() {

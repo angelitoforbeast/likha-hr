@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Shift;
+use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -242,11 +243,66 @@ class AttendanceCalendarController extends Controller
 
         $shift = Shift::find($validated['shift_id']);
 
+        // Auto-recompute this single employee/date so the calendar reflects updated status
+        // (respects overrides — never force).
+        $this->autoComputeSingleDay((int) $validated['employee_id'], $validated['date']);
+
         return response()->json([
             'success'    => true,
-            'message'    => 'Shift updated for this date.',
+            'message'    => 'Shift updated and attendance recomputed for this date.',
             'shift_name' => $shift?->name,
         ]);
+    }
+
+    /**
+     * Bulk compute attendance for the visible date range on the calendar.
+     * Respects existing manual overrides (uses computeForDateRange with force=false).
+     */
+    public function computeRange(Request $request)
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $service = new AttendanceComputeService();
+        $stats = $service->computeForDateRange(
+            $validated['start_date'],
+            $validated['end_date'],
+            null,
+            false // respect overrides
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Computed attendance: {$stats['processed']} days processed, {$stats['errors']} errors.",
+            'stats'   => $stats,
+        ]);
+    }
+
+    /**
+     * Recompute a single employee/date without touching overrides.
+     * Silent — used internally after per-cell edits.
+     */
+    protected function autoComputeSingleDay(int $employeeId, string $date): void
+    {
+        try {
+            $employee = Employee::find($employeeId);
+            if (!$employee) return;
+
+            $service = new AttendanceComputeService();
+            $stats = ['processed' => 0, 'errors' => 0, 'overrides_deleted' => 0];
+            $start = Carbon::parse($date)->startOfDay();
+            $end   = Carbon::parse($date)->endOfDay();
+            $service->computeForEmployee($employee, $start, $end, null, $stats, false);
+        } catch (\Throwable $e) {
+            // Silent — the shift change itself already succeeded; log for debugging.
+            \Log::warning('Auto-compute after calendar edit failed', [
+                'employee_id' => $employeeId,
+                'date'        => $date,
+                'error'       => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -295,6 +351,9 @@ class AttendanceCalendarController extends Controller
             }
             $message = 'Rest day cancelled (must work).';
         }
+
+        // Auto-recompute this single employee/date so the calendar reflects updated status
+        $this->autoComputeSingleDay($employee->id, $date);
 
         // Return updated status
         $isDayOff = $employee->isDayOff($date);

@@ -311,6 +311,21 @@
                             <i class="bi bi-clock-history"></i> View Raw Punches
                         </button>
                     </div>
+                    {{-- Day-off actions (same as day-off-calendar) — available on Present cells too --}}
+                    <hr class="my-2">
+                    <p class="text-muted small mb-2 text-center">Manage rest day for this date:</p>
+                    <div class="d-flex gap-2 justify-content-center flex-wrap">
+                        <button class="btn btn-sm btn-outline-primary dayoff-action-btn" onclick="toggleDayOff('add_day_off')">
+                            <i class="bi bi-calendar-x"></i> Mark as Rest Day
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning dayoff-action-btn" onclick="toggleDayOff('cancel_day_off')">
+                            <i class="bi bi-calendar-check"></i> Cancel Rest Day
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary dayoff-action-btn" onclick="toggleDayOff('remove_override')">
+                            <i class="bi bi-arrow-counterclockwise"></i> Remove Override
+                        </button>
+                    </div>
+                    <div id="dayOffMsgPresent" class="small mt-2 text-center" style="display:none"></div>
                 </div>
 
                 {{-- Absent / Day Off detail --}}
@@ -524,6 +539,10 @@
         const empName = td.dataset.employee;
         const date = td.dataset.date;
 
+        // Clear any lingering day-off status messages from a previous modal open
+        const presentMsg = document.getElementById('dayOffMsgPresent');
+        if (presentMsg) presentMsg.style.display = 'none';
+
         document.getElementById('detailTitle').textContent = empName + ' — ' + date;
 
         if (status === 'absent' || status === 'day_off') {
@@ -689,15 +708,21 @@
         });
     }
 
-    // Day off toggle
+    // Day off toggle — works from both the Present modal and the Absent/Day-Off modal.
+    // Picks whichever status message container is currently in the DOM.
     function toggleDayOff(action) {
         const empId = currentTd ? currentTd.dataset.employeeId : null;
         const date = currentTd ? currentTd.dataset.date : null;
 
         if (!empId || !date) return;
 
-        const msgDiv = document.getElementById('dayOffMsg');
-        msgDiv.style.display = 'none';
+        // Prefer the message div in the Present body if it is currently visible,
+        // otherwise fall back to the Absent/Day-Off container.
+        const detailBodyVisible = document.getElementById('detailBody').style.display !== 'none';
+        const msgDiv = detailBodyVisible
+            ? document.getElementById('dayOffMsgPresent')
+            : document.getElementById('dayOffMsg');
+        if (msgDiv) msgDiv.style.display = 'none';
 
         fetch('{{ url("/attendance-calendar/toggle-day-off") }}', {
             method: 'POST',
@@ -714,20 +739,22 @@
         })
         .then(r => r.json())
         .then(data => {
+            if (!msgDiv) { if (data.success) location.reload(); return; }
             if (data.success) {
                 msgDiv.textContent = data.message + ' Reloading...';
-                msgDiv.className = 'small mt-2 text-success';
+                msgDiv.className = 'small mt-2 text-success text-center';
                 msgDiv.style.display = '';
                 setTimeout(() => location.reload(), 800);
             } else {
                 msgDiv.textContent = data.message || 'Error.';
-                msgDiv.className = 'small mt-2 text-danger';
+                msgDiv.className = 'small mt-2 text-danger text-center';
                 msgDiv.style.display = '';
             }
         })
         .catch(err => {
+            if (!msgDiv) { alert('Network error. Please try again.'); return; }
             msgDiv.textContent = 'Network error. Please try again.';
-            msgDiv.className = 'small mt-2 text-danger';
+            msgDiv.className = 'small mt-2 text-danger text-center';
             msgDiv.style.display = '';
         });
     }

@@ -67,7 +67,14 @@ class AttendanceCalendarController extends Controller
             $query->where('id', $employeeId);
         }
 
-        $filteredEmployees = $query->orderBy('full_name')->get();
+        // Default sort: department name first, then employee name
+        $filteredEmployees = $query
+            ->with('department')
+            ->leftJoin('departments', 'employees.department_id', '=', 'departments.id')
+            ->orderBy('departments.name')
+            ->orderBy('employees.full_name')
+            ->select('employees.*')
+            ->get();
 
         // All active employees for the employee filter dropdown
         $employees = Employee::where('status', 'active')->orderBy('full_name')->get();

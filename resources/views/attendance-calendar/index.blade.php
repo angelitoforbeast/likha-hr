@@ -28,6 +28,11 @@
     .override-history .ov-entry { border-bottom: 1px solid #e9ecef; padding: 3px 0; }
     .override-history .ov-entry:last-child { border-bottom: none; }
     .dayoff-action-btn { font-size: .75rem; padding: 2px 8px; }
+    /* Shift overlay inside each cell (when Show Shift toggle is on) */
+    .cal-shift-line { display: block; font-size: .6rem; font-weight: 500; line-height: 1; margin-top: 2px; opacity: .85; white-space: nowrap; }
+    .cal-shift-name { font-weight: 600; }
+    .cal-shift-time { font-size: .55rem; opacity: .8; }
+    .with-shift td { min-width: 55px; }
 </style>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -68,6 +73,13 @@
                 <input type="date" name="date_to" class="form-control form-control-sm" value="{{ $dateTo }}">
             </div>
             <div class="col-auto">
+                <label class="form-label small fw-semibold mb-1 d-block">&nbsp;</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="show_shift" value="1" id="showShiftToggle" {{ !empty($showShift) ? 'checked' : '' }}>
+                    <label class="form-check-label small" for="showShiftToggle">Show Shift</label>
+                </div>
+            </div>
+            <div class="col-auto">
                 <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> View</button>
             </div>
             <div class="col-auto">
@@ -106,7 +118,7 @@
     </div>
     <div class="card-body p-0" style="overflow-x: auto;">
         @if(count($calendarData) > 0)
-        <table class="table table-bordered cal-table mb-0">
+        <table class="table table-bordered cal-table mb-0 {{ !empty($showShift) ? 'with-shift' : '' }}">
             <thead class="table-light">
                 <tr>
                     <th class="text-start" style="min-width:140px; position:sticky; left:0; background:#f8f9fa; z-index:2;">Employee</th>
@@ -182,6 +194,14 @@
                                 . ' data-employee="' . e($empCal['employee']->display_name) . '"'
                                 . ' data-employee-id="' . $empCal['employee']->id . '"';
 
+                            // Shift info for this date (from shift assignment or fallback default)
+                            $shiftForCell = $dayInfo['shift'] ?? null;
+                            if ($shiftForCell) {
+                                $dataAttrs .= ' data-shift-name="' . e($shiftForCell['name']) . '"'
+                                    . ' data-shift-schedule="' . e($shiftForCell['start'] . ' — ' . $shiftForCell['end']) . '"'
+                                    . ' data-shift-lunch="' . e($shiftForCell['lunch_start'] . ' — ' . $shiftForCell['lunch_end']) . '"';
+                            }
+
                             if ($att) {
                                 // Build override details JSON
                                 $ovDetailsJson = json_encode($dayInfo['override_details'] ?? []);
@@ -212,8 +232,14 @@
                         <td class="{{ $cellClass }}"
                             {!! $dataAttrs !!}
                             onclick="openDetail(this)"
-                            title="{{ $empCal['employee']->display_name }} — {{ $dayInfo['date'] }}">
+                            title="{{ $empCal['employee']->display_name }} — {{ $dayInfo['date'] }}@if($shiftForCell) — {{ $shiftForCell['name'] }} ({{ $shiftForCell['start'] }} to {{ $shiftForCell['end'] }})@endif">
                             {{ $cellText }}
+                            @if(!empty($showShift) && $shiftForCell)
+                                <span class="cal-shift-line">
+                                    <span class="cal-shift-name">{{ $shiftForCell['name'] }}</span><br>
+                                    <span class="cal-shift-time">{{ $shiftForCell['start_short'] }}-{{ $shiftForCell['end_short'] }}</span>
+                                </span>
+                            @endif
                         </td>
                     @endforeach
                     <td class="fw-bold text-success">{{ $countP }}</td>
@@ -248,6 +274,8 @@
                         <tr><td class="text-muted">Date</td><td class="fw-semibold" id="dDate"></td></tr>
                         <tr><td class="text-muted">Status</td><td class="fw-semibold" id="dStatus"></td></tr>
                         <tr><td class="text-muted">Shift</td><td id="dShift"></td></tr>
+                        <tr id="dScheduleRow"><td class="text-muted">Schedule</td><td id="dSchedule"></td></tr>
+                        <tr id="dLunchBreakRow"><td class="text-muted">Lunch Break</td><td id="dLunchBreak" class="text-info"></td></tr>
                         <tr><td colspan="2"><hr class="my-1"></td></tr>
                         <tr>
                             <td class="text-muted">Time In</td>
@@ -469,6 +497,27 @@
         return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
     }
 
+    // Populate the Schedule and Lunch Break rows in the detail modal from the cell's data-* attributes.
+    // Hides the rows entirely when no shift is resolved for the date.
+    function setShiftScheduleRows(td) {
+        const schedule = td.dataset.shiftSchedule || '';
+        const lunch    = td.dataset.shiftLunch || '';
+        const schedRow = document.getElementById('dScheduleRow');
+        const lunchRow = document.getElementById('dLunchBreakRow');
+        if (schedule) {
+            document.getElementById('dSchedule').textContent = schedule;
+            if (schedRow) schedRow.style.display = '';
+        } else if (schedRow) {
+            schedRow.style.display = 'none';
+        }
+        if (lunch) {
+            document.getElementById('dLunchBreak').textContent = lunch;
+            if (lunchRow) lunchRow.style.display = '';
+        } else if (lunchRow) {
+            lunchRow.style.display = 'none';
+        }
+    }
+
     function openDetail(td) {
         currentTd = td;
         const status = td.dataset.status;
@@ -501,7 +550,9 @@
         statusEl.textContent = statusLabels[status] || status;
         statusEl.style.color = statusColors[status] || '#000';
 
-        document.getElementById('dShift').textContent = td.dataset.shift || 'N/A';
+        // Shift: prefer the resolved shift-name (from date-based lookup), fall back to the AttendanceDay's shift
+        document.getElementById('dShift').textContent = td.dataset.shiftName || td.dataset.shift || 'N/A';
+        setShiftScheduleRows(td);
 
         // Set time values with edited field indicators
         const editedFieldsStr = td.dataset.editedFields || '';

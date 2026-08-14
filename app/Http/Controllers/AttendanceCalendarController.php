@@ -41,6 +41,7 @@ class AttendanceCalendarController extends Controller
         $filterType = $request->input('filter_type', 'all');
         $departmentId = $request->input('department_id');
         $employeeId = $request->input('employee_id');
+        $showShift = $request->boolean('show_shift'); // toggle: display shift name/times in each cell
 
         // Build the list of dates in range
         $period = CarbonPeriod::create($startDate, $endDate);
@@ -110,6 +111,19 @@ class AttendanceCalendarController extends Controller
                 // Check if this date is a day off for this employee
                 $isDayOff = $emp->isDayOff($dateStr);
 
+                // Resolve shift for this employee on this date (falls back to default_shift).
+                // Used both for the modal (schedule/lunch display) and the cell overlay (when show_shift toggle is on).
+                $shiftForDay = $emp->getShiftForDate($dateStr);
+                $shiftInfo = $shiftForDay ? [
+                    'name'        => $shiftForDay->name,
+                    'start'       => Carbon::parse($shiftForDay->start_time)->format('g:i A'),
+                    'end'         => Carbon::parse($shiftForDay->end_time)->format('g:i A'),
+                    'start_short' => Carbon::parse($shiftForDay->start_time)->format('ga'),
+                    'end_short'   => Carbon::parse($shiftForDay->end_time)->format('ga'),
+                    'lunch_start' => Carbon::parse($shiftForDay->lunch_start)->format('g:i A'),
+                    'lunch_end'   => Carbon::parse($shiftForDay->lunch_end)->format('g:i A'),
+                ] : null;
+
                 if ($attDay) {
                     $status = 'present';
                     $lateMin = $attDay->computed_late_minutes ?? 0;
@@ -146,6 +160,7 @@ class AttendanceCalendarController extends Controller
                         'attendance' => $attDay,
                         'has_overrides' => $hasOverrides,
                         'override_details' => $overrideDetails,
+                        'shift' => $shiftInfo,
                     ];
                 } elseif ($isDayOff) {
                     $empData['days'][$idx] = [
@@ -154,6 +169,7 @@ class AttendanceCalendarController extends Controller
                         'attendance' => null,
                         'has_overrides' => false,
                         'override_details' => [],
+                        'shift' => $shiftInfo,
                     ];
                 } else {
                     $empData['days'][$idx] = [
@@ -162,6 +178,7 @@ class AttendanceCalendarController extends Controller
                         'attendance' => null,
                         'has_overrides' => false,
                         'override_details' => [],
+                        'shift' => $shiftInfo,
                     ];
                 }
             }
@@ -172,7 +189,7 @@ class AttendanceCalendarController extends Controller
         return view('attendance-calendar.index', compact(
             'departments', 'employees', 'calendarData',
             'dates', 'totalDays', 'dateFrom', 'dateTo',
-            'filterType', 'departmentId', 'employeeId'
+            'filterType', 'departmentId', 'employeeId', 'showShift'
         ));
     }
 

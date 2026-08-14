@@ -144,11 +144,20 @@ class AttendanceCalendarController extends Controller
                     $lateMin = $attDay->computed_late_minutes ?? 0;
                     $earlyMin = $attDay->computed_early_minutes ?? 0;
 
+                    // A day is considered "undertime" when:
+                    //  - there is late-in or early-out, OR
+                    //  - required punches are missing (no time-in / no time-out — can't finish a shift), OR
+                    //  - actual payable work is less than what the shift requires.
+                    $missingCorePunches = empty($attDay->time_in) || empty($attDay->time_out);
+                    $requiredMinutes    = (int) ($shiftForDay->required_work_minutes ?? 0);
+                    $payableMinutes     = (int) ($attDay->payable_work_minutes ?? 0);
+                    $insufficientWork   = $requiredMinutes > 0 && $payableMinutes < $requiredMinutes;
+
                     // Check if worked on a rest day — alarming!
                     if ($isDayOff) {
                         $status = 'rd_present';
-                    } elseif ($lateMin > 0 || $earlyMin > 0) {
-                        // Merge late and undertime into single "undertime" status
+                    } elseif ($lateMin > 0 || $earlyMin > 0 || $missingCorePunches || $insufficientWork) {
+                        // Merge late/undertime/missing-punches/insufficient-work into a single "undertime" status
                         $status = 'undertime';
                     }
 

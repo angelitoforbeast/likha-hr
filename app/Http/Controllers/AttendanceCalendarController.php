@@ -256,6 +256,66 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
+     * Create a blank AttendanceDay for an employee/date so the CEO can manually enter time-in/out
+     * for absent or day-off cells that have no attendance record yet. CEO only.
+     * Returns the attendance_day_id (existing or newly created).
+     */
+    public function createDay(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can add attendance records manually.'], 403);
+        }
+
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'work_date'   => 'required|date',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $workDate = Carbon::parse($validated['work_date']);
+
+        $existing = AttendanceDay::where('employee_id', $employee->id)
+            ->whereDate('work_date', $workDate)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success'           => true,
+                'attendance_day_id' => $existing->id,
+                'message'           => 'Attendance record already exists.',
+                'was_created'       => false,
+            ]);
+        }
+
+        // Assign the employee's shift for this date so late/OT compute correctly later.
+        $shift = $employee->getShiftForDate($workDate->format('Y-m-d'));
+
+        $day = AttendanceDay::create([
+            'employee_id'            => $employee->id,
+            'work_date'              => $workDate,
+            'shift_id'               => $shift?->id,
+            'time_in'                => null,
+            'lunch_out'              => null,
+            'lunch_in'               => null,
+            'time_out'               => null,
+            'computed_work_minutes'  => 0,
+            'computed_late_minutes'  => 0,
+            'computed_early_minutes' => 0,
+            'computed_overtime_minutes' => 0,
+            'payable_work_minutes'   => 0,
+            'needs_review'           => true,
+            'notes'                  => 'Manually created via attendance calendar',
+        ]);
+
+        return response()->json([
+            'success'           => true,
+            'attendance_day_id' => $day->id,
+            'message'           => 'Attendance record created. Now you can enter time-in/out.',
+            'was_created'       => true,
+        ]);
+    }
+
+    /**
      * Bulk compute attendance for the visible date range on the calendar.
      * Respects existing manual overrides (uses computeForDateRange with force=false).
      */

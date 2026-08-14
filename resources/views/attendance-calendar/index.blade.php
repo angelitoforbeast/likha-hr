@@ -429,6 +429,17 @@
                         </div>
                         <div id="dayOffMsg" class="small mt-2" style="display:none"></div>
                     </div>
+                    @if(auth()->user() && auth()->user()->role === 'ceo')
+                    {{-- CEO-only: Add attendance record for absent/day-off dates so times can be entered manually --}}
+                    <div id="dAddAttendanceBox" class="mt-3" style="display:none">
+                        <hr class="my-2">
+                        <p class="text-muted small mb-2">No attendance record for this date. Add one to enter Time In / Out manually:</p>
+                        <button type="button" class="btn btn-sm btn-primary" id="dAddAttendanceBtn" onclick="addAttendanceRecord()">
+                            <i class="bi bi-plus-circle"></i> Add Attendance Record
+                        </button>
+                        <div id="dAddAttendanceMsg" class="small mt-2" style="display:none"></div>
+                    </div>
+                    @endif
                     <div class="mt-2">
                         <button type="button" class="btn btn-sm btn-outline-info" onclick="openPunchesModal()">
                             <i class="bi bi-clock-history"></i> View Raw Punches
@@ -748,6 +759,17 @@
             document.getElementById('dayOffActions').style.display = '';
             document.getElementById('dayOffMsg').style.display = 'none';
 
+            // CEO-only: expose "Add Attendance Record" button so CEO can enter time-in/out manually
+            // for an absent cell (or a day-off where they still want to record work).
+            const addBox = document.getElementById('dAddAttendanceBox');
+            if (addBox) {
+                addBox.style.display = '';
+                const addMsg = document.getElementById('dAddAttendanceMsg');
+                if (addMsg) addMsg.style.display = 'none';
+                const addBtn = document.getElementById('dAddAttendanceBtn');
+                if (addBtn) addBtn.disabled = false;
+            }
+
             detailModal.show();
             return;
         }
@@ -895,6 +917,48 @@
                 p.innerHTML = '<option value="">(failed to load)</option>';
                 p.disabled = false;
             });
+        });
+    }
+
+    // CEO: create a blank AttendanceDay for an absent/day-off cell so times can be entered manually.
+    // On success, page reloads and the cell becomes editable via the normal Present modal flow.
+    function addAttendanceRecord() {
+        if (!currentTd) return;
+        const empId = currentTd.dataset.employeeId;
+        const date  = currentTd.dataset.date;
+        const btn   = document.getElementById('dAddAttendanceBtn');
+        const msg   = document.getElementById('dAddAttendanceMsg');
+        msg.style.display = 'none';
+        btn.disabled = true;
+
+        fetch('{{ url("/attendance-calendar/create-day") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ employee_id: empId, work_date: date }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                msg.textContent = data.message + ' Reloading…';
+                msg.className = 'small mt-2 text-success';
+                msg.style.display = '';
+                setTimeout(() => location.reload(), 700);
+            } else {
+                msg.textContent = data.message || 'Error.';
+                msg.className = 'small mt-2 text-danger';
+                msg.style.display = '';
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            msg.textContent = 'Network error.';
+            msg.className = 'small mt-2 text-danger';
+            msg.style.display = '';
+            btn.disabled = false;
         });
     }
 

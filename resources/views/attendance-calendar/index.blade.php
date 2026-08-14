@@ -290,9 +290,13 @@
                             <td class="text-muted">New Shift</td>
                             <td>
                                 <div class="d-flex gap-1 align-items-center">
-                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:180px">
+                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:180px" onchange="updateShiftPreview()">
                                         @foreach($shifts as $shift)
-                                            <option value="{{ $shift->id }}">{{ $shift->name }}</option>
+                                            <option value="{{ $shift->id }}"
+                                                    data-start="{{ \Carbon\Carbon::parse($shift->start_time)->format('g:i A') }}"
+                                                    data-end="{{ \Carbon\Carbon::parse($shift->end_time)->format('g:i A') }}"
+                                                    data-lunch-start="{{ \Carbon\Carbon::parse($shift->lunch_start)->format('g:i A') }}"
+                                                    data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}">{{ $shift->name }}</option>
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-sm btn-success py-0 px-2" onclick="saveShiftForDay()" title="Save">
@@ -301,6 +305,10 @@
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="cancelShiftEditor()" title="Cancel">
                                         <i class="bi bi-x-lg"></i>
                                     </button>
+                                </div>
+                                <div id="dShiftPreview" class="small text-muted mt-1" style="line-height:1.3">
+                                    <div>Schedule: <span id="dShiftPreviewSched"></span></div>
+                                    <div class="text-info">Lunch Break: <span id="dShiftPreviewLunch"></span></div>
                                 </div>
                                 <div id="dShiftEditorMsg" class="small mt-1" style="display:none"></div>
                             </td>
@@ -547,10 +555,22 @@
     function showShiftEditor() {
         document.getElementById('dShiftEditorRow').style.display = '';
         document.getElementById('dShiftEditorMsg').style.display = 'none';
+        updateShiftPreview();
     }
     function cancelShiftEditor() {
         document.getElementById('dShiftEditorRow').style.display = 'none';
         document.getElementById('dShiftEditorMsg').style.display = 'none';
+    }
+    // Reads data-* attributes from the selected <option> to show the shift's schedule + lunch preview.
+    function updateShiftPreview() {
+        const sel = document.getElementById('dShiftSelect');
+        if (!sel) return;
+        const opt = sel.selectedOptions[0];
+        if (!opt) return;
+        const sched = (opt.dataset.start || '') + ' — ' + (opt.dataset.end || '');
+        const lunch = (opt.dataset.lunchStart || '') + ' — ' + (opt.dataset.lunchEnd || '');
+        document.getElementById('dShiftPreviewSched').textContent = sched;
+        document.getElementById('dShiftPreviewLunch').textContent = lunch;
     }
     function saveShiftForDay() {
         if (!currentTd) return;

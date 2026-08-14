@@ -361,6 +361,10 @@
                                                 data-field="{{ $tf['field'] }}" title="Save">
                                             <i class="bi bi-check-lg"></i>
                                         </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 time-delete-btn"
+                                                data-field="{{ $tf['field'] }}" title="Delete (clear this time)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
                                                 onclick="cancelTimeEditor('{{ $tf['field'] }}')" title="Cancel">
                                             <i class="bi bi-x-lg"></i>
@@ -368,7 +372,7 @@
                                     </div>
                                     <input type="text" class="form-control form-control-sm mt-1 time-reason"
                                            id="dReason_{{ $tf['field'] }}"
-                                           placeholder="Reason (required, min 3 chars)"
+                                           placeholder="Reason (required, min 3 chars) — needed for both save and delete"
                                            minlength="3" maxlength="500">
                                 </div>
                                 <div id="dMsg_{{ $tf['field'] }}" class="small mt-1" style="display:none"></div>
@@ -938,6 +942,78 @@
                 if (!this.value) return;
                 const target = document.getElementById(this.dataset.target);
                 if (target) target.value = this.value;
+            });
+        });
+
+        // Delete button: clears the time field (sends empty new_value). Requires a reason
+        // (same validation as save). Confirms once via a native dialog before firing.
+        document.querySelectorAll('.time-delete-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                if (!currentTd) return;
+                const field  = this.dataset.field;
+                const reason = document.getElementById('dReason_' + field);
+                const msg    = document.getElementById('dMsg_'    + field);
+                const reasonVal = (reason?.value || '').trim();
+
+                msg.style.display = 'none';
+
+                if (reasonVal.length < 3) {
+                    msg.textContent = 'Reason is required (min 3 characters) — even for deletion.';
+                    msg.className = 'small mt-1 text-danger';
+                    msg.style.display = '';
+                    reason?.focus();
+                    return;
+                }
+
+                if (!confirm('Delete this time value? This will clear it and log the reason as an override.')) return;
+
+                const delBtn = this;
+                delBtn.disabled = true;
+
+                // Delete only makes sense on cells that already have an AttendanceDay.
+                const attId = currentTd.dataset.attId;
+                if (!attId) {
+                    delBtn.disabled = false;
+                    msg.textContent = 'Nothing to delete — no attendance record yet for this date.';
+                    msg.className = 'small mt-1 text-danger';
+                    msg.style.display = '';
+                    return;
+                }
+
+                fetch('{{ url("/attendance-calendar/override-time") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        attendance_day_id: attId,
+                        field: field,
+                        new_value: '', // empty = clear
+                        reason: reasonVal,
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    delBtn.disabled = false;
+                    if (data.success) {
+                        msg.textContent = 'Deleted. Reloading…';
+                        msg.className = 'small mt-1 text-success';
+                        msg.style.display = '';
+                        setTimeout(() => location.reload(), 500);
+                    } else {
+                        msg.textContent = data.message || 'Error.';
+                        msg.className = 'small mt-1 text-danger';
+                        msg.style.display = '';
+                    }
+                })
+                .catch(() => {
+                    delBtn.disabled = false;
+                    msg.textContent = 'Network error.';
+                    msg.className = 'small mt-1 text-danger';
+                    msg.style.display = '';
+                });
             });
         });
 

@@ -495,6 +495,18 @@
     const punchesModal = new bootstrap.Modal(document.getElementById('punchesModal'));
 
     let currentTd = null;
+    // Set to true whenever a save/delete happens inside the current modal session.
+    // We defer the calendar reload until the modal is dismissed so the user can make several
+    // edits in a row without the pop-up disappearing after each one.
+    let modalHasChanges = false;
+
+    // Reload the calendar once, when the detail modal is closed, if any edits happened while open.
+    document.getElementById('detailModal').addEventListener('hidden.bs.modal', function () {
+        if (modalHasChanges) {
+            modalHasChanges = false;
+            location.reload();
+        }
+    });
 
     function openPunchesModal() {
         if (!currentTd) return;
@@ -700,6 +712,7 @@
 
     function openDetail(td) {
         currentTd = td;
+        modalHasChanges = false; // fresh session — reload only if edits happen this time around
         const status = td.dataset.status;
         const empName = td.dataset.employee;
         const date = td.dataset.date;
@@ -873,6 +886,50 @@
         });
     }
 
+    // After a successful save/delete: reflect the new value in the display + collapse the editor,
+    // update the source cell dataset (so the modal shows the fresh value on re-open in the same session),
+    // and mark modalHasChanges so we reload once when the modal is dismissed.
+    function applyTimeFieldUpdate(field, displayVal, rawVal, metrics) {
+        const text = document.getElementById('dText_' + field);
+        if (text) {
+            text.textContent = displayVal || '-';
+            text.classList.add('time-display-edited');
+        }
+        setTimeInputValue('dInput_' + field, rawVal || '');
+        if (currentTd) {
+            // Convert snake_case field to camelCase for dataset (data-time-in -> timeIn)
+            const camel = field.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+            currentTd.dataset[camel] = rawVal || '';
+            currentTd.dataset[camel + 'Display'] = displayVal || '-';
+        }
+        // Refresh computed metrics (Work / Late / UT / OT) in the modal so the user sees the impact
+        // of their edit without waiting for a reload.
+        if (metrics) {
+            toggleComputedRowsVisibility(true);
+            document.getElementById('dWork').textContent  = fmtMin(metrics.work_minutes);
+            document.getElementById('dLate').textContent  = fmtMin(metrics.late_minutes);
+            document.getElementById('dEarly').textContent = fmtMin(metrics.early_minutes);
+            document.getElementById('dOT').textContent    = fmtMin(metrics.overtime_minutes);
+            if (currentTd) {
+                currentTd.dataset.work = metrics.work_minutes;
+                currentTd.dataset.late = metrics.late_minutes;
+                currentTd.dataset.early = metrics.early_minutes;
+                currentTd.dataset.ot = metrics.overtime_minutes;
+            }
+        }
+        cancelTimeEditor(field);
+        modalHasChanges = true;
+    }
+
+    // Show a short-lived success/error message and hide it after 2 seconds on success.
+    function flashMessage(el, text, isSuccess) {
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'small mt-1 ' + (isSuccess ? 'text-success' : 'text-danger');
+        el.style.display = '';
+        if (isSuccess) setTimeout(() => { el.style.display = 'none'; }, 2000);
+    }
+
     // Hide/show computed metric rows (Work / Late / UT / OT / Notes) and edit history.
     // These are only meaningful when an AttendanceDay exists for the cell.
     function toggleComputedRowsVisibility(hasAttendance) {
@@ -998,21 +1055,15 @@
                 .then(data => {
                     delBtn.disabled = false;
                     if (data.success) {
-                        msg.textContent = 'Deleted. Reloading…';
-                        msg.className = 'small mt-1 text-success';
-                        msg.style.display = '';
-                        setTimeout(() => location.reload(), 500);
+                        applyTimeFieldUpdate(field, data.value_display || '-', '', data.metrics);
+                        flashMessage(msg, 'Deleted.', true);
                     } else {
-                        msg.textContent = data.message || 'Error.';
-                        msg.className = 'small mt-1 text-danger';
-                        msg.style.display = '';
+                        flashMessage(msg, data.message || 'Error.', false);
                     }
                 })
                 .catch(() => {
                     delBtn.disabled = false;
-                    msg.textContent = 'Network error.';
-                    msg.className = 'small mt-1 text-danger';
-                    msg.style.display = '';
+                    flashMessage(msg, 'Network error.', false);
                 });
             });
         });
@@ -1068,21 +1119,15 @@
                     .then(data => {
                         saveBtn.disabled = false;
                         if (data.success) {
-                            msg.textContent = 'Saved. Reloading…';
-                            msg.className = 'small mt-1 text-success';
-                            msg.style.display = '';
-                            setTimeout(() => location.reload(), 500);
+                            applyTimeFieldUpdate(field, data.value_display, data.value_raw, data.metrics);
+                            flashMessage(msg, 'Saved.', true);
                         } else {
-                            msg.textContent = data.message || 'Error.';
-                            msg.className = 'small mt-1 text-danger';
-                            msg.style.display = '';
+                            flashMessage(msg, data.message || 'Error.', false);
                         }
                     })
                     .catch(() => {
                         saveBtn.disabled = false;
-                        msg.textContent = 'Network error.';
-                        msg.className = 'small mt-1 text-danger';
-                        msg.style.display = '';
+                        flashMessage(msg, 'Network error.', false);
                     });
                 });
             });

@@ -394,6 +394,13 @@ class AttendanceCalendarController extends Controller
             'field'   => $field,
             'value_display' => $day->{$field} ? Carbon::parse($day->{$field})->format('g:i A') : '-',
             'value_raw'     => $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : '',
+            // Recomputed metrics so the modal can refresh Work/Late/UT/OT live without a page reload
+            'metrics' => [
+                'work_minutes'     => (int) $day->computed_work_minutes,
+                'late_minutes'     => (int) $day->computed_late_minutes,
+                'early_minutes'    => (int) $day->computed_early_minutes,
+                'overtime_minutes' => (int) $day->computed_overtime_minutes,
+            ],
         ]);
     }
 

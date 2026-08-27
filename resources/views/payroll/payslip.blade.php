@@ -106,7 +106,7 @@
             $storedGross = $item->base_pay + ($item->absence_deduction ?? 0) + ($item->late_deduction ?? 0) + ($item->early_deduction ?? 0);
         @endphp
         <div class="payslip-row">
-            <span>Gross Basic ({{ $item->days_worked }} days worked@if($silDayCount > 0) + {{ $silDayCount }} SIL@endif)</span>
+            <span>Gross Basic ({{ $item->days_worked }} days worked{{ $silDayCount > 0 ? ' + ' . $silDayCount . ' SIL' : '' }})</span>
             <span>&#8369;{{ number_format($storedGross, 2) }}</span>
         </div>
 
@@ -136,16 +136,26 @@
             <span>&#8369;{{ number_format($item->base_pay, 2) }}</span>
         </div>
 
-        {{-- EARNINGS Section (if any) --}}
+        {{-- ADDITIONS Section (OT pay + earnings — everything ADDED on top of Basic Pay) --}}
         @php
             $earnings = $item->earnings_breakdown ?? [];
-            // Separate holiday guaranteed earnings from regular earnings
-            $regularEarnings = array_filter($earnings, fn($e) => ($e['type'] ?? '') !== 'holiday_guaranteed');
-            $holidayGuaranteedEarnings = array_filter($earnings, fn($e) => ($e['type'] ?? '') === 'holiday_guaranteed');
+            $otPay = (float) ($item->ot_pay ?? 0);
+            $otMinutes = (int) ($item->total_overtime_minutes ?? 0);
+            $hasAdditions = $otPay > 0 || count($earnings) > 0;
         @endphp
-        @if(count($earnings) > 0)
+        @if($hasAdditions)
         <div class="payslip-divider"></div>
-        <div class="payslip-section-title"><i class="bi bi-plus-circle"></i> Earnings</div>
+        <div class="payslip-section-title"><i class="bi bi-plus-circle"></i> Additions</div>
+
+        @if($otPay > 0)
+        <div class="payslip-row">
+            <span>
+                Overtime Pay
+                <span class="text-muted small">({{ number_format($otMinutes / 60, 2) }}h approved &times; 1.25 hourly rate)</span>
+            </span>
+            <span class="text-success">+&#8369;{{ number_format($otPay, 2) }}</span>
+        </div>
+        @endif
 
         @foreach($earnings as $earning)
         <div class="payslip-row">
@@ -162,8 +172,8 @@
         @endforeach
 
         <div class="payslip-row" style="font-weight:600; border-top:1px solid #e9ecef; padding-top:4px; margin-top:4px;">
-            <span>Total Earnings</span>
-            <span class="text-success">+&#8369;{{ number_format($item->total_earnings, 2) }}</span>
+            <span>Total Additions</span>
+            <span class="text-success">+&#8369;{{ number_format($otPay + (float) ($item->total_earnings ?? 0), 2) }}</span>
         </div>
         @endif
 

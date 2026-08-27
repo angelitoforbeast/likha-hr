@@ -8,9 +8,21 @@ use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Shift;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DepartmentController extends Controller
 {
+    /**
+     * Only CEO can edit or delete existing departments. Admin/HR can only add new ones.
+     */
+    protected function assertCeoOnly(): void
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'ceo') {
+            abort(403, 'Only the CEO can edit or delete existing departments. You may still add new ones.');
+        }
+    }
+
     public function index()
     {
         $departments = Department::withCount('employees')
@@ -68,12 +80,14 @@ class DepartmentController extends Controller
 
     public function edit(Department $department)
     {
+        $this->assertCeoOnly();
         $shifts = Shift::orderBy('name')->get();
         return view('departments.form', compact('department', 'shifts'));
     }
 
     public function update(Request $request, Department $department)
     {
+        $this->assertCeoOnly();
         $request->validate([
             'name'        => 'required|string|max:100|unique:departments,name,' . $department->id,
             'description' => 'nullable|string|max:255',
@@ -87,6 +101,7 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
+        $this->assertCeoOnly();
         if ($department->employees()->count() > 0) {
             return back()->with('error', 'Cannot delete department with assigned employees. Reassign them first.');
         }

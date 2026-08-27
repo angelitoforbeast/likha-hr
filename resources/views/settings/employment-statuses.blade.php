@@ -83,6 +83,7 @@
                                 <span class="badge bg-info">{{ $status->statusHistories()->count() }}</span>
                             </td>
                             <td>
+                                @if(auth()->user() && auth()->user()->role === 'ceo')
                                 <div class="d-flex gap-1">
                                     <button type="button" class="btn btn-sm btn-outline-primary"
                                             data-bs-toggle="modal" data-bs-target="#editModal{{ $status->id }}">
@@ -97,6 +98,9 @@
                                         </button>
                                     </form>
                                 </div>
+                                @else
+                                <span class="text-muted small"><i class="bi bi-lock"></i> CEO only</span>
+                                @endif
                             </td>
                         </tr>
                         @empty

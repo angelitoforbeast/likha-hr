@@ -60,6 +60,7 @@
                             <a href="{{ route('departments.show', $dept) }}" class="btn btn-outline-info" title="View">
                                 <i class="bi bi-eye"></i> View
                             </a>
+                            @if(auth()->user() && auth()->user()->role === 'ceo')
                             <a href="{{ route('departments.edit', $dept) }}" class="btn btn-outline-primary" title="Edit">
                                 <i class="bi bi-pencil"></i> Edit
                             </a>
@@ -74,6 +75,11 @@
                             @else
                             <button class="btn btn-outline-danger" disabled title="Has assigned employees">
                                 <i class="bi bi-trash"></i>
+                            </button>
+                            @endif
+                            @else
+                            <button class="btn btn-outline-secondary" disabled title="CEO only">
+                                <i class="bi bi-lock"></i>
                             </button>
                             @endif
                         </div>

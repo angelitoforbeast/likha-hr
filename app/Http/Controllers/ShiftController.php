@@ -4,9 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Shift;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ShiftController extends Controller
 {
+    /**
+     * Only CEO can edit or delete existing shifts. Admin/HR can only add new ones.
+     */
+    protected function assertCeoOnly(): void
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'ceo') {
+            abort(403, 'Only the CEO can edit or delete existing shifts. You may still add new ones.');
+        }
+    }
+
     public function index()
     {
         $shifts = Shift::withCount('employees')->orderBy('name')->get();
@@ -41,11 +53,13 @@ class ShiftController extends Controller
 
     public function edit(Shift $shift)
     {
+        $this->assertCeoOnly();
         return view('shifts.form', compact('shift'));
     }
 
     public function update(Request $request, Shift $shift)
     {
+        $this->assertCeoOnly();
         $validated = $request->validate([
             'name'                                  => 'required|string|max:255|unique:shifts,name,' . $shift->id,
             'start_time'                            => 'required|date_format:H:i',
@@ -67,6 +81,7 @@ class ShiftController extends Controller
 
     public function destroy(Shift $shift)
     {
+        $this->assertCeoOnly();
         $employeeCount = $shift->employees()->count();
 
         if ($employeeCount > 0) {

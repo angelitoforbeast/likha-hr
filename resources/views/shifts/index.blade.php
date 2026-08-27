@@ -49,6 +49,7 @@
                             <span class="badge bg-info">{{ $shift->employees_count }}</span>
                         </td>
                         <td>
+                            @if(auth()->user() && auth()->user()->role === 'ceo')
                             <div class="d-flex gap-1">
                                 <a href="{{ route('shifts.edit', $shift) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i> Edit
@@ -62,6 +63,9 @@
                                     </button>
                                 </form>
                             </div>
+                            @else
+                            <span class="text-muted small"><i class="bi bi-lock"></i> CEO only</span>
+                            @endif
                         </td>
                     </tr>
                     @empty

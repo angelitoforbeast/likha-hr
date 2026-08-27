@@ -4,9 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\EmploymentStatus;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class EmploymentStatusController extends Controller
 {
+    /**
+     * Only CEO can edit or delete existing employment statuses. Admin/HR can only add new ones.
+     */
+    protected function assertCeoOnly(): void
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'ceo') {
+            abort(403, 'Only the CEO can edit or delete existing employment statuses. You may still add new ones.');
+        }
+    }
+
     public function index()
     {
         $statuses = EmploymentStatus::orderBy('sort_order')->get();
@@ -32,6 +44,7 @@ class EmploymentStatusController extends Controller
 
     public function update(Request $request, EmploymentStatus $employmentStatus)
     {
+        $this->assertCeoOnly();
         $validated = $request->validate([
             'name'  => 'required|string|max:100|unique:employment_statuses,name,' . $employmentStatus->id,
             'color' => 'nullable|string|max:20',
@@ -47,6 +60,7 @@ class EmploymentStatusController extends Controller
 
     public function destroy(EmploymentStatus $employmentStatus)
     {
+        $this->assertCeoOnly();
         // Check if any employees use this status
         if ($employmentStatus->statusHistories()->exists()) {
             return redirect()->route('employment-statuses.index')

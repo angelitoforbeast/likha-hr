@@ -390,6 +390,160 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
+     * Save all pending time / shift edits for one employee/date in a single request.
+     * The client sends every field's intended final value; the server diffs against the current row,
+     * writes one AttendanceOverride per changed time field (and one EmployeeShiftAssignment when the
+     * shift changed), then recomputes the day once. Returns fresh values so the modal can update
+     * in place without reloading.
+     */
+    public function saveAll(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+            'reason'      => 'required|string|min:3|max:500',
+            // Each field: null = "not changed", empty string = "clear", value = "set to this"
+            'time_in'     => 'nullable|string',
+            'lunch_out'   => 'nullable|string',
+            'lunch_in'    => 'nullable|string',
+            'time_out'    => 'nullable|string',
+            'shift_id'    => 'nullable|integer|exists:shifts,id',
+            // Explicit list of fields the client wants to clear (empty payload alone is ambiguous)
+            'clear_fields'=> 'nullable|array',
+            'clear_fields.*' => 'in:time_in,lunch_out,lunch_in,time_out',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $dateStr  = $validated['date'];
+        $reason   = $validated['reason'];
+        $clearSet = array_flip($validated['clear_fields'] ?? []);
+
+        // Determine what actually changes so we only create overrides for real diffs.
+        $day = AttendanceDay::where('employee_id', $employee->id)
+            ->whereDate('work_date', $dateStr)
+            ->first();
+
+        // Handle shift change first (may need a new assignment row)
+        $shiftIdChanged = false;
+        if (array_key_exists('shift_id', $validated) && $validated['shift_id'] !== null) {
+            $currentShift = $employee->getShiftForDate($dateStr);
+            if (!$currentShift || $currentShift->id !== (int) $validated['shift_id']) {
+                // Replace any single-day override for this employee/date, then add the new one.
+                EmployeeShiftAssignment::where('employee_id', $employee->id)
+                    ->where('effective_date', $dateStr)
+                    ->where('effective_until', $dateStr)
+                    ->delete();
+                EmployeeShiftAssignment::create([
+                    'employee_id'     => $employee->id,
+                    'shift_id'        => $validated['shift_id'],
+                    'effective_date'  => $dateStr,
+                    'effective_until' => $dateStr,
+                    'remarks'         => 'Set via attendance calendar (Save All)',
+                ]);
+                $shiftIdChanged = true;
+            }
+        }
+
+        // Ensure an AttendanceDay exists if we have any time changes to write.
+        $timeFields = ['time_in', 'lunch_out', 'lunch_in', 'time_out'];
+        $hasTimeChange = false;
+        foreach ($timeFields as $f) {
+            $incoming = $validated[$f] ?? null;
+            $wantsClear = isset($clearSet[$f]);
+            if ($incoming !== null || $wantsClear) { $hasTimeChange = true; break; }
+        }
+
+        if ($hasTimeChange && !$day) {
+            if (Auth::user()?->role !== 'ceo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No attendance record for this date. Only CEO can add times manually.',
+                ], 403);
+            }
+            $shift = $employee->getShiftForDate($dateStr);
+            $day = AttendanceDay::create([
+                'employee_id'            => $employee->id,
+                'work_date'              => Carbon::parse($dateStr),
+                'shift_id'               => $shift?->id,
+                'computed_work_minutes'  => 0,
+                'computed_late_minutes'  => 0,
+                'computed_early_minutes' => 0,
+                'computed_overtime_minutes' => 0,
+                'payable_work_minutes'   => 0,
+                'needs_review'           => true,
+                'notes'                  => 'Auto-created via Save All',
+            ]);
+        }
+
+        // Apply time changes only if the incoming value differs from the current one — that way
+        // we don't create noise overrides for fields the user didn't touch.
+        $changedFields = [];
+        if ($day && $hasTimeChange) {
+            foreach ($timeFields as $field) {
+                $currentRaw = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : '';
+                $wantsClear = isset($clearSet[$field]);
+                $incoming   = $validated[$field] ?? null;
+
+                if ($wantsClear) {
+                    if ($currentRaw === '') continue; // already empty
+                    $newValue = null;
+                } elseif ($incoming !== null) {
+                    // Normalize incoming to H:i:s for comparison
+                    $normalized = Carbon::parse('2000-01-01 ' . $incoming)->format('H:i:s');
+                    if ($normalized === $currentRaw) continue; // no change
+                    $newValue = $normalized;
+                } else {
+                    continue; // field not touched
+                }
+
+                $oldValue = $currentRaw ?: null;
+                $day->{$field} = $newValue ? Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $newValue) : null;
+
+                AttendanceOverride::create([
+                    'attendance_day_id' => $day->id,
+                    'employee_id'       => $day->employee_id,
+                    'work_date'         => $day->work_date,
+                    'field'             => $field,
+                    'old_value'         => $oldValue,
+                    'new_value'         => $newValue,
+                    'reason'            => $reason,
+                    'updated_by'        => Auth::id(),
+                ]);
+                $changedFields[] = $field;
+            }
+            $day->save();
+        }
+
+        // Recompute the day if anything changed so metrics reflect the new state.
+        if (($day && (!empty($changedFields) || $shiftIdChanged))) {
+            $day->load('shift');
+            (new AttendanceComputeService())->recomputeDay($day);
+            $day->refresh();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => empty($changedFields) && !$shiftIdChanged
+                ? 'No changes to save.'
+                : (count($changedFields) . ' field(s) saved' . ($shiftIdChanged ? ' + shift updated' : '') . '.'),
+            'changed_fields' => $changedFields,
+            'shift_changed'  => $shiftIdChanged,
+            'values' => $day ? [
+                'time_in'   => ['display' => $day->time_in   ? Carbon::parse($day->time_in)->format('g:i A')   : '-', 'raw' => $day->time_in   ? Carbon::parse($day->time_in)->format('H:i:s')   : ''],
+                'lunch_out' => ['display' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('g:i A') : '-', 'raw' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('H:i:s') : ''],
+                'lunch_in'  => ['display' => $day->lunch_in  ? Carbon::parse($day->lunch_in)->format('g:i A')  : '-', 'raw' => $day->lunch_in  ? Carbon::parse($day->lunch_in)->format('H:i:s')  : ''],
+                'time_out'  => ['display' => $day->time_out  ? Carbon::parse($day->time_out)->format('g:i A')  : '-', 'raw' => $day->time_out  ? Carbon::parse($day->time_out)->format('H:i:s')  : ''],
+            ] : null,
+            'metrics' => $day ? [
+                'work_minutes'     => (int) $day->computed_work_minutes,
+                'late_minutes'     => (int) $day->computed_late_minutes,
+                'early_minutes'    => (int) $day->computed_early_minutes,
+                'overtime_minutes' => (int) $day->computed_overtime_minutes,
+            ] : null,
+        ]);
+    }
+
+    /**
      * Override a time field (Time In / Lunch Out / Lunch In / Time Out) for a single AttendanceDay
      * from the inline editor in the calendar's detail modal. Also records the AttendanceOverride
      * audit row, recomputes the day, and returns fresh values for the UI to reflect immediately.

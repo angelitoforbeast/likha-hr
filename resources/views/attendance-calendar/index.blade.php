@@ -301,43 +301,24 @@
                         <tr>
                             <td class="text-muted">Shift</td>
                             <td>
-                                <span id="dShift"></span>
-                                <button type="button" class="btn btn-sm btn-link p-0 ms-1" style="font-size:.75rem" onclick="showShiftEditor()" title="Change shift for this date">
-                                    <i class="bi bi-pencil-square"></i> change
-                                </button>
-                            </td>
-                        </tr>
-                        <tr id="dShiftEditorRow" style="display:none">
-                            <td class="text-muted">New Shift</td>
-                            <td>
-                                <div class="d-flex gap-1 align-items-center">
-                                    <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:280px" onchange="updateShiftPreview()">
-                                        @foreach($shifts as $shift)
-                                            @php
-                                                $sStart = \Carbon\Carbon::parse($shift->start_time)->format('H:i');
-                                                $sEnd   = \Carbon\Carbon::parse($shift->end_time)->format('H:i');
-                                                $lStart = \Carbon\Carbon::parse($shift->lunch_start)->format('H:i');
-                                                $lEnd   = \Carbon\Carbon::parse($shift->lunch_end)->format('H:i');
-                                            @endphp
-                                            <option value="{{ $shift->id }}"
-                                                    data-start="{{ \Carbon\Carbon::parse($shift->start_time)->format('g:i A') }}"
-                                                    data-end="{{ \Carbon\Carbon::parse($shift->end_time)->format('g:i A') }}"
-                                                    data-lunch-start="{{ \Carbon\Carbon::parse($shift->lunch_start)->format('g:i A') }}"
-                                                    data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}">{{ $shift->name }} ({{ $sStart }}-{{ $sEnd }}, Lunch {{ $lStart }}-{{ $lEnd }})</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-sm btn-success py-0 px-2" onclick="saveShiftForDay()" title="Save">
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="cancelShiftEditor()" title="Cancel">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
+                                <select class="form-select form-select-sm" id="dShiftSelect" style="max-width:320px" onchange="onShiftDropdownChange()">
+                                    @foreach($shifts as $shift)
+                                        @php
+                                            $sStart = \Carbon\Carbon::parse($shift->start_time)->format('H:i');
+                                            $sEnd   = \Carbon\Carbon::parse($shift->end_time)->format('H:i');
+                                            $lStart = \Carbon\Carbon::parse($shift->lunch_start)->format('H:i');
+                                            $lEnd   = \Carbon\Carbon::parse($shift->lunch_end)->format('H:i');
+                                        @endphp
+                                        <option value="{{ $shift->id }}"
+                                                data-start="{{ \Carbon\Carbon::parse($shift->start_time)->format('g:i A') }}"
+                                                data-end="{{ \Carbon\Carbon::parse($shift->end_time)->format('g:i A') }}"
+                                                data-lunch-start="{{ \Carbon\Carbon::parse($shift->lunch_start)->format('g:i A') }}"
+                                                data-lunch-end="{{ \Carbon\Carbon::parse($shift->lunch_end)->format('g:i A') }}">{{ $shift->name }} ({{ $sStart }}-{{ $sEnd }}, Lunch {{ $lStart }}-{{ $lEnd }})</option>
+                                    @endforeach
+                                </select>
+                                <div class="small text-muted mt-1" id="dShiftChangedNote" style="display:none">
+                                    <i class="bi bi-exclamation-circle text-warning"></i> Shift changed — will save on <strong>Save All Changes</strong>.
                                 </div>
-                                <div id="dShiftPreview" class="small text-muted mt-1" style="line-height:1.3">
-                                    <div>Schedule: <span id="dShiftPreviewSched"></span></div>
-                                    <div class="text-info">Lunch Break: <span id="dShiftPreviewLunch"></span></div>
-                                </div>
-                                <div id="dShiftEditorMsg" class="small mt-1" style="display:none"></div>
                             </td>
                         </tr>
                         <tr id="dScheduleRow"><td class="text-muted">Schedule</td><td id="dSchedule"></td></tr>
@@ -369,50 +350,43 @@
                         <tr>
                             <td class="text-muted align-top pt-2">{{ $tf['label'] }}</td>
                             <td>
-                                {{-- Display mode (shown by default) --}}
-                                <div id="dDisplay_{{ $tf['field'] }}">
-                                    <span id="dText_{{ $tf['field'] }}" class="time-display-value" data-field="{{ $tf['field'] }}"
-                                          onclick="showTimeEditor('{{ $tf['field'] }}')" role="button"
-                                          title="Click to edit">-</span>
-                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1"
-                                            onclick="showTimeEditor('{{ $tf['field'] }}')" title="Edit">
-                                        <i class="bi bi-pencil-square" style="font-size:.75rem"></i>
+                                <div class="d-flex gap-1 align-items-center flex-wrap">
+                                    <input type="time" step="1" class="form-control form-control-sm time-input"
+                                           id="dInput_{{ $tf['field'] }}" data-field="{{ $tf['field'] }}"
+                                           oninput="markAllDirty()"
+                                           style="max-width:130px">
+                                    <select class="form-select form-select-sm punch-picker"
+                                            data-target="dInput_{{ $tf['field'] }}"
+                                            title="Pick from raw punches"
+                                            style="max-width:110px">
+                                        <option value="">Punches…</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 time-clear-btn"
+                                            data-field="{{ $tf['field'] }}" title="Mark for deletion (applies on Save All)"
+                                            onclick="markFieldForClear('{{ $tf['field'] }}')">
+                                        <i class="bi bi-trash"></i>
                                     </button>
+                                    <span class="small text-danger" id="dClearFlag_{{ $tf['field'] }}" style="display:none">
+                                        <i class="bi bi-trash-fill"></i> will be cleared
+                                        <a href="#" class="ms-1" onclick="unmarkFieldForClear('{{ $tf['field'] }}'); return false;">undo</a>
+                                    </span>
                                 </div>
-                                {{-- Edit mode (hidden by default, appears on click) --}}
-                                <div id="dEditor_{{ $tf['field'] }}" style="display:none">
-                                    <div class="d-flex gap-1 align-items-center flex-wrap">
-                                        <input type="time" step="1" class="form-control form-control-sm time-input"
-                                               id="dInput_{{ $tf['field'] }}" data-field="{{ $tf['field'] }}"
-                                               style="max-width:130px">
-                                        <select class="form-select form-select-sm punch-picker"
-                                                data-target="dInput_{{ $tf['field'] }}"
-                                                title="Pick from raw punches"
-                                                style="max-width:110px">
-                                            <option value="">Punches…</option>
-                                        </select>
-                                        <button type="button" class="btn btn-sm btn-success py-0 px-2 time-save-btn"
-                                                data-field="{{ $tf['field'] }}" title="Save">
-                                            <i class="bi bi-check-lg"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 time-delete-btn"
-                                                data-field="{{ $tf['field'] }}" title="Delete (clear this time)">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                onclick="cancelTimeEditor('{{ $tf['field'] }}')" title="Cancel">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
-                                    <input type="text" class="form-control form-control-sm mt-1 time-reason"
-                                           id="dReason_{{ $tf['field'] }}"
-                                           placeholder="Reason (required, min 3 chars) — needed for both save and delete"
-                                           minlength="3" maxlength="500">
-                                </div>
-                                <div id="dMsg_{{ $tf['field'] }}" class="small mt-1" style="display:none"></div>
                             </td>
                         </tr>
                         @endforeach
+                        {{-- Shared reason + Save All button --}}
+                        <tr>
+                            <td colspan="2" class="pt-3">
+                                <label class="fw-semibold small mb-1">Reason (required for any edit, min 3 chars):</label>
+                                <input type="text" class="form-control form-control-sm mb-2" id="dSaveAllReason"
+                                       placeholder="One reason applied to all changes below"
+                                       minlength="3" maxlength="500">
+                                <button type="button" class="btn btn-primary btn-sm w-100" id="dSaveAllBtn" onclick="saveAllChanges()">
+                                    <i class="bi bi-save"></i> Save All Changes
+                                </button>
+                                <div id="dSaveAllMsg" class="small mt-1" style="display:none"></div>
+                            </td>
+                        </tr>
                         <tr class="computed-row"><td colspan="2"><hr class="my-1"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Work</td><td id="dWork"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Late</td><td id="dLate"></td></tr>
@@ -976,15 +950,36 @@
         });
     });
 
-    // Per-cell shift editor — show/hide the inline dropdown and save a single-day override.
-    function showShiftEditor() {
-        document.getElementById('dShiftEditorRow').style.display = '';
-        document.getElementById('dShiftEditorMsg').style.display = 'none';
-        updateShiftPreview();
-    }
+    // Shift dropdown is always visible now; changes are batched into Save All.
+    // These two helpers are kept as no-ops so any leftover callers don't crash.
+    function showShiftEditor() { onShiftDropdownChange(); }
     function cancelShiftEditor() {
-        document.getElementById('dShiftEditorRow').style.display = 'none';
-        document.getElementById('dShiftEditorMsg').style.display = 'none';
+        // Revert dropdown to the original shift for this cell if one is stored
+        if (currentTd && currentTd.dataset.shiftId) {
+            const sel = document.getElementById('dShiftSelect');
+            if (sel) sel.value = currentTd.dataset.shiftId;
+            onShiftDropdownChange();
+        }
+    }
+    // Called whenever the shift dropdown changes: refresh the schedule/lunch preview rows and
+    // flip the "changed" indicator if the new value differs from the cell's original shift.
+    function onShiftDropdownChange() {
+        updateShiftPreview();
+        const sel = document.getElementById('dShiftSelect');
+        const note = document.getElementById('dShiftChangedNote');
+        if (!sel || !note) return;
+        const originalId = currentTd?.dataset.shiftId || '';
+        note.style.display = (originalId && sel.value !== originalId) ? '' : 'none';
+        // Refresh the Schedule / Lunch Break rows to reflect the previewed shift immediately.
+        const opt = sel.selectedOptions[0];
+        if (opt) {
+            const sched = (opt.dataset.start || '') + ' — ' + (opt.dataset.end || '');
+            const lunch = (opt.dataset.lunchStart || '') + ' — ' + (opt.dataset.lunchEnd || '');
+            const s = document.getElementById('dSchedule');
+            const l = document.getElementById('dLunchBreak');
+            if (s) s.textContent = sched;
+            if (l) l.textContent = lunch;
+        }
     }
     // Reads data-* attributes from the selected <option> to show the shift's schedule + lunch preview.
     function updateShiftPreview() {
@@ -1116,22 +1111,25 @@
         const editedFields = editedFieldsStr ? editedFieldsStr.split(',') : [];
 
         Object.entries(rowConfig).forEach(([field, cfg]) => {
-            const text = document.getElementById('dText_' + field);
-            if (text) {
-                text.textContent = cfg.display || '-';
-                text.classList.toggle('time-display-edited', editedFields.includes(field));
-            }
+            // Populate the always-visible time input with the current value.
             setTimeInputValue('dInput_' + field, cfg.raw);
-            // Reset editor visibility, reason, and messages for each open
-            const editor = document.getElementById('dEditor_' + field);
-            if (editor) editor.style.display = 'none';
-            const disp = document.getElementById('dDisplay_' + field);
-            if (disp) disp.style.display = '';
-            const reason = document.getElementById('dReason_' + field);
-            if (reason) reason.value = '';
-            const msg = document.getElementById('dMsg_' + field);
-            if (msg) msg.style.display = 'none';
+            // Re-enable the input in case it was disabled by a previous "mark for clear".
+            const input = document.getElementById('dInput_' + field);
+            if (input) input.disabled = false;
+            // Reset the clear-flag indicator per field.
+            const flag = document.getElementById('dClearFlag_' + field);
+            if (flag) flag.style.display = 'none';
+            // Visually mark inputs that already carry an override.
+            if (input) input.classList.toggle('time-input-edited', editedFields.includes(field));
         });
+        // Reset the shared Save-All state for a fresh modal session.
+        fieldsToClear.clear();
+        const saveAllReason = document.getElementById('dSaveAllReason');
+        if (saveAllReason) saveAllReason.value = '';
+        const saveAllMsg = document.getElementById('dSaveAllMsg');
+        if (saveAllMsg) saveAllMsg.style.display = 'none';
+        const shiftNote = document.getElementById('dShiftChangedNote');
+        if (shiftNote) shiftNote.style.display = 'none';
 
         // Fetch raw punches once and populate all 4 punch pickers
         loadPunchesIntoPickers(td.dataset.employeeId, td.dataset.date);
@@ -1399,29 +1397,125 @@
         .catch(() => null);
     }
 
-    // Reveal the inline editor for a time field (hides the read-only display).
-    function showTimeEditor(field) {
-        const disp = document.getElementById('dDisplay_' + field);
-        const editor = document.getElementById('dEditor_' + field);
-        const msg = document.getElementById('dMsg_' + field);
-        if (disp) disp.style.display = 'none';
-        if (editor) editor.style.display = '';
-        if (msg) msg.style.display = 'none';
-        const reason = document.getElementById('dReason_' + field);
-        if (reason) reason.focus();
-    }
+    // ================ Save-All flow ================
+    // Fields marked for clearing (rendered visually — actually cleared only on Save All).
+    const fieldsToClear = new Set();
 
-    // Collapse the editor back to display mode without saving.
-    function cancelTimeEditor(field) {
-        const disp = document.getElementById('dDisplay_' + field);
-        const editor = document.getElementById('dEditor_' + field);
-        const msg = document.getElementById('dMsg_' + field);
-        const reason = document.getElementById('dReason_' + field);
-        if (editor) editor.style.display = 'none';
-        if (disp) disp.style.display = '';
-        if (msg) msg.style.display = 'none';
-        if (reason) reason.value = '';
+    function markFieldForClear(field) {
+        fieldsToClear.add(field);
+        const input = document.getElementById('dInput_' + field);
+        const flag  = document.getElementById('dClearFlag_' + field);
+        if (input) { input.value = ''; input.disabled = true; }
+        if (flag)  flag.style.display = '';
+        markAllDirty();
     }
+    function unmarkFieldForClear(field) {
+        fieldsToClear.delete(field);
+        const input = document.getElementById('dInput_' + field);
+        const flag  = document.getElementById('dClearFlag_' + field);
+        if (input) input.disabled = false;
+        if (flag)  flag.style.display = 'none';
+        // Restore original value from cell dataset
+        if (currentTd) {
+            const map = { time_in: 'timeIn', lunch_out: 'lunchOut', lunch_in: 'lunchIn', time_out: 'timeOut' };
+            setTimeInputValue('dInput_' + field, currentTd.dataset[map[field]] || '');
+        }
+    }
+    function markAllDirty() { /* placeholder — visual indicator could go here */ }
+
+    // Compat: legacy no-ops so any lingering handlers don't blow up.
+    function showTimeEditor(field) { /* editor is always visible now */ }
+    function cancelTimeEditor(field) { /* nothing to collapse */ }
+
+    // Collect every pending edit and send in one request. Server diffs against current DB values
+    // and only writes overrides for real changes.
+    function saveAllChanges() {
+        if (!currentTd) return;
+        const reason = (document.getElementById('dSaveAllReason').value || '').trim();
+        const msg    = document.getElementById('dSaveAllMsg');
+        const btn    = document.getElementById('dSaveAllBtn');
+
+        msg.style.display = 'none';
+        if (reason.length < 3) {
+            flashMessage(msg, 'Reason is required (min 3 chars).', false);
+            document.getElementById('dSaveAllReason').focus();
+            return;
+        }
+
+        const payload = {
+            employee_id: currentTd.dataset.employeeId,
+            date:        currentTd.dataset.date,
+            reason:      reason,
+            time_in:     document.getElementById('dInput_time_in').value   || null,
+            lunch_out:   document.getElementById('dInput_lunch_out').value || null,
+            lunch_in:    document.getElementById('dInput_lunch_in').value  || null,
+            time_out:    document.getElementById('dInput_time_out').value  || null,
+            clear_fields: Array.from(fieldsToClear),
+        };
+        // Include shift_id if the dropdown differs from the cell's original shift
+        const sel = document.getElementById('dShiftSelect');
+        if (sel && currentTd.dataset.shiftId && sel.value !== currentTd.dataset.shiftId) {
+            payload.shift_id = parseInt(sel.value, 10);
+        }
+
+        btn.disabled = true;
+        fetch('{{ url("/attendance-calendar/save-all") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (!data.success) { flashMessage(msg, data.message || 'Error.', false); return; }
+            // Apply fresh values from server + reset clear-marks
+            fieldsToClear.clear();
+            ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
+                const flag = document.getElementById('dClearFlag_' + f);
+                if (flag) flag.style.display = 'none';
+                const input = document.getElementById('dInput_' + f);
+                if (input) input.disabled = false;
+            });
+            if (data.values) {
+                ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
+                    const v = data.values[f];
+                    if (v) {
+                        setTimeInputValue('dInput_' + f, v.raw);
+                        if (currentTd) {
+                            const camel = f.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+                            currentTd.dataset[camel] = v.raw;
+                            currentTd.dataset[camel + 'Display'] = v.display;
+                        }
+                    }
+                });
+            }
+            if (data.metrics) {
+                toggleComputedRowsVisibility(true);
+                document.getElementById('dWork').textContent  = fmtMin(data.metrics.work_minutes);
+                document.getElementById('dLate').textContent  = fmtMin(data.metrics.late_minutes);
+                document.getElementById('dEarly').textContent = fmtMin(data.metrics.early_minutes);
+                document.getElementById('dOT').textContent    = fmtMin(data.metrics.overtime_minutes);
+            }
+            // If shift was accepted, update the cell dataset + hide the "changed" note.
+            if (data.shift_changed && sel && currentTd) {
+                currentTd.dataset.shiftId = sel.value;
+                const note = document.getElementById('dShiftChangedNote');
+                if (note) note.style.display = 'none';
+            }
+            document.getElementById('dSaveAllReason').value = '';
+            flashMessage(msg, data.message || 'Saved.', true);
+            modalHasChanges = true;
+        })
+        .catch(() => {
+            btn.disabled = false;
+            flashMessage(msg, 'Network error.', false);
+        });
+    }
+    // ================ /Save-All flow ================
 
     // Wire up the punch pickers and inline save buttons (once, on DOM ready).
     document.addEventListener('DOMContentLoaded', function () {

@@ -550,6 +550,216 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
+     * Bulk apply an action to many (employee, date) pairs at once — typically fired when the user
+     * clicks a date column header in the calendar. Returns a per-employee success/failure summary.
+     */
+    public function bulkAction(Request $request)
+    {
+        $validated = $request->validate([
+            'date'          => 'required|date',
+            'employee_ids'  => 'required|array|min:1',
+            'employee_ids.*'=> 'integer|exists:employees,id',
+            'action'        => 'required|in:fill_from_shift,set_times,add_day_off,cancel_day_off,remove_override',
+            'reason'        => 'required|string|min:3|max:500',
+            // set_times action extras:
+            'time_in'       => 'nullable|string',
+            'lunch_out'     => 'nullable|string',
+            'lunch_in'      => 'nullable|string',
+            'time_out'      => 'nullable|string',
+        ]);
+
+        $date   = $validated['date'];
+        $action = $validated['action'];
+        $reason = $validated['reason'];
+
+        $successes = [];
+        $failures  = [];
+
+        foreach ($validated['employee_ids'] as $empId) {
+            $employee = Employee::find($empId);
+            if (!$employee) {
+                $failures[] = ['id' => $empId, 'name' => 'Unknown', 'error' => 'Employee not found'];
+                continue;
+            }
+            try {
+                if ($action === 'fill_from_shift') {
+                    $this->bulkApplyFillFromShift($employee, $date, $reason);
+                } elseif ($action === 'set_times') {
+                    $this->bulkApplySetTimes($employee, $date, $reason, [
+                        'time_in'   => $validated['time_in']   ?? null,
+                        'lunch_out' => $validated['lunch_out'] ?? null,
+                        'lunch_in'  => $validated['lunch_in']  ?? null,
+                        'time_out'  => $validated['time_out']  ?? null,
+                    ]);
+                } elseif (in_array($action, ['add_day_off', 'cancel_day_off', 'remove_override'], true)) {
+                    $this->bulkApplyDayOffAction($employee, $date, $action, $reason);
+                }
+                $successes[] = ['id' => $employee->id, 'name' => $employee->display_name];
+            } catch (\Throwable $e) {
+                $failures[] = [
+                    'id'    => $employee->id,
+                    'name'  => $employee->display_name,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success'   => true,
+            'message'   => count($successes) . ' succeeded, ' . count($failures) . ' failed.',
+            'successes' => $successes,
+            'failures'  => $failures,
+        ]);
+    }
+
+    /**
+     * Bulk-mode helper: apply Fill from Shift to one employee/date. Mirrors fillFromShift's core
+     * logic but skips the JSON response wrapper.
+     */
+    protected function bulkApplyFillFromShift(Employee $employee, string $date, string $reason): void
+    {
+        $shift = $employee->getShiftForDate($date);
+        if (!$shift) throw new \RuntimeException('No shift assigned for this date.');
+
+        $day = $this->ensureAttendanceDayForBulk($employee, $date, $shift);
+
+        $mapping = [
+            'time_in'   => Carbon::parse($shift->start_time)->format('H:i:s'),
+            'lunch_out' => Carbon::parse($shift->lunch_start)->format('H:i:s'),
+            'lunch_in'  => Carbon::parse($shift->lunch_end)->format('H:i:s'),
+            'time_out'  => Carbon::parse($shift->end_time)->format('H:i:s'),
+        ];
+
+        foreach ($mapping as $field => $timeStr) {
+            $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : null;
+            $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $timeStr);
+            AttendanceOverride::create([
+                'attendance_day_id' => $day->id,
+                'employee_id'       => $day->employee_id,
+                'work_date'         => $day->work_date,
+                'field'             => $field,
+                'old_value'         => $oldValue,
+                'new_value'         => $timeStr,
+                'reason'            => $reason,
+                'updated_by'        => Auth::id(),
+            ]);
+        }
+        $day->save();
+        $day->load('shift');
+        (new AttendanceComputeService())->recomputeDay($day);
+    }
+
+    /**
+     * Bulk-mode helper: set the four time fields to specific values (only the provided ones are written).
+     */
+    protected function bulkApplySetTimes(Employee $employee, string $date, string $reason, array $times): void
+    {
+        $shift = $employee->getShiftForDate($date);
+        $day = $this->ensureAttendanceDayForBulk($employee, $date, $shift);
+
+        foreach (['time_in', 'lunch_out', 'lunch_in', 'time_out'] as $field) {
+            if (!array_key_exists($field, $times) || $times[$field] === null || $times[$field] === '') continue;
+            $newVal = $times[$field];
+            $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i:s') : null;
+            $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $newVal);
+            AttendanceOverride::create([
+                'attendance_day_id' => $day->id,
+                'employee_id'       => $day->employee_id,
+                'work_date'         => $day->work_date,
+                'field'             => $field,
+                'old_value'         => $oldValue,
+                'new_value'         => $newVal,
+                'reason'            => $reason,
+                'updated_by'        => Auth::id(),
+            ]);
+        }
+        $day->save();
+        $day->load('shift');
+        (new AttendanceComputeService())->recomputeDay($day);
+    }
+
+    /**
+     * Bulk-mode helper: apply a day-off action (add/cancel/remove) and write the audit log.
+     */
+    protected function bulkApplyDayOffAction(Employee $employee, string $date, string $action, string $reason): void
+    {
+        $existing = DayOff::where('employee_id', $employee->id)
+            ->where('off_date', $date)
+            ->first();
+        $oldType = $existing?->type;
+        $newType = null;
+
+        if ($action === 'remove_override') {
+            if ($existing) $existing->delete();
+        } elseif ($action === 'add_day_off') {
+            if ($existing) {
+                $existing->update(['type' => DayOff::TYPE_DAY_OFF, 'remarks' => 'Bulk-set via attendance calendar']);
+            } else {
+                DayOff::create([
+                    'employee_id' => $employee->id,
+                    'off_date'    => $date,
+                    'type'        => DayOff::TYPE_DAY_OFF,
+                    'remarks'     => 'Bulk-set via attendance calendar',
+                ]);
+            }
+            $newType = DayOff::TYPE_DAY_OFF;
+        } elseif ($action === 'cancel_day_off') {
+            if ($existing) {
+                $existing->update(['type' => DayOff::TYPE_CANCEL_DAY_OFF, 'remarks' => 'Bulk-cancelled via attendance calendar']);
+            } else {
+                DayOff::create([
+                    'employee_id' => $employee->id,
+                    'off_date'    => $date,
+                    'type'        => DayOff::TYPE_CANCEL_DAY_OFF,
+                    'remarks'     => 'Bulk-cancelled via attendance calendar',
+                ]);
+            }
+            $newType = DayOff::TYPE_CANCEL_DAY_OFF;
+        }
+
+        DayOffLog::create([
+            'employee_id' => $employee->id,
+            'off_date'    => $date,
+            'action'      => $action,
+            'old_type'    => $oldType,
+            'new_type'    => $newType,
+            'reason'      => $reason,
+            'updated_by'  => Auth::id(),
+        ]);
+
+        $this->autoComputeSingleDay($employee->id, $date);
+    }
+
+    /**
+     * Ensure an AttendanceDay exists for the bulk helpers, creating a blank one if needed.
+     * CEO check is enforced by the outer bulkAction validation of allowed actions.
+     */
+    protected function ensureAttendanceDayForBulk(Employee $employee, string $date, ?Shift $shift = null): AttendanceDay
+    {
+        $day = AttendanceDay::where('employee_id', $employee->id)
+            ->whereDate('work_date', $date)
+            ->first();
+        if ($day) return $day;
+
+        if (Auth::user()?->role !== 'ceo') {
+            throw new \RuntimeException('CEO access required to create attendance records.');
+        }
+        $shift = $shift ?: $employee->getShiftForDate($date);
+        return AttendanceDay::create([
+            'employee_id'            => $employee->id,
+            'work_date'              => Carbon::parse($date),
+            'shift_id'               => $shift?->id,
+            'computed_work_minutes'  => 0,
+            'computed_late_minutes'  => 0,
+            'computed_early_minutes' => 0,
+            'computed_overtime_minutes' => 0,
+            'payable_work_minutes'   => 0,
+            'needs_review'           => true,
+            'notes'                  => 'Auto-created via bulk action',
+        ]);
+    }
+
+    /**
      * Recompute a single employee/date without touching overrides.
      * Silent — used internally after per-cell edits.
      */

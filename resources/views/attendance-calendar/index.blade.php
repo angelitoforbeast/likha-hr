@@ -37,6 +37,9 @@
     .cal-shift-name { font-weight: 600; }
     .cal-shift-time { font-size: .55rem; opacity: .8; }
     .with-shift td { min-width: 55px; }
+    .date-col-header { cursor: pointer; transition: background 0.15s; }
+    .date-col-header:hover { background: #d0ebff !important; color: #0d6efd !important; }
+    .date-col-header:hover i { opacity: 1 !important; }
 </style>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -137,9 +140,15 @@
                             $isSunday = $dayDate->dayOfWeek === 0;
                             $isSaturday = $dayDate->dayOfWeek === 6;
                         @endphp
-                        <th class="{{ $isToday ? 'bg-primary text-white' : ($isSunday ? 'text-danger' : ($isSaturday ? 'text-primary' : '')) }}">
+                        <th class="date-col-header {{ $isToday ? 'bg-primary text-white' : ($isSunday ? 'text-danger' : ($isSaturday ? 'text-primary' : '')) }}"
+                            role="button"
+                            data-date="{{ $dayDate->format('Y-m-d') }}"
+                            data-day-label="{{ $dayDate->format('M d, Y (D)') }}"
+                            onclick="openBulkActionModal(this)"
+                            title="Click to bulk-apply an action to all employees on this date">
                             {{ $dayDate->format('j') }}<br>
                             <small>{{ $dayDate->format('D') }}</small>
+                            <i class="bi bi-list-check d-block small" style="font-size:.65rem; opacity:.6"></i>
                         </th>
                     @endforeach
                     <th title="Present">P</th>
@@ -508,6 +517,85 @@
         </div>
     </div>
 </div>
+
+{{-- ============================================================
+     Bulk Action Modal — opens when the user clicks a date column header.
+     Applies a chosen action to many (employee, date) pairs in one call.
+     ============================================================ --}}
+<div class="modal fade" id="bulkActionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">
+                    <i class="bi bi-list-check"></i>
+                    Bulk Action — <span id="bulkDateLabel"></span>
+                </h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="fw-semibold small mb-1">Employees on this date:</label>
+                    <div class="d-flex gap-2 mb-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="bulkSelectAll(true)">Select all</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="bulkSelectAll(false)">Clear</button>
+                        <span class="small text-muted align-self-center ms-2"><span id="bulkSelectedCount">0</span> selected</span>
+                    </div>
+                    <div id="bulkEmployeeList" class="border rounded p-2" style="max-height:220px; overflow-y:auto; font-size:.85rem;">
+                        <!-- populated by JS -->
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="fw-semibold small mb-1">Action:</label>
+                    <select class="form-select form-select-sm" id="bulkActionSelect" onchange="onBulkActionChange()">
+                        <option value="fill_from_shift">📅 Fill Whole Day from each employee's Shift Schedule</option>
+                        <option value="set_times">⏱ Set custom times (same for all selected)</option>
+                        <option value="add_day_off">🗓 Mark all as Rest Day</option>
+                        <option value="cancel_day_off">✅ Cancel Rest Day (must work)</option>
+                        <option value="remove_override">↩ Remove Rest-Day Override</option>
+                    </select>
+                </div>
+
+                <div id="bulkTimesRow" class="mb-3" style="display:none">
+                    <label class="fw-semibold small mb-1">Custom times (blank = don't change):</label>
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted">Time In</label>
+                            <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeIn">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted">Lunch Out</label>
+                            <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchOut">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted">Lunch In</label>
+                            <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchIn">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted">Time Out</label>
+                            <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeOut">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="fw-semibold small mb-1">Reason (required, min 3 chars):</label>
+                    <input type="text" class="form-control form-control-sm" id="bulkReason"
+                           placeholder="One reason applied to all selected employees"
+                           minlength="3" maxlength="500">
+                </div>
+
+                <div id="bulkResult" class="small" style="display:none"></div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="bulkApplyBtn" onclick="submitBulkAction()">
+                    <i class="bi bi-check-lg"></i> Apply to Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -521,6 +609,148 @@
     const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
     const editTimeModal = new bootstrap.Modal(document.getElementById('editTimeModal'));
     const punchesModal = new bootstrap.Modal(document.getElementById('punchesModal'));
+    const bulkActionModal = new bootstrap.Modal(document.getElementById('bulkActionModal'));
+
+    // ================= BULK ACTION (click a date column header) =================
+    // Track the current bulk-modal date + affected employees so submitBulkAction can send them.
+    let bulkCurrentDate = null;
+
+    function openBulkActionModal(th) {
+        bulkCurrentDate = th.dataset.date;
+        document.getElementById('bulkDateLabel').textContent = th.dataset.dayLabel || bulkCurrentDate;
+
+        // Scan the calendar table to find every cell in this date column and collect
+        // each row's employee id/name/status (so the modal can show a checkbox list).
+        const rows = document.querySelectorAll('table.cal-table tbody tr');
+        const list = document.getElementById('bulkEmployeeList');
+        list.innerHTML = '';
+        rows.forEach(row => {
+            const cell = row.querySelector('td[data-date="' + bulkCurrentDate + '"]');
+            if (!cell) return;
+            const empId = cell.dataset.employeeId;
+            const empName = cell.dataset.employee || 'Unknown';
+            const status = cell.dataset.status || '';
+            const statusLabel = ({present:'Present', undertime:'UT', absent:'Absent', day_off:'Rest Day', rd_present:'RD-Present'})[status] || status;
+            const statusColor = ({present:'#0f5132', undertime:'#664d03', absent:'#842029', day_off:'#084298', rd_present:'#ff4444'})[status] || '#666';
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            div.innerHTML = '<input class="form-check-input bulk-emp-cb" type="checkbox" checked '
+                + 'value="' + empId + '" id="bulkCb_' + empId + '">'
+                + '<label class="form-check-label" for="bulkCb_' + empId + '">'
+                + empName + ' <small style="color:' + statusColor + '">(' + statusLabel + ')</small>'
+                + '</label>';
+            list.appendChild(div);
+        });
+        updateBulkSelectedCount();
+        list.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.addEventListener('change', updateBulkSelectedCount));
+
+        // Reset form state
+        document.getElementById('bulkActionSelect').value = 'fill_from_shift';
+        document.getElementById('bulkReason').value = '';
+        document.getElementById('bulkTimeIn').value = '';
+        document.getElementById('bulkLunchOut').value = '';
+        document.getElementById('bulkLunchIn').value = '';
+        document.getElementById('bulkTimeOut').value = '';
+        onBulkActionChange();
+        document.getElementById('bulkResult').style.display = 'none';
+        document.getElementById('bulkApplyBtn').disabled = false;
+
+        bulkActionModal.show();
+    }
+
+    function bulkSelectAll(checked) {
+        document.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.checked = checked);
+        updateBulkSelectedCount();
+    }
+
+    function updateBulkSelectedCount() {
+        const n = document.querySelectorAll('.bulk-emp-cb:checked').length;
+        document.getElementById('bulkSelectedCount').textContent = n;
+    }
+
+    function onBulkActionChange() {
+        const action = document.getElementById('bulkActionSelect').value;
+        document.getElementById('bulkTimesRow').style.display = (action === 'set_times') ? '' : 'none';
+    }
+
+    function submitBulkAction() {
+        const action = document.getElementById('bulkActionSelect').value;
+        const reason = (document.getElementById('bulkReason').value || '').trim();
+        const empIds = Array.from(document.querySelectorAll('.bulk-emp-cb:checked')).map(cb => parseInt(cb.value, 10));
+        const result = document.getElementById('bulkResult');
+        const applyBtn = document.getElementById('bulkApplyBtn');
+
+        result.style.display = 'none';
+
+        if (empIds.length === 0) {
+            result.textContent = 'Select at least one employee.';
+            result.className = 'small text-danger';
+            result.style.display = '';
+            return;
+        }
+        if (reason.length < 3) {
+            result.textContent = 'Reason is required (min 3 chars).';
+            result.className = 'small text-danger';
+            result.style.display = '';
+            document.getElementById('bulkReason').focus();
+            return;
+        }
+
+        // Confirm before applying — big change potentially affecting many rows.
+        const actionLabel = document.getElementById('bulkActionSelect').selectedOptions[0].textContent.trim();
+        if (!confirm('Apply "' + actionLabel + '" to ' + empIds.length + ' employee(s) on ' + bulkCurrentDate + '?')) return;
+
+        applyBtn.disabled = true;
+
+        const payload = {
+            date: bulkCurrentDate,
+            employee_ids: empIds,
+            action: action,
+            reason: reason,
+        };
+        if (action === 'set_times') {
+            payload.time_in   = document.getElementById('bulkTimeIn').value   || null;
+            payload.lunch_out = document.getElementById('bulkLunchOut').value || null;
+            payload.lunch_in  = document.getElementById('bulkLunchIn').value  || null;
+            payload.time_out  = document.getElementById('bulkTimeOut').value  || null;
+        }
+
+        fetch('{{ url("/attendance-calendar/bulk-action") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        })
+        .then(r => r.json())
+        .then(data => {
+            const s = (data.successes || []).length;
+            const f = (data.failures || []).length;
+            let html = '<div class="alert alert-' + (f === 0 ? 'success' : 'warning') + ' py-2 mb-0">'
+                + '<strong>' + s + ' succeeded</strong>, <strong>' + f + ' failed</strong>. Page will reload…';
+            if (f > 0) {
+                html += '<ul class="mb-0 mt-1 small">';
+                (data.failures || []).forEach(fl => {
+                    html += '<li>' + fl.name + ' — ' + (fl.error || 'error') + '</li>';
+                });
+                html += '</ul>';
+            }
+            html += '</div>';
+            result.innerHTML = html;
+            result.className = 'small';
+            result.style.display = '';
+            setTimeout(() => location.reload(), 1500);
+        })
+        .catch(() => {
+            result.textContent = 'Network error.';
+            result.className = 'small text-danger';
+            result.style.display = '';
+            applyBtn.disabled = false;
+        });
+    }
+    // ================= /BULK ACTION =================
 
     let currentTd = null;
     // Set to true whenever a save/delete happens inside the current modal session.

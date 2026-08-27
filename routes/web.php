@@ -156,6 +156,7 @@ Route::middleware('auth')->group(function () {
         Route::post("/attendance-calendar/override-time", [AttendanceCalendarController::class, "overrideTime"])->name("attendance-calendar.override-time");
         Route::post("/attendance-calendar/create-day", [AttendanceCalendarController::class, "createDay"])->name("attendance-calendar.create-day");
         Route::post("/attendance-calendar/fill-from-shift", [AttendanceCalendarController::class, "fillFromShift"])->name("attendance-calendar.fill-from-shift");
+        Route::post("/attendance-calendar/bulk-action", [AttendanceCalendarController::class, "bulkAction"])->name("attendance-calendar.bulk-action");
     });
 
     // Day Off Calendar

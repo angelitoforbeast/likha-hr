@@ -207,7 +207,7 @@ class PayrollService
                     'late'       => (int) $day->computed_late_minutes,
                     'early'      => (int) $day->computed_early_minutes,
                     'undertime'  => 0,
-                    'ot'         => (int) ($day->approved_overtime_minutes ?? $day->computed_overtime_minutes),
+                    'ot'         => (int) ($day->approved_overtime_minutes ?? 0),
                     'amount'     => 0, // NOT COUNTED — rest day work
                     'not_counted' => true,
                 ];
@@ -215,12 +215,10 @@ class PayrollService
             }
 
             // Accumulate minutes for tracking (non-rest-day only).
-            // Overtime: prefer CEO-approved value over the auto-computed one when available,
-            // so payroll pays what was explicitly approved (0 is a valid "no OT" approval).
+            // Overtime is PAY-based only: only CEO-approved OT hours are paid. Auto-computed OT
+            // from punches (which is often just tiny amounts from late timeout) is ignored for pay.
             $totalWorkMinutes += $day->payable_work_minutes;
-            $dayOtMinutes = $day->approved_overtime_minutes !== null
-                ? (int) $day->approved_overtime_minutes
-                : (int) $day->computed_overtime_minutes;
+            $dayOtMinutes = (int) ($day->approved_overtime_minutes ?? 0);
             $totalOvertimeMinutes += $dayOtMinutes;
 
             // Compute actual undertime per day: difference between required and payable
@@ -340,8 +338,8 @@ class PayrollService
                 $dayRate = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
                 $silDaysCount++;
                 $silPay += $dayRate;
-                $daysWorked++;          // SIL counts as a paid day
-                $perDayGrossBasic += $dayRate;
+                // SIL is a PAID day but NOT counted as "days_worked" (which represents actual work).
+                // SIL pay is added separately below so users see the split clearly.
                 // Remove any prior entry for this date, then append the SIL row.
                 $dailyBreakdown = array_values(array_filter($dailyBreakdown, fn ($b) => ($b['date'] ?? '') !== $dStr));
                 $silApp = $silDatesInPeriod->get($dStr);
@@ -414,7 +412,16 @@ class PayrollService
         }
 
         // 6. Compute absent days (only on required mandays)
-        $absentDays = max(0, $requiredMandays - $daysWorked);
+        // SIL days that fell on required workdays count as PAID leave — not absent.
+        $silRequiredCount = 0;
+        if ($silDaysCount > 0) {
+            $reqSet = array_flip($mandaysData['required_dates'] ?? []);
+            foreach ($silDatesInPeriod as $key => $silApp) {
+                // key is 'Y-m-d'
+                if (isset($reqSet[$key])) $silRequiredCount++;
+            }
+        }
+        $absentDays = max(0, $requiredMandays - $daysWorked - $silRequiredCount);
 
         // 7. Total days actually worked (regular + holiday) — for Rice Allowance etc.
         // Note: daysWorked already includes holidayDaysWorked (added in the loop above)
@@ -442,10 +449,10 @@ class PayrollService
             // So we compute absence deduction separately and add absent day rates to gross
             $absenceDeduction = 0;
             if ($absentDays > 0) {
-                // Get the required dates that were NOT worked
+                // Get the required dates that were NOT worked AND not SIL (SIL is paid separately below)
                 $requiredDates = $mandaysData['required_dates'] ?? [];
                 foreach ($requiredDates as $reqDate) {
-                    if (!isset($attendanceDateSet[$reqDate])) {
+                    if (!isset($attendanceDateSet[$reqDate]) && !$silDatesInPeriod->has($reqDate)) {
                         $absentDayRate = EmployeeRate::getActiveRate($employee->id, $reqDate) ?? $dailyRate;
                         $grossBasic += $absentDayRate; // Add to gross so we can deduct it
                         $absenceDeduction += $absentDayRate;
@@ -454,6 +461,8 @@ class PayrollService
                 $absenceDeduction = round($absenceDeduction, 2);
                 $grossBasic = round($grossBasic, 2);
             }
+            // Add SIL pay on top (paid leave — not deducted).
+            if ($silPay > 0) $grossBasic = round($grossBasic + $silPay, 2);
 
             $lateDeduction = round($perDayLateDeduction, 2);
             $earlyDeduction = round($perDayEarlyDeduction, 2);
@@ -469,6 +478,9 @@ class PayrollService
                 $absenceDeduction = round($dailyRate * $absentDays, 2);
                 $grossBasic += $absenceDeduction; // Add to gross so deduction brings it back down
             }
+            // SIL is paid leave — add its days' pay to gross basic. No deduction.
+            if ($silPay > 0) $grossBasic = round($grossBasic + $silPay, 2);
+
             $lateDeduction = $this->computeMinuteBasedAmount($totalLateMinutes, $dailyRate);
             $earlyDeduction = $this->computeMinuteBasedAmount($totalEarlyMinutes, $dailyRate);
             $undertimeDeduction = $this->computeMinuteBasedAmount($totalUndertimeMinutes, $dailyRate);

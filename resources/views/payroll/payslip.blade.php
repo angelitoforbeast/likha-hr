@@ -65,20 +65,31 @@
         </div>
 
         {{-- Attendance Summary --}}
+        @php
+            // Derive SIL day count from the stored daily_breakdown so we can display it
+            // separately from actual "Days Worked" (which excludes paid leave).
+            $silDayCount = collect($item->daily_breakdown ?? [])->where('type', 'sil')->count();
+        @endphp
         <div class="row mb-3">
-            <div class="col-3 text-center">
+            <div class="col text-center">
                 <div class="small text-muted">Required Days</div>
                 <div class="fw-bold fs-5">{{ $item->required_mandays }}</div>
             </div>
-            <div class="col-3 text-center">
+            <div class="col text-center">
                 <div class="small text-muted">Days Worked</div>
                 <div class="fw-bold fs-5 text-success">{{ $item->days_worked }}</div>
             </div>
-            <div class="col-3 text-center">
+            @if($silDayCount > 0)
+            <div class="col text-center">
+                <div class="small text-muted">SIL Days</div>
+                <div class="fw-bold fs-5 text-info">{{ $silDayCount }}</div>
+            </div>
+            @endif
+            <div class="col text-center">
                 <div class="small text-muted">Absent</div>
                 <div class="fw-bold fs-5 {{ $item->absent_days > 0 ? 'text-danger' : '' }}">{{ $item->absent_days }}</div>
             </div>
-            <div class="col-3 text-center">
+            <div class="col text-center">
                 <div class="small text-muted">Late + UT (min)</div>
                 <div class="fw-bold fs-5 {{ ($item->total_late_minutes + ($item->total_early_minutes ?? 0)) > 0 ? 'text-warning' : '' }}">
                     {{ $item->total_late_minutes + ($item->total_early_minutes ?? 0) }}
@@ -95,7 +106,7 @@
             $storedGross = $item->base_pay + ($item->absence_deduction ?? 0) + ($item->late_deduction ?? 0) + ($item->early_deduction ?? 0);
         @endphp
         <div class="payslip-row">
-            <span>Gross Basic ({{ $item->days_worked }} days worked)</span>
+            <span>Gross Basic ({{ $item->days_worked }} days worked@if($silDayCount > 0) + {{ $silDayCount }} SIL@endif)</span>
             <span>&#8369;{{ number_format($storedGross, 2) }}</span>
         </div>
 

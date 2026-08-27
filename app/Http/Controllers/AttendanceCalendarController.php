@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceOverride;
 use App\Models\DayOff;
+use App\Models\DayOffLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
@@ -106,6 +107,15 @@ class AttendanceCalendarController extends Controller
             ->get()
             ->groupBy('attendance_day_id');
 
+        // Preload day-off audit logs for these employees in the visible range so the modal can
+        // surface a combined edit history (time overrides + day-off actions).
+        $dayOffLogs = DayOffLog::with('updater')
+            ->whereIn('employee_id', $filteredEmployees->pluck('id'))
+            ->whereBetween('off_date', [$startDate, $endDate])
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->groupBy(fn ($l) => $l->employee_id . '_' . $l->off_date->format('Y-m-d'));
+
         // Build calendar data
         $calendarData = [];
 
@@ -139,6 +149,22 @@ class AttendanceCalendarController extends Controller
                 ] : null;
                 $shiftIdForDay = $shiftForDay?->id;
 
+                // Build the day-off audit entries for this employee/date. Used across all cell types
+                // (present/absent/day_off) so the Edit History in the modal is complete regardless of status.
+                $dayOffLogList = $dayOffLogs[$emp->id . '_' . $dateStr] ?? collect();
+                $dayOffLogEntries = [];
+                foreach ($dayOffLogList as $log) {
+                    $dayOffLogEntries[] = [
+                        'kind'    => 'day_off',
+                        'field'   => 'day_off:' . $log->action, // e.g., day_off:add_day_off
+                        'old_value' => $log->old_type ?? '(none)',
+                        'new_value' => $log->new_type ?? '(none)',
+                        'reason'  => $log->reason,
+                        'updater' => $log->updater->name ?? 'Unknown',
+                        'date'    => $log->created_at->format('M d, Y g:i A'),
+                    ];
+                }
+
                 if ($attDay) {
                     $status = 'present';
                     $lateMin = $attDay->computed_late_minutes ?? 0;
@@ -163,12 +189,12 @@ class AttendanceCalendarController extends Controller
 
                     // Check if any overrides exist for this day
                     $dayOverrides = $overrides[$attDay->id] ?? collect();
-                    $hasOverrides = $dayOverrides->isNotEmpty();
 
                     // Build per-field override details for modal display
                     $overrideDetails = [];
                     foreach ($dayOverrides as $ov) {
                         $overrideDetails[] = [
+                            'kind'  => 'time',
                             'field' => $ov->field,
                             'old_value' => $ov->old_value,
                             'new_value' => $ov->new_value,
@@ -177,6 +203,11 @@ class AttendanceCalendarController extends Controller
                             'date' => $ov->created_at->format('M d, Y g:i A'),
                         ];
                     }
+                    // Merge time overrides with day-off logs, sorted chronologically by date string.
+                    $overrideDetails = array_merge($overrideDetails, $dayOffLogEntries);
+                    usort($overrideDetails, fn ($a, $b) => strcmp($a['date'], $b['date']));
+
+                    $hasOverrides = !empty($overrideDetails);
 
                     $empData['days'][$idx] = [
                         'date' => $dateStr,
@@ -192,8 +223,8 @@ class AttendanceCalendarController extends Controller
                         'date' => $dateStr,
                         'status' => 'day_off',
                         'attendance' => null,
-                        'has_overrides' => false,
-                        'override_details' => [],
+                        'has_overrides' => !empty($dayOffLogEntries),
+                        'override_details' => $dayOffLogEntries,
                         'shift' => $shiftInfo,
                         'shift_id' => $shiftIdForDay,
                     ];
@@ -202,8 +233,8 @@ class AttendanceCalendarController extends Controller
                         'date' => $dateStr,
                         'status' => 'absent',
                         'attendance' => null,
-                        'has_overrides' => false,
-                        'override_details' => [],
+                        'has_overrides' => !empty($dayOffLogEntries),
+                        'override_details' => $dayOffLogEntries,
                         'shift' => $shiftInfo,
                         'shift_id' => $shiftIdForDay,
                     ];
@@ -552,18 +583,24 @@ class AttendanceCalendarController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'date'        => 'required|date',
             'action'      => 'required|in:add_day_off,cancel_day_off,remove_override',
+            'reason'      => 'required|string|min:3|max:500',
         ]);
 
         $employee = Employee::findOrFail($validated['employee_id']);
-        $date = $validated['date'];
+        $date     = $validated['date'];
+        $reason   = $validated['reason'];
 
         $existing = DayOff::where('employee_id', $employee->id)
             ->where('off_date', $date)
             ->first();
 
+        $oldType = $existing?->type;
+        $newType = null;
+
         if ($validated['action'] === 'remove_override') {
             if ($existing) $existing->delete();
             $message = 'Override removed.';
+            $newType = null;
         } elseif ($validated['action'] === 'add_day_off') {
             if ($existing) {
                 $existing->update(['type' => DayOff::TYPE_DAY_OFF, 'remarks' => 'Set via attendance calendar']);
@@ -576,6 +613,7 @@ class AttendanceCalendarController extends Controller
                 ]);
             }
             $message = 'Rest day added.';
+            $newType = DayOff::TYPE_DAY_OFF;
         } elseif ($validated['action'] === 'cancel_day_off') {
             if ($existing) {
                 $existing->update(['type' => DayOff::TYPE_CANCEL_DAY_OFF, 'remarks' => 'Cancelled via attendance calendar']);
@@ -588,7 +626,19 @@ class AttendanceCalendarController extends Controller
                 ]);
             }
             $message = 'Rest day cancelled (must work).';
+            $newType = DayOff::TYPE_CANCEL_DAY_OFF;
         }
+
+        // Log the change to day_off_logs for a full audit trail (who / when / why / old→new).
+        DayOffLog::create([
+            'employee_id' => $employee->id,
+            'off_date'    => $date,
+            'action'      => $validated['action'],
+            'old_type'    => $oldType,
+            'new_type'    => $newType,
+            'reason'      => $reason,
+            'updated_by'  => Auth::id(),
+        ]);
 
         // Auto-recompute this single employee/date so the calendar reflects updated status
         $this->autoComputeSingleDay($employee->id, $date);

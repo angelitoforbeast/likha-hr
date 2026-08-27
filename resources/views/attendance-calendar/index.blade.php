@@ -215,13 +215,19 @@
                                 }
                             }
 
+                            // Edit-history attrs — always emitted so absent/day-off cells with day-off
+                            // logs also render their history in the modal.
+                            $ovDetailsJson = json_encode($dayInfo['override_details'] ?? []);
+                            $editedFields = collect($dayInfo['override_details'] ?? [])
+                                ->where('kind', 'time')
+                                ->pluck('field')
+                                ->unique()
+                                ->toArray();
+                            $dataAttrs .= ' data-has-overrides="' . ($hasOverrides ? '1' : '0') . '"'
+                                . ' data-override-details="' . e($ovDetailsJson) . '"'
+                                . ' data-edited-fields="' . e(implode(',', $editedFields)) . '"';
+
                             if ($att) {
-                                // Build override details JSON
-                                $ovDetailsJson = json_encode($dayInfo['override_details'] ?? []);
-
-                                // Check which fields have been edited
-                                $editedFields = collect($dayInfo['override_details'] ?? [])->pluck('field')->unique()->toArray();
-
                                 $dataAttrs .= ' data-att-id="' . $att->id . '"'
                                     . ' data-shift="' . e($att->shift->name ?? 'N/A') . '"'
                                     . ' data-time-in="' . ($att->time_in ? \Carbon\Carbon::parse($att->time_in)->format('H:i') : '') . '"'
@@ -236,10 +242,7 @@
                                     . ' data-late="' . ($att->computed_late_minutes ?? 0) . '"'
                                     . ' data-early="' . ($att->computed_early_minutes ?? 0) . '"'
                                     . ' data-ot="' . ($att->computed_overtime_minutes ?? 0) . '"'
-                                    . ' data-has-overrides="' . ($hasOverrides ? '1' : '0') . '"'
-                                    . ' data-notes="' . e($att->notes ?? '') . '"'
-                                    . ' data-override-details="' . e($ovDetailsJson) . '"'
-                                    . ' data-edited-fields="' . e(implode(',', $editedFields)) . '"';
+                                    . ' data-notes="' . e($att->notes ?? '') . '"';
                             }
                         @endphp
                         <td class="{{ $cellClass }}"
@@ -422,6 +425,9 @@
                     {{-- Day-off actions (same as day-off-calendar) — available on Present cells too --}}
                     <hr class="my-2">
                     <p class="text-muted small mb-2 text-center">Manage rest day for this date:</p>
+                    <input type="text" class="form-control form-control-sm mb-2" id="dDayOffReason"
+                           placeholder="Reason (required, min 3 chars) — needed for any rest-day action"
+                           minlength="3" maxlength="500">
                     <div class="d-flex gap-2 justify-content-center flex-wrap">
                         <button class="btn btn-sm btn-outline-primary dayoff-action-btn" onclick="toggleDayOff('add_day_off')">
                             <i class="bi bi-calendar-x"></i> Mark as Rest Day
@@ -739,9 +745,11 @@
         const empName = td.dataset.employee;
         const date = td.dataset.date;
 
-        // Clear any lingering day-off status messages from a previous modal open
+        // Clear any lingering day-off status messages + reason from a previous modal open
         const presentMsg = document.getElementById('dayOffMsgPresent');
         if (presentMsg) presentMsg.style.display = 'none';
+        const dayOffReason = document.getElementById('dDayOffReason');
+        if (dayOffReason) dayOffReason.value = '';
 
         // Reset the inline shift editor and preselect the current shift for this cell
         const editorRow = document.getElementById('dShiftEditorRow');
@@ -834,13 +842,32 @@
             try {
                 const overrideDetails = JSON.parse(td.dataset.overrideDetails || '[]');
                 let html = '';
+                const dayOffActionLabels = {
+                    'add_day_off':     '🗓️ Marked as Rest Day',
+                    'cancel_day_off':  '✅ Cancelled Rest Day',
+                    'remove_override': '↩️ Removed Rest-Day Override',
+                };
                 overrideDetails.forEach(function(ov) {
-                    const oldVal = ov.old_value || '(empty)';
-                    const newVal = ov.new_value || '(empty)';
+                    const isDayOff = ov.kind === 'day_off';
+                    let label, body;
+                    if (isDayOff) {
+                        // Extract action from field e.g. "day_off:add_day_off"
+                        const action = (ov.field || '').replace(/^day_off:/, '');
+                        label = dayOffActionLabels[action] || action;
+                        const oldT = ov.old_value === '(none)' ? '<em>none</em>' : ov.old_value;
+                        const newT = ov.new_value === '(none)' ? '<em>none</em>' : ov.new_value;
+                        body = '<span class="text-danger text-decoration-line-through">' + oldT + '</span>'
+                             + ' &rarr; <span class="text-success fw-semibold">' + newT + '</span>';
+                    } else {
+                        label = fieldLabels[ov.field] || ov.field;
+                        const oldVal = ov.old_value || '(empty)';
+                        const newVal = ov.new_value || '(empty)';
+                        body = '<span class="text-danger text-decoration-line-through">' + oldVal + '</span>'
+                             + ' &rarr; <span class="text-success fw-semibold">' + newVal + '</span>';
+                    }
                     html += '<div class="ov-entry">'
-                        + '<strong>' + (fieldLabels[ov.field] || ov.field) + '</strong>: '
-                        + '<span class="text-danger text-decoration-line-through">' + oldVal + '</span>'
-                        + ' &rarr; <span class="text-success fw-semibold">' + newVal + '</span>'
+                        + '<strong>' + label + '</strong>: '
+                        + body
                         + '<br><small class="text-muted">by ' + ov.updater + ' on ' + ov.date + '</small>'
                         + (ov.reason ? '<br><small class="fst-italic text-muted">"' + ov.reason + '"</small>' : '')
                         + '</div>';
@@ -1290,21 +1317,27 @@
         });
     }
 
-    // Day off toggle — works from both the Present modal and the Absent/Day-Off modal.
-    // Picks whichever status message container is currently in the DOM.
+    // Day off toggle — reads the required reason input, POSTs the action, marks the modal changed
+    // so the calendar reloads once on close (rest-day changes affect cell color/status).
     function toggleDayOff(action) {
         const empId = currentTd ? currentTd.dataset.employeeId : null;
-        const date = currentTd ? currentTd.dataset.date : null;
-
+        const date  = currentTd ? currentTd.dataset.date : null;
         if (!empId || !date) return;
 
-        // Prefer the message div in the Present body if it is currently visible,
-        // otherwise fall back to the Absent/Day-Off container.
-        const detailBodyVisible = document.getElementById('detailBody').style.display !== 'none';
-        const msgDiv = detailBodyVisible
-            ? document.getElementById('dayOffMsgPresent')
-            : document.getElementById('dayOffMsg');
+        const msgDiv    = document.getElementById('dayOffMsgPresent');
+        const reasonEl  = document.getElementById('dDayOffReason');
+        const reasonVal = (reasonEl?.value || '').trim();
         if (msgDiv) msgDiv.style.display = 'none';
+
+        if (reasonVal.length < 3) {
+            if (msgDiv) {
+                msgDiv.textContent = 'Reason is required (min 3 chars) for any rest-day action.';
+                msgDiv.className = 'small mt-2 text-danger text-center';
+                msgDiv.style.display = '';
+            }
+            reasonEl?.focus();
+            return;
+        }
 
         fetch('{{ url("/attendance-calendar/toggle-day-off") }}', {
             method: 'POST',
@@ -1317,27 +1350,33 @@
                 employee_id: empId,
                 date: date,
                 action: action,
+                reason: reasonVal,
             }),
         })
         .then(r => r.json())
         .then(data => {
-            if (!msgDiv) { if (data.success) location.reload(); return; }
             if (data.success) {
-                msgDiv.textContent = data.message + ' Reloading...';
-                msgDiv.className = 'small mt-2 text-success text-center';
-                msgDiv.style.display = '';
-                setTimeout(() => location.reload(), 800);
-            } else {
+                if (msgDiv) {
+                    msgDiv.textContent = data.message + ' Reloading on close…';
+                    msgDiv.className = 'small mt-2 text-success text-center';
+                    msgDiv.style.display = '';
+                }
+                if (reasonEl) reasonEl.value = '';
+                // Rest-day change alters cell status/color — defer the reload to modal close
+                // (consistent with time save/delete behavior).
+                modalHasChanges = true;
+            } else if (msgDiv) {
                 msgDiv.textContent = data.message || 'Error.';
                 msgDiv.className = 'small mt-2 text-danger text-center';
                 msgDiv.style.display = '';
             }
         })
-        .catch(err => {
-            if (!msgDiv) { alert('Network error. Please try again.'); return; }
-            msgDiv.textContent = 'Network error. Please try again.';
-            msgDiv.className = 'small mt-2 text-danger text-center';
-            msgDiv.style.display = '';
+        .catch(() => {
+            if (msgDiv) {
+                msgDiv.textContent = 'Network error. Please try again.';
+                msgDiv.className = 'small mt-2 text-danger text-center';
+                msgDiv.style.display = '';
+            }
         });
     }
 

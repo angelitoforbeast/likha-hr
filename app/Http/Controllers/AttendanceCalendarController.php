@@ -179,9 +179,17 @@ class AttendanceCalendarController extends Controller
                     $payableMinutes     = (int) ($attDay->payable_work_minutes ?? 0);
                     $insufficientWork   = $requiredMinutes > 0 && $payableMinutes < $requiredMinutes;
 
-                    // Check if worked on a rest day — alarming!
+                    // A day is only "worked on a rest day" (RD-P) if there is actual evidence of work:
+                    // at least one punch recorded or non-zero payable minutes. An empty AttendanceDay
+                    // that just happens to sit on a rest-day override should stay as plain day_off.
+                    $actuallyWorked = !empty($attDay->time_in)
+                        || !empty($attDay->time_out)
+                        || !empty($attDay->lunch_out)
+                        || !empty($attDay->lunch_in)
+                        || $payableMinutes > 0;
+
                     if ($isDayOff) {
-                        $status = 'rd_present';
+                        $status = $actuallyWorked ? 'rd_present' : 'day_off';
                     } elseif ($lateMin > 0 || $earlyMin > 0 || $missingCorePunches || $insufficientWork) {
                         // Merge late/undertime/missing-punches/insufficient-work into a single "undertime" status
                         $status = 'undertime';

@@ -28,6 +28,10 @@
     .time-display-value { cursor: pointer; padding: 2px 4px; border-radius: 3px; border-bottom: 1px dashed #999; }
     .time-display-value:hover { background: #e9ecef; }
     .time-display-value.time-display-edited { background: #fff3cd; border: 1px solid #ffc107; color: #6f42c1; font-weight: 600; }
+    /* Hide the up/down spinner arrows on the approved-OT input */
+    input.no-spinner::-webkit-outer-spin-button,
+    input.no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input.no-spinner { -moz-appearance: textfield; }
     .override-dot { color: #6f42c1; font-size: .6rem; vertical-align: super; }
     .override-history { font-size: .78rem; background: #f8f9fa; border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
     .override-history .ov-entry { border-bottom: 1px solid #e9ecef; padding: 3px 0; }
@@ -310,7 +314,7 @@
 
 {{-- Detail Modal --}}
 <div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:450px;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header py-2">
                 <h6 class="modal-title" id="detailTitle">Attendance Detail</h6>
@@ -319,6 +323,9 @@
             <div class="modal-body py-2">
                 {{-- Present/Undertime detail --}}
                 <div id="detailBody">
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                        {{-- LEFT COLUMN: editable controls (times, shift, OT, SIL, day-off) --}}
                     <table class="table table-sm table-borderless mb-0" style="font-size:.85rem">
                         <tr><td class="text-muted" style="width:100px">Employee</td><td class="fw-semibold" id="dEmployee"></td></tr>
                         <tr><td class="text-muted">Date</td><td class="fw-semibold" id="dDate"></td></tr>
@@ -416,38 +423,37 @@
                         <tr class="computed-row"><td class="text-muted">Work</td><td id="dWork"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Late</td><td id="dLate"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Undertime</td><td id="dEarly"></td></tr>
-                        <tr class="computed-row">
-                            <td class="text-muted align-top pt-2">Overtime</td>
-                            <td>
-                                <div class="d-flex gap-1 align-items-center flex-wrap">
-                                    <input type="number" step="0.25" min="0" max="24" class="form-control form-control-sm"
-                                           id="dApprovedOtHours" placeholder="hours (leave blank to keep auto)"
-                                           style="max-width:180px">
-                                    <span class="small text-muted">hours (approved)</span>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                            id="dClearApprovedOtBtn" title="Revert to auto-computed OT"
-                                            onclick="markApprovedOtForClear()">
-                                        <i class="bi bi-arrow-counterclockwise"></i> revert to auto
-                                    </button>
-                                </div>
-                                <div class="small text-muted mt-1">
-                                    Effective OT: <span id="dOT" class="fw-semibold">—</span>
-                                    <span id="dApprovedOtHint" class="ms-2" style="display:none"></span>
-                                </div>
-                            </td>
-                        </tr>
                         <tr id="dNotesRow" class="computed-row"><td class="text-muted">Notes</td><td id="dNotes"></td></tr>
                     </table>
-                    {{-- Override history details --}}
-                    <div id="dOverrideHistory" class="override-history mt-2" style="display:none">
-                        <div class="fw-semibold mb-1" style="color:#6f42c1"><i class="bi bi-pencil-square"></i> Edit History</div>
-                        <div id="dOverrideList"></div>
-                    </div>
-                    {{-- View Raw Punches button --}}
-                    <div class="mt-2 text-center">
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="openPunchesModal()">
-                            <i class="bi bi-clock-history"></i> View Raw Punches
+
+                    {{-- ============================================================
+                         Overtime section — approved OT hours with its OWN save button
+                         (separate from Save All Changes above; own reason input).
+                         ============================================================ --}}
+                    <div class="border rounded p-2 mt-2 bg-light">
+                        <div class="fw-semibold small mb-2"><i class="bi bi-stopwatch"></i> Overtime (approved)</div>
+                        <div class="d-flex gap-1 align-items-center flex-wrap mb-2">
+                            <input type="number" step="0.25" min="0" max="24" class="form-control form-control-sm no-spinner"
+                                   id="dApprovedOtHours" placeholder="hours"
+                                   style="max-width:130px">
+                            <span class="small text-muted">hours</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                    id="dClearApprovedOtBtn" title="Revert to auto-computed OT"
+                                    onclick="revertOtToAuto()">
+                                <i class="bi bi-arrow-counterclockwise"></i> revert to auto
+                            </button>
+                        </div>
+                        <input type="text" class="form-control form-control-sm mb-2" id="dOtReason"
+                               placeholder="Reason (required, min 3 chars)"
+                               minlength="3" maxlength="500">
+                        <button type="button" class="btn btn-success btn-sm w-100" id="dSaveOtBtn" onclick="saveApprovedOt()">
+                            <i class="bi bi-save"></i> Save OT Only
                         </button>
+                        <div class="small text-muted mt-1">
+                            Effective OT: <span id="dOT" class="fw-semibold">—</span>
+                            <span id="dApprovedOtHint" class="ms-2" style="display:none"></span>
+                        </div>
+                        <div id="dOtMsg" class="small mt-1" style="display:none"></div>
                     </div>
                     {{-- Day-off actions (same as day-off-calendar) — available on Present cells too --}}
                     <hr class="my-2">
@@ -500,6 +506,24 @@
                         </button>
                     </div>
                     <div id="dSilMsg" class="small mt-2 text-center" style="display:none"></div>
+                        </div>{{-- /col-md-7 --}}
+
+                        <div class="col-md-5">
+                            {{-- RIGHT COLUMN: Edit History + Raw Punches viewer --}}
+                            <div class="mb-2 text-center">
+                                <button type="button" class="btn btn-sm btn-outline-info w-100" onclick="openPunchesModal()">
+                                    <i class="bi bi-clock-history"></i> View Raw Punches
+                                </button>
+                            </div>
+                            <div id="dOverrideHistory" class="override-history" style="display:none">
+                                <div class="fw-semibold mb-1" style="color:#6f42c1"><i class="bi bi-pencil-square"></i> Edit History</div>
+                                <div id="dOverrideList"></div>
+                            </div>
+                            <div id="dOverrideEmpty" class="text-muted small text-center py-3">
+                                <i class="bi bi-info-circle"></i> No edit history for this date yet.
+                            </div>
+                        </div>{{-- /col-md-5 --}}
+                    </div>{{-- /row --}}
                 </div>
 
                 {{-- Absent / Day Off detail --}}
@@ -899,19 +923,87 @@
     // the approved value rather than treat blank as "no change".
     let clearApprovedOt = false;
 
-    function markApprovedOtForClear() {
-        clearApprovedOt = true;
-        const input = document.getElementById('dApprovedOtHours');
-        if (input) { input.value = ''; input.disabled = true; }
-        const hint = document.getElementById('dApprovedOtHint');
-        if (hint) { hint.textContent = '(will revert to auto on Save All)'; hint.style.display = ''; hint.className = 'ms-2 text-warning'; }
+    // "Revert to auto" — clears the approved OT via the save-all endpoint with a stock reason.
+    // Uses its own confirm + reason input flow, independent of Save All Changes above.
+    function revertOtToAuto() {
+        if (!currentTd) return;
+        const reason = (document.getElementById('dOtReason').value || '').trim();
+        if (reason.length < 3) {
+            otShowMessage('Reason is required (min 3 chars) to revert.', false);
+            document.getElementById('dOtReason').focus();
+            return;
+        }
+        if (!confirm('Revert approved OT back to the auto-computed value?')) return;
+        sendOtSaveRequest({ clear_approved_ot: true, reason: reason });
     }
-    function unmarkApprovedOtForClear() {
-        clearApprovedOt = false;
-        const input = document.getElementById('dApprovedOtHours');
-        if (input) input.disabled = false;
-        const hint = document.getElementById('dApprovedOtHint');
-        if (hint) hint.style.display = 'none';
+
+    // Save just the approved OT hours (own reason, own button, separate from Save All).
+    function saveApprovedOt() {
+        if (!currentTd) return;
+        const hoursStr = document.getElementById('dApprovedOtHours').value;
+        const reason   = (document.getElementById('dOtReason').value || '').trim();
+        if (hoursStr === '') {
+            otShowMessage('Enter OT hours (or click "revert to auto" to clear).', false);
+            return;
+        }
+        if (reason.length < 3) {
+            otShowMessage('Reason is required (min 3 chars).', false);
+            document.getElementById('dOtReason').focus();
+            return;
+        }
+        sendOtSaveRequest({ approved_ot_hours: hoursStr, reason: reason });
+    }
+
+    function otShowMessage(text, isSuccess) {
+        const el = document.getElementById('dOtMsg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'small mt-1 ' + (isSuccess ? 'text-success' : 'text-danger');
+        el.style.display = '';
+        if (isSuccess) setTimeout(() => { el.style.display = 'none'; }, 2000);
+    }
+
+    // Internal: POST just the OT portion to the same save-all endpoint (server processes OT
+    // independently of the time fields since it's a separate section).
+    function sendOtSaveRequest(extras) {
+        const btn = document.getElementById('dSaveOtBtn');
+        if (btn) btn.disabled = true;
+        const payload = Object.assign({
+            employee_id: currentTd.dataset.employeeId,
+            date:        currentTd.dataset.date,
+        }, extras);
+        fetch('{{ url("/attendance-calendar/save-all") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (btn) btn.disabled = false;
+            if (!data.success) { otShowMessage(data.message || 'Error.', false); return; }
+            // Reflect updated OT + metrics
+            if (data.metrics) {
+                document.getElementById('dOT').textContent = fmtMin(data.metrics.overtime_minutes);
+                if (currentTd) {
+                    currentTd.dataset.effectiveOt = String(data.metrics.overtime_minutes);
+                    if (data.metrics.approved_ot_hours !== null && data.metrics.approved_ot_hours !== undefined) {
+                        currentTd.dataset.approvedOt = String(Math.round(data.metrics.approved_ot_hours * 60));
+                        document.getElementById('dApprovedOtHours').value = data.metrics.approved_ot_hours;
+                    } else {
+                        currentTd.dataset.approvedOt = '';
+                        document.getElementById('dApprovedOtHours').value = '';
+                    }
+                }
+            }
+            document.getElementById('dOtReason').value = '';
+            otShowMessage(data.message || 'OT saved.', true);
+            modalHasChanges = true;
+        })
+        .catch(() => { if (btn) btn.disabled = false; otShowMessage('Network error.', false); });
     }
 
     // Reload the calendar once, when the detail modal is closed, if any edits happened while open.
@@ -1253,7 +1345,10 @@
             otInput.disabled = false;
             otInput.value = approvedOtMin !== '' ? (parseInt(approvedOtMin, 10) / 60).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') : '';
         }
-        clearApprovedOt = false;
+        const otReason = document.getElementById('dOtReason');
+        if (otReason) otReason.value = '';
+        const otMsg = document.getElementById('dOtMsg');
+        if (otMsg) otMsg.style.display = 'none';
         const otHint = document.getElementById('dApprovedOtHint');
         if (otHint) {
             if (approvedOtMin !== '') {
@@ -1279,7 +1374,9 @@
         const overrideHistoryDiv = document.getElementById('dOverrideHistory');
         const overrideListDiv = document.getElementById('dOverrideList');
 
+        const emptyDiv = document.getElementById('dOverrideEmpty');
         if (hasOverrides) {
+            if (emptyDiv) emptyDiv.style.display = 'none';
             try {
                 const overrideDetails = JSON.parse(td.dataset.overrideDetails || '[]');
                 let html = '';
@@ -1315,11 +1412,14 @@
                 });
                 overrideListDiv.innerHTML = html;
                 overrideHistoryDiv.style.display = '';
+                if (emptyDiv) emptyDiv.style.display = 'none';
             } catch (e) {
                 overrideHistoryDiv.style.display = 'none';
+                if (emptyDiv) emptyDiv.style.display = '';
             }
         } else {
             overrideHistoryDiv.style.display = 'none';
+            if (emptyDiv) emptyDiv.style.display = '';
         }
 
         detailModal.show();
@@ -1706,8 +1806,7 @@
             lunch_in:    document.getElementById('dInput_lunch_in').value  || null,
             time_out:    document.getElementById('dInput_time_out').value  || null,
             clear_fields: Array.from(fieldsToClear),
-            approved_ot_hours: document.getElementById('dApprovedOtHours').value || null,
-            clear_approved_ot: clearApprovedOt,
+            // OT is saved separately via its own button/section — never bundled in Save All
         };
         // Include shift_id if the dropdown differs from the cell's original shift
         const sel = document.getElementById('dShiftSelect');

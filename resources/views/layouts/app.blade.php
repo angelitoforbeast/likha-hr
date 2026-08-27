@@ -107,6 +107,11 @@
                 <i class="bi bi-journal-code"></i> Edit Logs
             </a>
             @endif
+            @if($userRole === 'ceo')
+            <a class="nav-link {{ request()->is('audit-logs*') ? 'active' : '' }}" href="{{ url('/audit-logs') }}">
+                <i class="bi bi-shield-check"></i> Audit Logs
+            </a>
+            @endif
             @php
                 $showEmpStatuses = $canNav('nav_settings_employment_statuses');
                 $showHolidays    = $canNav('nav_settings_holidays');

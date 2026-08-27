@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class EmployeeStatusHistory extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $table = 'employee_status_history';
 

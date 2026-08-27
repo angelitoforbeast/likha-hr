@@ -17,6 +17,7 @@ use App\Http\Controllers\FeaturePermissionController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\ManusEditLogController;
+use App\Http\Controllers\AuditLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -201,6 +202,10 @@ Route::middleware('auth')->group(function () {
     // Feature Permissions (Settings — hardcoded CEO only, no middleware override)
     Route::get('/settings/feature-permissions', [FeaturePermissionController::class, 'index'])->name('settings.feature-permissions');
     Route::post('/settings/feature-permissions', [FeaturePermissionController::class, 'update'])->name('settings.feature-permissions.update');
+
+    // Audit Logs (CEO only — enforced inside the controller)
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
 
     // User Management
     Route::middleware('feature:nav_users')->group(function () {

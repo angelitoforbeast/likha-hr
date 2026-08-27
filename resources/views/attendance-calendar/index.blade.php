@@ -271,13 +271,13 @@
                             // the date-level lock so users see it before opening the modal.
                             $cellIsLocked = isset($dateLocks[$dayInfo['date']]);
                             if ($cellIsLocked) $cellClass .= ' cal-cell-locked';
-                            $dataAttrs .= ' data-locked="' . ($cellIsLocked ? '1' : '0') . '"';
 
                             // Build data attributes for modal
                             $dataAttrs = 'data-date="' . $dayInfo['date'] . '"'
                                 . ' data-status="' . $dayInfo['status'] . '"'
                                 . ' data-employee="' . e($empCal['employee']->display_name) . '"'
-                                . ' data-employee-id="' . $empCal['employee']->id . '"';
+                                . ' data-employee-id="' . $empCal['employee']->id . '"'
+                                . ' data-locked="' . ($cellIsLocked ? '1' : '0') . '"';
 
                             // Shift info for this date (from shift assignment or fallback default)
                             $shiftForCell = $dayInfo['shift'] ?? null;

@@ -450,6 +450,10 @@ class AttendanceCalendarController extends Controller
             'lunch_in'    => 'nullable|string',
             'time_out'    => 'nullable|string',
             'shift_id'    => 'nullable|integer|exists:shifts,id',
+            // Approved OT in hours. Empty string / null = keep current, "0" = explicit zero
+            // (approves NO overtime), non-empty numeric = set to that many hours.
+            'approved_ot_hours' => 'nullable|string',
+            'clear_approved_ot' => 'nullable|boolean', // when true, reverts to auto-computed OT
             // Explicit list of fields the client wants to clear (empty payload alone is ambiguous)
             'clear_fields'=> 'nullable|array',
             'clear_fields.*' => 'in:time_in,lunch_out,lunch_in,time_out',
@@ -556,6 +560,36 @@ class AttendanceCalendarController extends Controller
             $day->save();
         }
 
+        // Handle approved OT override (hours). Only touches the field when the client sends
+        // an explicit value or a clear flag; ignored otherwise.
+        $otChanged = false;
+        if ($day) {
+            $clearOt = (bool) ($validated['clear_approved_ot'] ?? false);
+            $incomingOtHours = $validated['approved_ot_hours'] ?? null;
+            $shouldWriteOt = $clearOt || ($incomingOtHours !== null && $incomingOtHours !== '');
+            if ($shouldWriteOt) {
+                $newApprovedMinutes = $clearOt ? null : (int) round(((float) $incomingOtHours) * 60);
+                $currentApproved    = $day->approved_overtime_minutes;
+                if ($newApprovedMinutes !== $currentApproved) {
+                    $oldStr = $currentApproved === null ? null : (string) $currentApproved;
+                    $newStr = $newApprovedMinutes === null ? null : (string) $newApprovedMinutes;
+                    $day->approved_overtime_minutes = $newApprovedMinutes;
+                    $day->save();
+                    AttendanceOverride::create([
+                        'attendance_day_id' => $day->id,
+                        'employee_id'       => $day->employee_id,
+                        'work_date'         => $day->work_date,
+                        'field'             => 'approved_overtime_minutes',
+                        'old_value'         => $oldStr,
+                        'new_value'         => $newStr,
+                        'reason'            => $reason,
+                        'updated_by'        => Auth::id(),
+                    ]);
+                    $otChanged = true;
+                }
+            }
+        }
+
         // Recompute the day if anything changed so metrics reflect the new state.
         if (($day && (!empty($changedFields) || $shiftIdChanged))) {
             $day->load('shift');
@@ -563,13 +597,20 @@ class AttendanceCalendarController extends Controller
             $day->refresh();
         }
 
+        $effectiveOtMinutes = $day
+            ? (int) ($day->approved_overtime_minutes ?? $day->computed_overtime_minutes)
+            : 0;
+
         return response()->json([
             'success' => true,
-            'message' => empty($changedFields) && !$shiftIdChanged
+            'message' => (empty($changedFields) && !$shiftIdChanged && !$otChanged)
                 ? 'No changes to save.'
-                : (count($changedFields) . ' field(s) saved' . ($shiftIdChanged ? ' + shift updated' : '') . '.'),
+                : (count($changedFields) . ' field(s) saved'
+                    . ($shiftIdChanged ? ' + shift updated' : '')
+                    . ($otChanged ? ' + OT updated' : '') . '.'),
             'changed_fields' => $changedFields,
             'shift_changed'  => $shiftIdChanged,
+            'ot_changed'     => $otChanged,
             'values' => $day ? [
                 'time_in'   => ['display' => $day->time_in   ? Carbon::parse($day->time_in)->format('g:i A')   : '-', 'raw' => $day->time_in   ? Carbon::parse($day->time_in)->format('H:i:s')   : ''],
                 'lunch_out' => ['display' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('g:i A') : '-', 'raw' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('H:i:s') : ''],
@@ -580,7 +621,10 @@ class AttendanceCalendarController extends Controller
                 'work_minutes'     => (int) $day->computed_work_minutes,
                 'late_minutes'     => (int) $day->computed_late_minutes,
                 'early_minutes'    => (int) $day->computed_early_minutes,
-                'overtime_minutes' => (int) $day->computed_overtime_minutes,
+                'overtime_minutes' => $effectiveOtMinutes,
+                'approved_ot_hours'=> $day->approved_overtime_minutes !== null
+                    ? round($day->approved_overtime_minutes / 60, 2)
+                    : null,
             ] : null,
         ]);
     }

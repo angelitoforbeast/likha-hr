@@ -35,7 +35,7 @@ class PayrollService
     /**
      * Whether OT computation is enabled. Default: false.
      */
-    protected bool $otEnabled = false;
+    protected bool $otEnabled = true; // enabled — OT pay computed at 1.25x hourly rate
 
     /**
      * Holiday pay rates (DOLE standard).
@@ -207,16 +207,21 @@ class PayrollService
                     'late'       => (int) $day->computed_late_minutes,
                     'early'      => (int) $day->computed_early_minutes,
                     'undertime'  => 0,
-                    'ot'         => (int) $day->computed_overtime_minutes,
+                    'ot'         => (int) ($day->approved_overtime_minutes ?? $day->computed_overtime_minutes),
                     'amount'     => 0, // NOT COUNTED — rest day work
                     'not_counted' => true,
                 ];
                 continue; // Skip to next attendance day
             }
 
-            // Accumulate minutes for tracking (non-rest-day only)
+            // Accumulate minutes for tracking (non-rest-day only).
+            // Overtime: prefer CEO-approved value over the auto-computed one when available,
+            // so payroll pays what was explicitly approved (0 is a valid "no OT" approval).
             $totalWorkMinutes += $day->payable_work_minutes;
-            $totalOvertimeMinutes += $day->computed_overtime_minutes;
+            $dayOtMinutes = $day->approved_overtime_minutes !== null
+                ? (int) $day->approved_overtime_minutes
+                : (int) $day->computed_overtime_minutes;
+            $totalOvertimeMinutes += $dayOtMinutes;
 
             // Compute actual undertime per day: difference between required and payable
             $dayShift = $employee->getShiftForDate($dateStr);
@@ -311,7 +316,7 @@ class PayrollService
                 'late'       => $dayLate,
                 'early'      => $dayEarly,
                 'undertime'  => $dayUndertime,
-                'ot'         => (int) $day->computed_overtime_minutes,
+                'ot'         => $dayOtMinutes,
                 'amount'     => $breakdownAmount,
             ];
         }

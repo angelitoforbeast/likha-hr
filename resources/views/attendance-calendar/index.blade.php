@@ -274,6 +274,8 @@
                                     . ' data-late="' . ($att->computed_late_minutes ?? 0) . '"'
                                     . ' data-early="' . ($att->computed_early_minutes ?? 0) . '"'
                                     . ' data-ot="' . ($att->computed_overtime_minutes ?? 0) . '"'
+                                    . ' data-approved-ot="' . ($att->approved_overtime_minutes ?? '') . '"'
+                                    . ' data-effective-ot="' . ($att->approved_overtime_minutes ?? $att->computed_overtime_minutes ?? 0) . '"'
                                     . ' data-notes="' . e($att->notes ?? '') . '"';
                             }
                         @endphp
@@ -414,7 +416,26 @@
                         <tr class="computed-row"><td class="text-muted">Work</td><td id="dWork"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Late</td><td id="dLate"></td></tr>
                         <tr class="computed-row"><td class="text-muted">Undertime</td><td id="dEarly"></td></tr>
-                        <tr class="computed-row"><td class="text-muted">Overtime</td><td id="dOT"></td></tr>
+                        <tr class="computed-row">
+                            <td class="text-muted align-top pt-2">Overtime</td>
+                            <td>
+                                <div class="d-flex gap-1 align-items-center flex-wrap">
+                                    <input type="number" step="0.25" min="0" max="24" class="form-control form-control-sm"
+                                           id="dApprovedOtHours" placeholder="hours (leave blank to keep auto)"
+                                           style="max-width:180px">
+                                    <span class="small text-muted">hours (approved)</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                            id="dClearApprovedOtBtn" title="Revert to auto-computed OT"
+                                            onclick="markApprovedOtForClear()">
+                                        <i class="bi bi-arrow-counterclockwise"></i> revert to auto
+                                    </button>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    Effective OT: <span id="dOT" class="fw-semibold">—</span>
+                                    <span id="dApprovedOtHint" class="ms-2" style="display:none"></span>
+                                </div>
+                            </td>
+                        </tr>
                         <tr id="dNotesRow" class="computed-row"><td class="text-muted">Notes</td><td id="dNotes"></td></tr>
                     </table>
                     {{-- Override history details --}}
@@ -874,6 +895,24 @@
     // We defer the calendar reload until the modal is dismissed so the user can make several
     // edits in a row without the pop-up disappearing after each one.
     let modalHasChanges = false;
+    // Tracks whether the user pressed "revert to auto" on the OT input so Save All knows to clear
+    // the approved value rather than treat blank as "no change".
+    let clearApprovedOt = false;
+
+    function markApprovedOtForClear() {
+        clearApprovedOt = true;
+        const input = document.getElementById('dApprovedOtHours');
+        if (input) { input.value = ''; input.disabled = true; }
+        const hint = document.getElementById('dApprovedOtHint');
+        if (hint) { hint.textContent = '(will revert to auto on Save All)'; hint.style.display = ''; hint.className = 'ms-2 text-warning'; }
+    }
+    function unmarkApprovedOtForClear() {
+        clearApprovedOt = false;
+        const input = document.getElementById('dApprovedOtHours');
+        if (input) input.disabled = false;
+        const hint = document.getElementById('dApprovedOtHint');
+        if (hint) hint.style.display = 'none';
+    }
 
     // Reload the calendar once, when the detail modal is closed, if any edits happened while open.
     document.getElementById('detailModal').addEventListener('hidden.bs.modal', function () {
@@ -1205,7 +1244,26 @@
         document.getElementById('dWork').textContent = fmtMin(td.dataset.work);
         document.getElementById('dLate').textContent = fmtMin(td.dataset.late);
         document.getElementById('dEarly').textContent = fmtMin(td.dataset.early);
-        document.getElementById('dOT').textContent = fmtMin(td.dataset.ot);
+        // OT: show effective (approved ?? computed), prefill approved-hours input for editing.
+        const effectiveOt = parseInt(td.dataset.effectiveOt || td.dataset.ot || '0', 10);
+        document.getElementById('dOT').textContent = fmtMin(effectiveOt);
+        const approvedOtMin = td.dataset.approvedOt || '';
+        const otInput = document.getElementById('dApprovedOtHours');
+        if (otInput) {
+            otInput.disabled = false;
+            otInput.value = approvedOtMin !== '' ? (parseInt(approvedOtMin, 10) / 60).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') : '';
+        }
+        clearApprovedOt = false;
+        const otHint = document.getElementById('dApprovedOtHint');
+        if (otHint) {
+            if (approvedOtMin !== '') {
+                otHint.textContent = '(approved override active — auto was ' + fmtMin(parseInt(td.dataset.ot || '0', 10)) + ')';
+                otHint.className = 'ms-2 text-info';
+                otHint.style.display = '';
+            } else {
+                otHint.style.display = 'none';
+            }
+        }
 
         const notes = td.dataset.notes || '';
         const notesRow = document.getElementById('dNotesRow');
@@ -1648,6 +1706,8 @@
             lunch_in:    document.getElementById('dInput_lunch_in').value  || null,
             time_out:    document.getElementById('dInput_time_out').value  || null,
             clear_fields: Array.from(fieldsToClear),
+            approved_ot_hours: document.getElementById('dApprovedOtHours').value || null,
+            clear_approved_ot: clearApprovedOt,
         };
         // Include shift_id if the dropdown differs from the cell's original shift
         const sel = document.getElementById('dShiftSelect');
@@ -1696,6 +1756,22 @@
                 document.getElementById('dLate').textContent  = fmtMin(data.metrics.late_minutes);
                 document.getElementById('dEarly').textContent = fmtMin(data.metrics.early_minutes);
                 document.getElementById('dOT').textContent    = fmtMin(data.metrics.overtime_minutes);
+                // Sync approved-OT dataset + input from server response
+                if (currentTd) {
+                    if (data.metrics.approved_ot_hours !== null && data.metrics.approved_ot_hours !== undefined) {
+                        currentTd.dataset.approvedOt = String(Math.round(data.metrics.approved_ot_hours * 60));
+                        const otInput = document.getElementById('dApprovedOtHours');
+                        if (otInput) { otInput.value = data.metrics.approved_ot_hours; otInput.disabled = false; }
+                    } else {
+                        currentTd.dataset.approvedOt = '';
+                        const otInput = document.getElementById('dApprovedOtHours');
+                        if (otInput) { otInput.value = ''; otInput.disabled = false; }
+                    }
+                    currentTd.dataset.effectiveOt = String(data.metrics.overtime_minutes);
+                    clearApprovedOt = false;
+                    const otHint = document.getElementById('dApprovedOtHint');
+                    if (otHint) otHint.style.display = 'none';
+                }
             }
             // If shift was accepted, update the cell dataset + hide the "changed" note.
             if (data.shift_changed && sel && currentTd) {

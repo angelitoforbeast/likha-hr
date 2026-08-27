@@ -95,6 +95,44 @@
                 <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> View</button>
             </div>
             <div class="col-auto">
+                {{-- Semi-monthly cutoff quick buttons: 11-25 and 26-10. --}}
+                @php
+                    // Compute Last Cutoff and This Cutoff based on today's date.
+                    // Semi-monthly: 11-25 (first half) and 26-10 (spans to next month).
+                    $todayCarbon = \Carbon\Carbon::now();
+                    $todayDay    = (int) $todayCarbon->day;
+                    if ($todayDay >= 11 && $todayDay <= 25) {
+                        // Currently inside cutoff 11-25 (this month)
+                        $thisFrom = $todayCarbon->copy()->day(11)->format('Y-m-d');
+                        $thisTo   = $todayCarbon->copy()->day(25)->format('Y-m-d');
+                        $lastFrom = $todayCarbon->copy()->subMonth()->day(26)->format('Y-m-d');
+                        $lastTo   = $todayCarbon->copy()->day(10)->format('Y-m-d');
+                    } elseif ($todayDay >= 26) {
+                        // Currently in cutoff 26-10 that starts this month
+                        $thisFrom = $todayCarbon->copy()->day(26)->format('Y-m-d');
+                        $thisTo   = $todayCarbon->copy()->addMonth()->day(10)->format('Y-m-d');
+                        $lastFrom = $todayCarbon->copy()->day(11)->format('Y-m-d');
+                        $lastTo   = $todayCarbon->copy()->day(25)->format('Y-m-d');
+                    } else {
+                        // Day 1-10: still inside cutoff 26-10 that started previous month
+                        $thisFrom = $todayCarbon->copy()->subMonth()->day(26)->format('Y-m-d');
+                        $thisTo   = $todayCarbon->copy()->day(10)->format('Y-m-d');
+                        $lastFrom = $todayCarbon->copy()->subMonth()->day(11)->format('Y-m-d');
+                        $lastTo   = $todayCarbon->copy()->subMonth()->day(25)->format('Y-m-d');
+                    }
+                @endphp
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        onclick="setCutoffDates('{{ $lastFrom }}', '{{ $lastTo }}')"
+                        title="Last Cutoff: {{ \Carbon\Carbon::parse($lastFrom)->format('M d') }} — {{ \Carbon\Carbon::parse($lastTo)->format('M d') }}">
+                    <i class="bi bi-calendar-minus"></i> Last Cutoff
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        onclick="setCutoffDates('{{ $thisFrom }}', '{{ $thisTo }}')"
+                        title="This Cutoff: {{ \Carbon\Carbon::parse($thisFrom)->format('M d') }} — {{ \Carbon\Carbon::parse($thisTo)->format('M d') }}">
+                    <i class="bi bi-calendar-plus"></i> This Cutoff
+                </button>
+            </div>
+            <div class="col-auto">
                 <button type="button" class="btn btn-sm btn-warning" id="computeAttendanceBtn" title="Recompute attendance for the visible date range (respects manual overrides)">
                     <i class="bi bi-calculator"></i> <span id="computeAttendanceLabel">Compute Attendance</span>
                 </button>
@@ -706,6 +744,16 @@
         const ft = document.getElementById('filterType').value;
         document.getElementById('deptFilterCol').style.display = ft === 'department' ? '' : 'none';
         document.getElementById('empFilterCol').style.display = ft === 'employee' ? '' : 'none';
+    }
+
+    // Cutoff quick-set: fills the date inputs then submits the filter form.
+    function setCutoffDates(from, to) {
+        const fromInput = document.querySelector('input[name="date_from"]');
+        const toInput   = document.querySelector('input[name="date_to"]');
+        if (fromInput) fromInput.value = from;
+        if (toInput)   toInput.value = to;
+        // Submit the surrounding filter form so results reload with new range.
+        (fromInput?.closest('form') || toInput?.closest('form'))?.submit();
     }
 
     const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));

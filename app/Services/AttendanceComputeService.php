@@ -445,7 +445,13 @@ class AttendanceComputeService
      */
     public function recomputeDay(AttendanceDay $day): AttendanceDay
     {
-        $shift = $day->shift;
+        // Always resolve the shift that is EFFECTIVE for this employee on this date, so late/OT
+        // calculations use the currently-assigned shift — not a stale shift_id that was captured
+        // when the AttendanceDay was first created. If the effective shift differs from what's
+        // stored on the AttendanceDay, we also sync it so future queries see the correct shift.
+        $workDateStr = $day->work_date->format('Y-m-d');
+        $effectiveShift = $day->employee?->getShiftForDate($workDateStr);
+        $shift = $effectiveShift ?: $day->shift;
 
         $computeTimeIn = $day->time_in ? $this->ceilToMinute(Carbon::parse($day->time_in)) : null;
         $computeTimeOut = $day->time_out ? $this->floorToMinute(Carbon::parse($day->time_out)) : null;
@@ -457,16 +463,20 @@ class AttendanceComputeService
             $computeLunchOut,
             $computeLunchIn,
             $shift,
-            $day->work_date->format('Y-m-d')
-        );;
+            $workDateStr
+        );
 
-        $day->update([
+        $updates = [
             'computed_work_minutes'     => $computed['work_minutes'],
             'computed_late_minutes'     => $computed['late_minutes'],
             'computed_early_minutes'    => $computed['early_minutes'],
             'computed_overtime_minutes' => $computed['overtime_minutes'],
             'payable_work_minutes'      => $computed['work_minutes'],
-        ]);
+        ];
+        if ($effectiveShift && $effectiveShift->id !== $day->shift_id) {
+            $updates['shift_id'] = $effectiveShift->id;
+        }
+        $day->update($updates);
 
         return $day->fresh();
     }

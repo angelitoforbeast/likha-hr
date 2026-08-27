@@ -121,7 +121,24 @@ class PayrollController extends Controller
 
         $run->update(['status' => 'final']);
 
-        return back()->with('success', 'Payroll run finalized. Edits are now locked.');
+        // Auto-lock every date in the payroll cutoff so attendance edits are frozen.
+        // Anyone opening those dates in the attendance calendar will see them as locked.
+        $period = \Carbon\CarbonPeriod::create($run->cutoff_start, $run->cutoff_end);
+        $lockedCount = 0;
+        foreach ($period as $day) {
+            \App\Models\AttendanceDateLock::updateOrCreate(
+                ['lock_date' => $day->format('Y-m-d')],
+                [
+                    'locked_by' => Auth::id(),
+                    'reason'    => 'Auto-locked when Payroll Run #' . $run->id . ' was finalized.',
+                    'source'    => 'payroll_final',
+                    'locked_at' => now(),
+                ]
+            );
+            $lockedCount++;
+        }
+
+        return back()->with('success', "Payroll run finalized. Attendance for {$lockedCount} date(s) auto-locked.");
     }
 
     /**

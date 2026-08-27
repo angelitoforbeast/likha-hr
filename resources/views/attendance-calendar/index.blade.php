@@ -45,6 +45,9 @@
     .date-col-header { cursor: pointer; transition: background 0.15s; }
     .date-col-header:hover { background: #d0ebff !important; color: #0d6efd !important; }
     .date-col-header:hover i { opacity: 1 !important; }
+    .date-col-header.locked { background: #fde2e2 !important; color: #842029 !important; }
+    .cal-cell-locked { position: relative; }
+    .cal-cell-locked::before { content: '\F47C'; font-family: 'bootstrap-icons'; position: absolute; top: 1px; right: 2px; color: #842029; opacity: .6; font-size: .55rem; }
 </style>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -163,6 +166,7 @@
     <span class="cal-legend"><span class="cal-legend-box" style="background:#ff4444"></span> <strong style="color:#ff4444">RD-P (Rest Day Worked!)</strong></span>
     <span class="cal-legend"><span class="cal-legend-box" style="background:#a0e7e5"></span> SIL (Service Incentive Leave)</span>
     <span class="cal-legend"><span style="display:inline-block;width:8px;height:8px;background:#6f42c1;border-radius:50%;margin-right:2px"></span> Edited</span>
+    <span class="cal-legend"><i class="bi bi-lock-fill text-danger"></i> Locked (no edits)</span>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -183,16 +187,26 @@
                             $isToday = $dayDate->isToday();
                             $isSunday = $dayDate->dayOfWeek === 0;
                             $isSaturday = $dayDate->dayOfWeek === 6;
+                            $dateStrHdr = $dayDate->format('Y-m-d');
+                            $lockForDate = $dateLocks[$dateStrHdr] ?? null;
                         @endphp
-                        <th class="date-col-header {{ $isToday ? 'bg-primary text-white' : ($isSunday ? 'text-danger' : ($isSaturday ? 'text-primary' : '')) }}"
+                        <th class="date-col-header {{ $isToday ? 'bg-primary text-white' : ($isSunday ? 'text-danger' : ($isSaturday ? 'text-primary' : '')) }} {{ $lockForDate ? 'locked' : '' }}"
                             role="button"
-                            data-date="{{ $dayDate->format('Y-m-d') }}"
+                            data-date="{{ $dateStrHdr }}"
                             data-day-label="{{ $dayDate->format('M d, Y (D)') }}"
+                            data-locked="{{ $lockForDate ? '1' : '0' }}"
+                            data-lock-reason="{{ $lockForDate ? e($lockForDate->reason) : '' }}"
+                            data-lock-by="{{ $lockForDate ? e($lockForDate->locker->name ?? 'CEO') : '' }}"
+                            data-lock-at="{{ $lockForDate ? $lockForDate->locked_at?->format('M d, Y g:i A') : '' }}"
                             onclick="openBulkActionModal(this)"
-                            title="Click to bulk-apply an action to all employees on this date">
+                            title="{{ $lockForDate ? '🔒 LOCKED — ' . $lockForDate->reason : 'Click to bulk-apply an action to all employees on this date' }}">
                             {{ $dayDate->format('j') }}<br>
                             <small>{{ $dayDate->format('D') }}</small>
-                            <i class="bi bi-list-check d-block small" style="font-size:.65rem; opacity:.6"></i>
+                            @if($lockForDate)
+                                <i class="bi bi-lock-fill d-block small" style="font-size:.7rem; color:#842029"></i>
+                            @else
+                                <i class="bi bi-list-check d-block small" style="font-size:.65rem; opacity:.6"></i>
+                            @endif
                         </th>
                     @endforeach
                     <th title="Present">P</th>
@@ -253,6 +267,11 @@
 
                             if ($isToday) $cellClass .= ' cal-cell-today';
                             if ($hasOverrides) $cellClass .= ' cal-cell-edited';
+                            // Cell-level lock indicator (small 🔒 in corner) — cell inherits
+                            // the date-level lock so users see it before opening the modal.
+                            $cellIsLocked = isset($dateLocks[$dayInfo['date']]);
+                            if ($cellIsLocked) $cellClass .= ' cal-cell-locked';
+                            $dataAttrs .= ' data-locked="' . ($cellIsLocked ? '1' : '0') . '"';
 
                             // Build data attributes for modal
                             $dataAttrs = 'data-date="' . $dayInfo['date'] . '"'
@@ -363,6 +382,21 @@
             <div class="modal-body py-2">
                 {{-- Present/Undertime detail --}}
                 <div id="detailBody">
+                    {{-- Lock banner (visible when the date is locked; hides all edit intent) --}}
+                    <div id="dLockBanner" class="alert alert-danger py-2 mb-2" style="display:none">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-lock-fill"></i>
+                                <strong>Date locked</strong> — no attendance edits allowed.
+                                <div class="small mt-1" id="dLockDetails"></div>
+                            </div>
+                            @if(auth()->user() && auth()->user()->role === 'ceo')
+                                <button type="button" class="btn btn-sm btn-outline-light bg-danger" onclick="unlockThisDate()">
+                                    <i class="bi bi-unlock"></i> Unlock (CEO)
+                                </button>
+                            @endif
+                        </div>
+                    </div>
                     <div class="row g-3">
                         <div class="col-md-7">
                         {{-- LEFT COLUMN: editable controls (times, shift, OT, SIL, day-off) --}}
@@ -648,6 +682,32 @@
                 <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                {{-- Date lock banner + CEO lock/unlock controls --}}
+                <div id="bulkLockBanner" class="alert alert-danger py-2 mb-3" style="display:none">
+                    <i class="bi bi-lock-fill"></i>
+                    <strong>Date locked</strong> — no attendance edits allowed.
+                    <div class="small mt-1" id="bulkLockDetails"></div>
+                </div>
+                @if(auth()->user() && auth()->user()->role === 'ceo')
+                <div id="bulkLockControls" class="mb-3 border rounded p-2 bg-light">
+                    <div class="fw-semibold small mb-2"><i class="bi bi-lock"></i> Lock / Unlock this date (CEO only):</div>
+                    <input type="text" class="form-control form-control-sm mb-2" id="bulkLockReason"
+                           placeholder="Reason for lock/range-lock (required, min 3 chars)"
+                           minlength="3" maxlength="500">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="bulkLockDateBtn" onclick="bulkLockDate()">
+                            <i class="bi bi-lock-fill"></i> Lock This Date
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="bulkLockRangeBtn" onclick="bulkLockRangeAskDates()">
+                            <i class="bi bi-calendar-x"></i> Lock Range (Cutoff)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="bulkUnlockDateBtn" onclick="bulkUnlockDate()" style="display:none">
+                            <i class="bi bi-unlock"></i> Unlock This Date
+                        </button>
+                    </div>
+                </div>
+                @endif
+
                 <div class="mb-3">
                     <label class="fw-semibold small mb-1">Employees on this date:</label>
                     <div class="d-flex gap-2 mb-1">
@@ -768,6 +828,22 @@
     function openBulkActionModal(th) {
         bulkCurrentDate = th.dataset.date;
         document.getElementById('bulkDateLabel').textContent = th.dataset.dayLabel || bulkCurrentDate;
+
+        // Lock banner + toggle button in bulk modal.
+        const isLocked = th.dataset.locked === '1';
+        const banner   = document.getElementById('bulkLockBanner');
+        const details  = document.getElementById('bulkLockDetails');
+        const lockBtn  = document.getElementById('bulkLockDateBtn');
+        const unlockBtn= document.getElementById('bulkUnlockDateBtn');
+        if (banner)  banner.style.display  = isLocked ? '' : 'none';
+        if (details && isLocked) details.textContent =
+            'By ' + (th.dataset.lockBy || 'CEO') + ' on ' + (th.dataset.lockAt || '') + ' — "' + (th.dataset.lockReason || '') + '"';
+        if (lockBtn)   lockBtn.style.display   = isLocked ? 'none' : '';
+        if (unlockBtn) unlockBtn.style.display = isLocked ? '' : 'none';
+        // When locked, disable the actionable buttons so users can't fire them (server also blocks).
+        const disable = isLocked;
+        document.getElementById('bulkFillFromShiftBtn').disabled = disable;
+        document.querySelectorAll('#bulkActionModal .dayoff-action-btn, #bulkActionModal button[onclick^="doBulk"]').forEach(b => { b.disabled = disable; });
 
         // Scan the calendar table to find every cell in this date column and collect
         // each row's employee id/name/status (so the modal can show a checkbox list).
@@ -962,6 +1038,56 @@
             result.style.display = '';
         });
     }
+    // ================= BULK LOCK / UNLOCK =================
+    function bulkLockDate() {
+        const reason = (document.getElementById('bulkLockReason').value || '').trim();
+        if (reason.length < 3) { alert('Reason is required (min 3 chars) to lock.'); return; }
+        if (!confirm('Lock ' + bulkCurrentDate + '? No attendance edits will be allowed until unlocked.')) return;
+        fetch('{{ url("/attendance-calendar/lock-date") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ date: bulkCurrentDate, reason: reason }),
+        })
+        .then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+            else alert(data.message || 'Error');
+        }).catch(() => alert('Network error.'));
+    }
+    function bulkUnlockDate() {
+        if (!confirm('Unlock ' + bulkCurrentDate + '?')) return;
+        fetch('{{ url("/attendance-calendar/unlock-date") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ date: bulkCurrentDate }),
+        })
+        .then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+            else alert(data.message || 'Error');
+        }).catch(() => alert('Network error.'));
+    }
+    function bulkLockRangeAskDates() {
+        const reason = (document.getElementById('bulkLockReason').value || '').trim();
+        if (reason.length < 3) { alert('Reason is required (min 3 chars) to range-lock.'); return; }
+        // Default the range to the visible calendar's date_from → date_to.
+        const from = document.querySelector('input[name="date_from"]')?.value || bulkCurrentDate;
+        const to   = document.querySelector('input[name="date_to"]')?.value   || bulkCurrentDate;
+        const start = prompt('Start date (YYYY-MM-DD):', from);
+        if (!start) return;
+        const end = prompt('End date (YYYY-MM-DD):', to);
+        if (!end) return;
+        if (!confirm('Lock all dates from ' + start + ' to ' + end + '? This affects every day in the range.')) return;
+        fetch('{{ url("/attendance-calendar/lock-range") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ start_date: start, end_date: end, reason: reason }),
+        })
+        .then(r => r.json()).then(data => {
+            if (data.success) { alert(data.message); location.reload(); }
+            else alert(data.message || 'Error');
+        }).catch(() => alert('Network error.'));
+    }
+    // ================= /BULK LOCK =================
+
     // ================= /BULK ACTION =================
 
     let currentTd = null;
@@ -1301,6 +1427,10 @@
         const empName = td.dataset.employee;
         const date = td.dataset.date;
 
+        // Lock banner + edit disable: if the date is locked, show a red banner and disable every
+        // input/button in the detail body so the user cannot even attempt edits.
+        applyLockStateToDetailModal(td.dataset.locked === '1', td);
+
         // Clear any lingering day-off status messages + reason from a previous modal open
         const presentMsg = document.getElementById('dayOffMsgPresent');
         if (presentMsg) presentMsg.style.display = 'none';
@@ -1635,6 +1765,56 @@
         el.style.display = '';
         if (isSuccess) setTimeout(() => { el.style.display = 'none'; }, 2000);
     }
+
+    // ================= DATE LOCK helpers =================
+    // Show/hide the lock banner and disable/enable every edit control in the detail modal.
+    function applyLockStateToDetailModal(isLocked, td) {
+        const banner = document.getElementById('dLockBanner');
+        const details = document.getElementById('dLockDetails');
+        if (isLocked) {
+            if (banner) banner.style.display = '';
+            if (details && td) {
+                // Pull lock info from the date column header (data-* attributes emitted server-side).
+                const hdr = document.querySelector('th.date-col-header[data-date="' + td.dataset.date + '"]');
+                if (hdr) {
+                    details.textContent = 'By ' + (hdr.dataset.lockBy || 'CEO')
+                        + ' on ' + (hdr.dataset.lockAt || '')
+                        + ' — "' + (hdr.dataset.lockReason || '') + '"';
+                } else {
+                    details.textContent = 'Locked.';
+                }
+            }
+        } else {
+            if (banner) banner.style.display = 'none';
+        }
+        // Disable every input/select/button inside #detailBody. Explicit exceptions: the "View Raw
+        // Punches" button and the unlock button in the lock banner stay clickable.
+        const body = document.getElementById('detailBody');
+        if (!body) return;
+        body.querySelectorAll('input, select, button, textarea').forEach(el => {
+            if (el.closest('#dLockBanner')) return; // keep the unlock button clickable
+            if (el.getAttribute('onclick') === 'openPunchesModal()') return; // read-only viewer stays open
+            el.disabled = isLocked;
+        });
+    }
+
+    // Unlock this date from inside the detail modal (CEO only).
+    function unlockThisDate() {
+        if (!currentTd) return;
+        if (!confirm('Unlock this date so edits are allowed again?')) return;
+        fetch('{{ url("/attendance-calendar/unlock-date") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ date: currentTd.dataset.date }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { alert(data.message); location.reload(); }
+            else { alert(data.message || 'Error'); }
+        })
+        .catch(() => alert('Network error.'));
+    }
+    // ================= /DATE LOCK =================
 
     // ================= SIL (Service Incentive Leave) — modal handlers =================
     // Reads the SIL data-* attributes on the current cell and orchestrates apply / remove /

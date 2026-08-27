@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceDateLock;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceOverride;
 use App\Models\DayOff;
@@ -123,6 +124,12 @@ class AttendanceCalendarController extends Controller
             ->whereBetween('sil_date', [$startDate, $endDate])
             ->get()
             ->keyBy(fn ($s) => $s->employee_id . '_' . $s->sil_date->format('Y-m-d'));
+
+        // Preload date locks for the visible range so the calendar can mark locked cells + block edits.
+        $dateLocks = AttendanceDateLock::with('locker')
+            ->whereBetween('lock_date', [$startDate, $endDate])
+            ->get()
+            ->keyBy(fn ($l) => $l->lock_date->format('Y-m-d'));
 
         // Build calendar data
         $calendarData = [];
@@ -300,7 +307,7 @@ class AttendanceCalendarController extends Controller
         return view('attendance-calendar.index', compact(
             'departments', 'employees', 'calendarData',
             'dates', 'totalDays', 'dateFrom', 'dateTo',
-            'filterType', 'departmentId', 'employeeId', 'showShift', 'shifts'
+            'filterType', 'departmentId', 'employeeId', 'showShift', 'shifts', 'dateLocks'
         ));
     }
 
@@ -317,6 +324,7 @@ class AttendanceCalendarController extends Controller
             'date'        => 'required|date',
             'shift_id'    => 'required|exists:shifts,id',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         // Replace any existing single-day override for this employee/date first.
         EmployeeShiftAssignment::where('employee_id', $validated['employee_id'])
@@ -360,6 +368,7 @@ class AttendanceCalendarController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'work_date'   => 'required|date',
         ]);
+        $this->assertDateNotLocked($validated['work_date']);
 
         $employee = Employee::findOrFail($validated['employee_id']);
         $workDate = Carbon::parse($validated['work_date']);
@@ -458,6 +467,7 @@ class AttendanceCalendarController extends Controller
             'clear_fields'=> 'nullable|array',
             'clear_fields.*' => 'in:time_in,lunch_out,lunch_in,time_out',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $employee = Employee::findOrFail($validated['employee_id']);
         $dateStr  = $validated['date'];
@@ -644,6 +654,7 @@ class AttendanceCalendarController extends Controller
         ]);
 
         $day   = AttendanceDay::findOrFail($validated['attendance_day_id']);
+        $this->assertDateNotLocked($day->work_date->format('Y-m-d'));
         $field = $validated['field'];
         $newValue = $validated['new_value'] ?? null;
         $reason   = $validated['reason'];
@@ -705,6 +716,7 @@ class AttendanceCalendarController extends Controller
             'date'        => 'required|date',
             'reason'      => 'required|string|min:3|max:500',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $employee = Employee::findOrFail($validated['employee_id']);
         $dateStr  = $validated['date'];
@@ -815,6 +827,7 @@ class AttendanceCalendarController extends Controller
             'lunch_in'      => 'nullable|string',
             'time_out'      => 'nullable|string',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $date   = $validated['date'];
         $action = $validated['action'];
@@ -1019,6 +1032,7 @@ class AttendanceCalendarController extends Controller
             'date'        => 'required|date',
             'reason'      => 'required|string|min:3|max:500',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $employee = Employee::findOrFail($validated['employee_id']);
         $date     = $validated['date'];
@@ -1067,6 +1081,7 @@ class AttendanceCalendarController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'date'        => 'required|date',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $deleted = SilApplication::where('employee_id', $validated['employee_id'])
             ->whereDate('sil_date', $validated['date'])
@@ -1134,6 +1149,91 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
+     * Lock a single date so no attendance edits (times, shift, day-off, SIL) can be made.
+     * CEO only. Requires a reason for audit.
+     */
+    public function lockDate(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can lock dates.'], 403);
+        }
+        $validated = $request->validate([
+            'date'   => 'required|date',
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+        AttendanceDateLock::updateOrCreate(
+            ['lock_date' => $validated['date']],
+            [
+                'locked_by' => Auth::id(),
+                'reason'    => $validated['reason'],
+                'source'    => 'manual',
+                'locked_at' => now(),
+            ]
+        );
+        return response()->json(['success' => true, 'message' => 'Date locked.']);
+    }
+
+    /**
+     * Lock a range of dates in bulk (e.g., a whole cutoff period). CEO only.
+     */
+    public function lockRange(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can lock dates.'], 403);
+        }
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+            'reason'     => 'required|string|min:3|max:500',
+        ]);
+        $count = 0;
+        $period = \Carbon\CarbonPeriod::create($validated['start_date'], $validated['end_date']);
+        foreach ($period as $day) {
+            AttendanceDateLock::updateOrCreate(
+                ['lock_date' => $day->format('Y-m-d')],
+                [
+                    'locked_by' => Auth::id(),
+                    'reason'    => $validated['reason'],
+                    'source'    => 'range',
+                    'locked_at' => now(),
+                ]
+            );
+            $count++;
+        }
+        return response()->json(['success' => true, 'message' => "Locked {$count} date(s)."]);
+    }
+
+    /**
+     * Unlock a single date. CEO only.
+     */
+    public function unlockDate(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can unlock dates.'], 403);
+        }
+        $validated = $request->validate([
+            'date' => 'required|date',
+        ]);
+        $deleted = AttendanceDateLock::whereDate('lock_date', $validated['date'])->delete();
+        return response()->json([
+            'success' => true,
+            'message' => $deleted ? 'Date unlocked.' : 'Date was not locked.',
+        ]);
+    }
+
+    /**
+     * Assert the given date is NOT locked; abort 423 (Locked) if it is.
+     * Called at the top of every edit endpoint (times, shift, day-off, SIL, bulk actions).
+     */
+    protected function assertDateNotLocked(string $date): void
+    {
+        $lock = AttendanceDateLock::forDate($date);
+        if ($lock) {
+            abort(423, 'This date is locked (by ' . ($lock->locker->name ?? 'CEO') . ' on ' . $lock->locked_at?->format('M d, Y g:i A') . '). Reason: ' . $lock->reason);
+        }
+    }
+
+    /**
      * Recompute a single employee/date without touching overrides.
      * Silent — used internally after per-cell edits.
      */
@@ -1169,6 +1269,7 @@ class AttendanceCalendarController extends Controller
             'action'      => 'required|in:add_day_off,cancel_day_off,remove_override',
             'reason'      => 'required|string|min:3|max:500',
         ]);
+        $this->assertDateNotLocked($validated['date']);
 
         $employee = Employee::findOrFail($validated['employee_id']);
         $date     = $validated['date'];

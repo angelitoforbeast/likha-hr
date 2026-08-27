@@ -546,36 +546,74 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="fw-semibold small mb-1">Action:</label>
-                    <select class="form-select form-select-sm" id="bulkActionSelect" onchange="onBulkActionChange()">
+                    <label class="fw-semibold small mb-1">Choose action:</label>
+                    <div class="d-grid gap-1" id="bulkActionRadios">
+                        <div class="form-check border rounded p-2 mb-0">
+                            <input class="form-check-input bulk-action-radio" type="radio" name="bulkActionRadio" id="bulkActRFill" value="fill_from_shift" checked>
+                            <label class="form-check-label w-100" for="bulkActRFill">
+                                📅 <strong>Fill Whole Day from each employee's Shift Schedule</strong>
+                                <div class="small text-muted">Uses each employee's own shift start/end/lunch times</div>
+                            </label>
+                        </div>
+                        <div class="form-check border rounded p-2 mb-0">
+                            <input class="form-check-input bulk-action-radio" type="radio" name="bulkActionRadio" id="bulkActRSet" value="set_times">
+                            <label class="form-check-label w-100" for="bulkActRSet">
+                                ⏱ <strong>Set custom times (same for ALL selected)</strong>
+                                <div class="small text-muted">Type specific times below to apply to everyone</div>
+                            </label>
+                            {{-- Time inputs INSIDE the radio card so they surface when this option is picked --}}
+                            <div id="bulkTimesRow" class="mt-2" style="display:none">
+                                <div class="row g-2">
+                                    <div class="col-6 col-md-3">
+                                        <label class="small text-muted">Time In</label>
+                                        <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeIn">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="small text-muted">Lunch Out</label>
+                                        <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchOut">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="small text-muted">Lunch In</label>
+                                        <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchIn">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="small text-muted">Time Out</label>
+                                        <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeOut">
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-1"><i class="bi bi-info-circle"></i> Blank fields are left unchanged.</div>
+                            </div>
+                        </div>
+                        <div class="form-check border rounded p-2 mb-0">
+                            <input class="form-check-input bulk-action-radio" type="radio" name="bulkActionRadio" id="bulkActRAddRD" value="add_day_off">
+                            <label class="form-check-label w-100" for="bulkActRAddRD">
+                                🗓 <strong>Mark all as Rest Day</strong>
+                                <div class="small text-muted">Adds a rest-day override for the selected employees</div>
+                            </label>
+                        </div>
+                        <div class="form-check border rounded p-2 mb-0">
+                            <input class="form-check-input bulk-action-radio" type="radio" name="bulkActionRadio" id="bulkActRCancelRD" value="cancel_day_off">
+                            <label class="form-check-label w-100" for="bulkActRCancelRD">
+                                ✅ <strong>Cancel Rest Day (must work)</strong>
+                                <div class="small text-muted">Forces the day to be a workday even if it falls on a rest-day pattern</div>
+                            </label>
+                        </div>
+                        <div class="form-check border rounded p-2 mb-0">
+                            <input class="form-check-input bulk-action-radio" type="radio" name="bulkActionRadio" id="bulkActRRemove" value="remove_override">
+                            <label class="form-check-label w-100" for="bulkActRRemove">
+                                ↩ <strong>Remove Rest-Day Override</strong>
+                                <div class="small text-muted">Falls back to the employee's normal rest-day pattern</div>
+                            </label>
+                        </div>
+                    </div>
+                    {{-- Hidden mirror of the selection so existing JS can still read from #bulkActionSelect --}}
+                    <select id="bulkActionSelect" class="d-none">
                         <option value="fill_from_shift">📅 Fill Whole Day from each employee's Shift Schedule</option>
                         <option value="set_times">⏱ Set custom times (same for all selected)</option>
                         <option value="add_day_off">🗓 Mark all as Rest Day</option>
                         <option value="cancel_day_off">✅ Cancel Rest Day (must work)</option>
                         <option value="remove_override">↩ Remove Rest-Day Override</option>
                     </select>
-                </div>
-
-                <div id="bulkTimesRow" class="mb-3" style="display:none">
-                    <label class="fw-semibold small mb-1">Custom times (blank = don't change):</label>
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3">
-                            <label class="small text-muted">Time In</label>
-                            <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeIn">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="small text-muted">Lunch Out</label>
-                            <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchOut">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="small text-muted">Lunch In</label>
-                            <input type="time" step="1" class="form-control form-control-sm" id="bulkLunchIn">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="small text-muted">Time Out</label>
-                            <input type="time" step="1" class="form-control form-control-sm" id="bulkTimeOut">
-                        </div>
-                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -644,8 +682,10 @@
         updateBulkSelectedCount();
         list.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.addEventListener('change', updateBulkSelectedCount));
 
-        // Reset form state
+        // Reset form state — default to Fill from Shift
         document.getElementById('bulkActionSelect').value = 'fill_from_shift';
+        const fillRadio = document.getElementById('bulkActRFill');
+        if (fillRadio) fillRadio.checked = true;
         document.getElementById('bulkReason').value = '';
         document.getElementById('bulkTimeIn').value = '';
         document.getElementById('bulkLunchOut').value = '';
@@ -672,6 +712,19 @@
         const action = document.getElementById('bulkActionSelect').value;
         document.getElementById('bulkTimesRow').style.display = (action === 'set_times') ? '' : 'none';
     }
+
+    // Sync the visible radio buttons with the hidden <select> so the rest of the flow keeps
+    // reading from #bulkActionSelect without change.
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.bulk-action-radio').forEach(r => {
+            r.addEventListener('change', function () {
+                if (this.checked) {
+                    document.getElementById('bulkActionSelect').value = this.value;
+                    onBulkActionChange();
+                }
+            });
+        });
+    });
 
     function submitBulkAction() {
         const action = document.getElementById('bulkActionSelect').value;

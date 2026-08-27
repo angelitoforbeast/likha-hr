@@ -989,8 +989,11 @@
         if (!opt) return;
         const sched = (opt.dataset.start || '') + ' — ' + (opt.dataset.end || '');
         const lunch = (opt.dataset.lunchStart || '') + ' — ' + (opt.dataset.lunchEnd || '');
-        document.getElementById('dShiftPreviewSched').textContent = sched;
-        document.getElementById('dShiftPreviewLunch').textContent = lunch;
+        // Legacy preview elements were removed with the old shift editor — guard against missing ids.
+        const s = document.getElementById('dShiftPreviewSched');
+        const l = document.getElementById('dShiftPreviewLunch');
+        if (s) s.textContent = sched;
+        if (l) l.textContent = lunch;
     }
     function saveShiftForDay() {
         if (!currentTd) return;
@@ -1095,8 +1098,10 @@
         statusEl.textContent = statusLabels[status] || status;
         statusEl.style.color = statusColors[status] || '#000';
 
-        // Shift: prefer the resolved shift-name (from date-based lookup), fall back to the AttendanceDay's shift
-        document.getElementById('dShift').textContent = td.dataset.shiftName || td.dataset.shift || 'N/A';
+        // Shift is now a dropdown — select the current shift (if known) and refresh the
+        // Schedule / Lunch Break preview rows from the freshly-picked option's data-* attributes.
+        const dShiftEl = document.getElementById('dShift');
+        if (dShiftEl) dShiftEl.textContent = td.dataset.shiftName || td.dataset.shift || 'N/A';
         setShiftScheduleRows(td);
 
         // Populate display value + prefill input for each time field.

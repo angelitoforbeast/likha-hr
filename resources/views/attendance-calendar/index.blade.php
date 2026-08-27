@@ -667,15 +667,16 @@
             list.appendChild(div);
         });
         updateBulkSelectedCount();
-        list.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.addEventListener('change', updateBulkSelectedCount));
+        list.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.addEventListener('change', function () {
+            updateBulkSelectedCount();
+            updateBulkTimeSuggestions();
+        }));
 
-        // Reset form state
+        // Reset reason + result but let updateBulkTimeSuggestions() populate time inputs
+        // from existing cell values (or leave blank + placeholder if none/varies).
         document.getElementById('bulkReason').value = '';
-        document.getElementById('bulkTimeIn').value = '';
-        document.getElementById('bulkLunchOut').value = '';
-        document.getElementById('bulkLunchIn').value = '';
-        document.getElementById('bulkTimeOut').value = '';
         document.getElementById('bulkResult').style.display = 'none';
+        updateBulkTimeSuggestions();
 
         bulkActionModal.show();
     }
@@ -683,11 +684,61 @@
     function bulkSelectAll(checked) {
         document.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.checked = checked);
         updateBulkSelectedCount();
+        updateBulkTimeSuggestions();
     }
 
     function updateBulkSelectedCount() {
         const n = document.querySelectorAll('.bulk-emp-cb:checked').length;
         document.getElementById('bulkSelectedCount').textContent = n;
+    }
+
+    // Read the existing time values from the calendar cells for every selected employee.
+    // If they all agree on a field, prefill that field so the user isn't re-typing what's already
+    // there. If they differ, leave blank and hint via placeholder that values vary.
+    function updateBulkTimeSuggestions() {
+        const fields = [
+            { field: 'time_in',   dataKey: 'timeIn',   inputId: 'bulkTimeIn' },
+            { field: 'lunch_out', dataKey: 'lunchOut', inputId: 'bulkLunchOut' },
+            { field: 'lunch_in',  dataKey: 'lunchIn',  inputId: 'bulkLunchIn' },
+            { field: 'time_out',  dataKey: 'timeOut',  inputId: 'bulkTimeOut' },
+        ];
+        const selected = Array.from(document.querySelectorAll('.bulk-emp-cb:checked'));
+
+        fields.forEach(f => {
+            const input = document.getElementById(f.inputId);
+            if (!input) return;
+            if (selected.length === 0) {
+                input.value = '';
+                input.placeholder = '--:--:-- --';
+                return;
+            }
+            const values = new Set();
+            selected.forEach(cb => {
+                const cell = document.querySelector(
+                    'table.cal-table tbody tr td[data-employee-id="' + cb.value + '"][data-date="' + bulkCurrentDate + '"]'
+                );
+                if (cell) {
+                    const v = (cell.dataset[f.dataKey] || '').trim();
+                    if (v) values.add(v);
+                }
+            });
+            if (values.size === 1) {
+                // All selected employees share the same value — prefill (with seconds).
+                const v = Array.from(values)[0];
+                const parts = v.split(':');
+                while (parts.length < 3) parts.push('00');
+                input.value = parts.slice(0, 3).map(p => p.padStart(2, '0')).join(':');
+                input.placeholder = 'same for all selected';
+            } else if (values.size > 1) {
+                // Selected employees have different existing values — leave blank; hint at variance.
+                input.value = '';
+                input.placeholder = 'varies (' + values.size + ' different) — type to override';
+            } else {
+                // Nobody has a value yet — blank with default placeholder.
+                input.value = '';
+                input.placeholder = 'blank — no existing value';
+            }
+        });
     }
 
     function onBulkActionChange() { /* no-op — retained for compat with old modal open reset */ }

@@ -94,9 +94,22 @@ class EmployeeController extends Controller
         $userRole = Auth::user()->role;
         $permissions = FeaturePermission::getForRole($userRole);
 
+        // SIL data for this employee — balance for current year (auto-created with 0) and
+        // this-year applications for the manage-SIL section on the edit page.
+        $currentYear = (int) now()->year;
+        $silBalance = $employee->getSilBalance($currentYear);
+        $silApplications = \App\Models\SilApplication::with('applier')
+            ->where('employee_id', $employee->id)
+            ->whereYear('sil_date', $currentYear)
+            ->orderByDesc('sil_date')
+            ->get();
+        $silUsed = $silApplications->count();
+        $silRemaining = (float) $silBalance->total_days - $silUsed;
+
         return view('employees.edit', compact(
             'employee', 'shifts', 'departments',
-            'employmentStatuses', 'benefitTypes', 'permissions'
+            'employmentStatuses', 'benefitTypes', 'permissions',
+            'silBalance', 'silApplications', 'silUsed', 'silRemaining', 'currentYear'
         ));
     }
 
@@ -759,5 +772,87 @@ class EmployeeController extends Controller
                    });
             });
         })->first();
+    }
+
+    /* ── SIL (Service Incentive Leave) Management ── */
+
+    /**
+     * Toggle SIL eligibility for the employee (CEO only).
+     */
+    public function toggleSilEligibility(Request $request, Employee $employee)
+    {
+        if (Auth::user()->role !== 'ceo') {
+            return back()->with('error', 'Only CEO can toggle SIL eligibility.');
+        }
+        $employee->update(['sil_eligible' => (bool) $request->boolean('sil_eligible')]);
+        return back()->with('success', $employee->sil_eligible ? 'SIL eligibility enabled.' : 'SIL eligibility disabled.');
+    }
+
+    /**
+     * Set the total SIL balance for a given year (CEO only).
+     */
+    public function setSilBalance(Request $request, Employee $employee)
+    {
+        if (Auth::user()->role !== 'ceo') {
+            return back()->with('error', 'Only CEO can set SIL balance.');
+        }
+        $validated = $request->validate([
+            'year'       => 'required|integer|min:2000|max:2100',
+            'total_days' => 'required|numeric|min:0|max:365',
+            'notes'      => 'nullable|string|max:500',
+        ]);
+        $balance = $employee->getSilBalance($validated['year']);
+        $balance->update([
+            'total_days' => $validated['total_days'],
+            'notes'      => $validated['notes'] ?? $balance->notes,
+        ]);
+        return back()->with('success', 'SIL balance updated for ' . $validated['year'] . '.');
+    }
+
+    /**
+     * Manually add a SIL application for a date (CEO only).
+     */
+    public function addSilApplication(Request $request, Employee $employee)
+    {
+        if (Auth::user()->role !== 'ceo') {
+            return back()->with('error', 'Only CEO can add SIL applications.');
+        }
+        if (!$employee->sil_eligible) {
+            return back()->with('error', 'Enable SIL eligibility first.');
+        }
+        $validated = $request->validate([
+            'sil_date' => 'required|date',
+            'reason'   => 'required|string|min:3|max:500',
+        ]);
+        $year = Carbon::parse($validated['sil_date'])->year;
+        if ($employee->getSilRemainingDays($year) < 1) {
+            return back()->with('error', 'No remaining SIL days for ' . $year . '.');
+        }
+        $exists = \App\Models\SilApplication::where('employee_id', $employee->id)
+            ->whereDate('sil_date', $validated['sil_date'])
+            ->exists();
+        if ($exists) {
+            return back()->with('error', 'SIL already applied for that date.');
+        }
+        \App\Models\SilApplication::create([
+            'employee_id' => $employee->id,
+            'sil_date'    => $validated['sil_date'],
+            'reason'      => $validated['reason'],
+            'applied_by'  => Auth::id(),
+        ]);
+        return back()->with('success', 'SIL application added.');
+    }
+
+    /**
+     * Delete a SIL application (CEO only).
+     */
+    public function deleteSilApplication(Employee $employee, \App\Models\SilApplication $sil)
+    {
+        if (Auth::user()->role !== 'ceo') {
+            return back()->with('error', 'Only CEO can delete SIL applications.');
+        }
+        if ($sil->employee_id !== $employee->id) abort(403);
+        $sil->delete();
+        return back()->with('success', 'SIL application removed.');
     }
 }

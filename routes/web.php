@@ -115,6 +115,12 @@ Route::middleware('auth')->group(function () {
 
         // Bulk Operations
         Route::post('/employees/bulk-action', [EmployeeController::class, 'bulkAction'])->name('employees.bulk-action');
+
+        // SIL (Service Incentive Leave) management
+        Route::post('/employees/{employee}/toggle-sil-eligibility', [EmployeeController::class, 'toggleSilEligibility'])->name('employees.toggle-sil-eligibility');
+        Route::post('/employees/{employee}/set-sil-balance', [EmployeeController::class, 'setSilBalance'])->name('employees.set-sil-balance');
+        Route::post('/employees/{employee}/add-sil', [EmployeeController::class, 'addSilApplication'])->name('employees.add-sil');
+        Route::delete('/employees/{employee}/sil/{sil}', [EmployeeController::class, 'deleteSilApplication'])->name('employees.delete-sil');
     });
 
     // Shifts

@@ -113,6 +113,13 @@ class PayrollService
             ->whereBetween('work_date', [$startStr, $endStr])
             ->get();
 
+        // SIL applications in this cutoff — SIL days are paid as regular working days without
+        // requiring attendance. Track them so payroll adds their pay and the breakdown shows them.
+        $silDatesInPeriod = \App\Models\SilApplication::where('employee_id', $employee->id)
+            ->whereBetween('sil_date', [$startStr, $endStr])
+            ->get()
+            ->keyBy(fn ($s) => $s->sil_date->format('Y-m-d'));
+
         // Build a set of dates that have attendance
         $attendanceDateSet = [];
         foreach ($attendanceDays as $day) {
@@ -309,20 +316,45 @@ class PayrollService
             ];
         }
 
-        // 4b. Fill in "missing" dates so the payslip's Daily Breakdown shows the full cutoff
-        // (Absent rows, Rest Day rows, and Holiday-not-worked rows) instead of only the days
-        // that had punches. Payroll totals are unaffected — these entries are display-only rows
-        // with amount = 0 (rest/absent) or the pro-rated holiday pay row for holiday not worked.
-        $breakdownDateSet = collect($dailyBreakdown)->pluck('date')->flip()->all();
-        $period = \Carbon\CarbonPeriod::create($startStr, $endStr);
+        // 4b. Fill in "missing" dates so the payslip's Daily Breakdown shows the full cutoff.
+        // Also treat SIL days as paid regular days — their per-day rate feeds into basic pay,
+        // and they show up as SIL rows in the breakdown.
+        $breakdownDateSet  = collect($dailyBreakdown)->pluck('date')->flip()->all();
+        $period            = \Carbon\CarbonPeriod::create($startStr, $endStr);
         $restDayDateSet    = array_flip($mandaysData['rest_day_dates']    ?? []);
         $holidayDateSet    = array_flip($mandaysData['holiday_dates']     ?? []);
+        $silDaysCount      = 0;
+        $silPay            = 0;
         foreach ($period as $day) {
             $dStr = $day->format('Y-m-d');
+            $isSil = $silDatesInPeriod->has($dStr);
+
+            // SIL takes precedence — override any attendance record on this date.
+            // Rewrite the breakdown for this date if it already exists.
+            if ($isSil) {
+                $dayRate = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
+                $silDaysCount++;
+                $silPay += $dayRate;
+                $daysWorked++;          // SIL counts as a paid day
+                $perDayGrossBasic += $dayRate;
+                // Remove any prior entry for this date, then append the SIL row.
+                $dailyBreakdown = array_values(array_filter($dailyBreakdown, fn ($b) => ($b['date'] ?? '') !== $dStr));
+                $silApp = $silDatesInPeriod->get($dStr);
+                $dailyBreakdown[] = [
+                    'date'   => $dStr, 'type' => 'sil', 'status' => 'SIL',
+                    'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,
+                    'work_mins' => 0, 'hours' => 0, 'rate' => $dayRate,
+                    'late' => 0, 'early' => 0, 'undertime' => 0, 'ot' => 0,
+                    'amount' => $dayRate,
+                    'sil_reason' => $silApp?->reason,
+                ];
+                $breakdownDateSet[$dStr] = true;
+                continue;
+            }
+
             if (isset($breakdownDateSet[$dStr])) continue;
 
-            $dayShift = $employee->getShiftForDate($dStr);
-            $dayRate  = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
+            $dayRate       = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
             $holidayForDay = Holiday::getHolidayForDate($dStr);
 
             if (isset($restDayDateSet[$dStr])) {
@@ -334,7 +366,6 @@ class PayrollService
                     'amount' => 0, 'not_counted' => true,
                 ];
             } elseif (isset($holidayDateSet[$dStr]) && $holidayForDay) {
-                // Holiday but no attendance — for eligible employees this is paid (100% of daily rate).
                 $dailyBreakdown[] = [
                     'date'   => $dStr, 'type' => 'holiday_not_worked', 'status' => 'Holiday (not worked)',
                     'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,

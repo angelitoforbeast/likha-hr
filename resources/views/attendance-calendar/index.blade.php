@@ -456,26 +456,12 @@
                         <div class="fw-semibold small"><i class="bi bi-cup-hot"></i> Service Incentive Leave</div>
                         <div class="small">
                             <span id="dSilBalanceLabel" class="badge bg-info text-dark">SIL: — remaining</span>
-                            @if(auth()->user() && auth()->user()->role === 'ceo')
-                                <button type="button" class="btn btn-sm btn-link p-0 ms-1" style="font-size:.75rem" onclick="showSilBalanceEditor()" title="Adjust total SIL for the year">
-                                    <i class="bi bi-pencil-square"></i> edit balance
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                    <div id="dSilBalanceEditor" class="border rounded p-2 mb-2 bg-light" style="display:none">
-                        <div class="d-flex gap-1 align-items-center flex-wrap">
-                            <label class="small mb-0">Year <span id="dSilBalanceYear"></span> total days:</label>
-                            <input type="number" step="0.5" min="0" max="365" class="form-control form-control-sm" id="dSilBalanceTotal" style="max-width:100px">
-                            <button type="button" class="btn btn-sm btn-success" onclick="saveSilBalance()"><i class="bi bi-check-lg"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('dSilBalanceEditor').style.display='none'"><i class="bi bi-x-lg"></i></button>
                         </div>
                     </div>
                     <div id="dSilEligibleNote" class="alert alert-warning py-1 px-2 small mb-2" style="display:none">
-                        <i class="bi bi-exclamation-triangle"></i> Employee is not marked as SIL-eligible.
-                        @if(auth()->user() && auth()->user()->role === 'ceo')
-                            <button type="button" class="btn btn-sm btn-warning py-0 px-2 ms-1" onclick="toggleSilEligibility(true)">Enable</button>
-                        @endif
+                        <i class="bi bi-exclamation-triangle"></i> Employee is not SIL-eligible.
+                        Enable SIL and set the yearly balance on
+                        <a href="#" id="dSilManageLink" target="_blank">the Employee edit page</a>.
                     </div>
                     <div id="dSilAppliedNote" class="alert alert-info py-1 px-2 small mb-2" style="display:none">
                         <i class="bi bi-check-circle"></i> <strong>SIL is applied</strong> for this date.
@@ -1456,6 +1442,11 @@
             'SIL: ' + remaining.toFixed(2).replace(/\.00$/, '') + ' / ' + total.toFixed(2).replace(/\.00$/, '') + ' remaining';
         const elNote = document.getElementById('dSilEligibleNote');
         if (elNote) elNote.style.display = eligible ? 'none' : '';
+        // Link to the Employee edit page (SIL section anchor)
+        const manageLink = document.getElementById('dSilManageLink');
+        if (manageLink && currentTd) {
+            manageLink.href = '{{ url("/employees") }}/' + currentTd.dataset.employeeId + '/edit#sil-section';
+        }
         const applyBtn = document.getElementById('dApplySilBtn');
         if (applyBtn) { applyBtn.disabled = !eligible || applied || remaining < 1; applyBtn.style.display = applied ? 'none' : ''; }
         const removeBtn = document.getElementById('dRemoveSilBtn');

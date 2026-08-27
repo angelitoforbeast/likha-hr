@@ -1053,6 +1053,108 @@
         </div>
         @endif
 
+        {{-- ============================================================
+             Service Incentive Leave (CEO manages eligibility + yearly balance + applications)
+             ============================================================ --}}
+        @if(auth()->user() && auth()->user()->role === 'ceo')
+        <div class="card border-0 shadow-sm mb-4" id="sil-section">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-cup-hot"></i> Service Incentive Leave (SIL)</h6>
+                <form method="POST" action="{{ route('employees.toggle-sil-eligibility', $employee) }}" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="sil_eligible" value="{{ $employee->sil_eligible ? '0' : '1' }}">
+                    <button type="submit" class="btn btn-sm {{ $employee->sil_eligible ? 'btn-success' : 'btn-outline-secondary' }}">
+                        <i class="bi bi-{{ $employee->sil_eligible ? 'check-circle-fill' : 'circle' }}"></i>
+                        {{ $employee->sil_eligible ? 'SIL Eligible' : 'Not SIL Eligible' }}
+                        <small class="ms-1">(click to {{ $employee->sil_eligible ? 'disable' : 'enable' }})</small>
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                @if(!$employee->sil_eligible)
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle"></i> Enable SIL eligibility above to start tracking Service Incentive Leave for this employee.
+                    </div>
+                @else
+                    {{-- Year balance --}}
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold mb-1">Year {{ $currentYear }} — Total Days</label>
+                            <form method="POST" action="{{ route('employees.set-sil-balance', $employee) }}" class="d-flex gap-1">
+                                @csrf
+                                <input type="hidden" name="year" value="{{ $currentYear }}">
+                                <input type="number" step="0.5" min="0" max="365" name="total_days"
+                                       class="form-control form-control-sm" style="max-width:110px"
+                                       value="{{ number_format((float) $silBalance->total_days, 2, '.', '') }}">
+                                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save"></i></button>
+                            </form>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted mb-1">Used</div>
+                            <div class="fs-5 fw-semibold text-warning">{{ $silUsed }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted mb-1">Remaining</div>
+                            <div class="fs-5 fw-semibold {{ $silRemaining > 0 ? 'text-success' : 'text-danger' }}">{{ number_format($silRemaining, 2) }}</div>
+                        </div>
+                    </div>
+
+                    {{-- Add new SIL application --}}
+                    <div class="border rounded p-2 bg-light mb-3">
+                        <form method="POST" action="{{ route('employees.add-sil', $employee) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold mb-1">Add SIL Date</label>
+                                <input type="date" name="sil_date" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label small fw-semibold mb-1">Reason (required)</label>
+                                <input type="text" name="reason" class="form-control form-control-sm" minlength="3" maxlength="500" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-info w-100"><i class="bi bi-plus-circle"></i> Add</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {{-- List of applications this year --}}
+                    <h6 class="small fw-semibold mt-3 mb-2">SIL applications in {{ $currentYear }}</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0" style="font-size:0.85rem">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reason</th>
+                                    <th>Applied By</th>
+                                    <th>Applied At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($silApplications as $sa)
+                                <tr>
+                                    <td class="fw-semibold">{{ $sa->sil_date->format('M d, Y') }}</td>
+                                    <td>{{ $sa->reason }}</td>
+                                    <td>{{ $sa->applier->name ?? 'Unknown' }}</td>
+                                    <td class="small text-muted">{{ $sa->created_at->format('M d, Y g:i A') }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ route('employees.delete-sil', [$employee, $sa]) }}" onsubmit="return confirm('Remove this SIL application?')" class="d-inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="text-center text-muted py-3">No SIL applications yet for {{ $currentYear }}.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
         {{-- Cash Advances --}}
         @if($canView('cash_advance'))
         <div class="card border-0 shadow-sm mb-4">

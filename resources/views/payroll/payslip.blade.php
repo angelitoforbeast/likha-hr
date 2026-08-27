@@ -238,6 +238,8 @@
                         $rowClass = 'table-warning';
                     } elseif (($bd['type'] ?? '') === 'absent') {
                         $rowClass = 'table-danger';
+                    } elseif (($bd['type'] ?? '') === 'sil') {
+                        $rowClass = 'table-info';
                     }
                     $typeLabel = match($bd['type'] ?? 'regular') {
                         'rest_day' => 'Rest Day',
@@ -245,6 +247,7 @@
                         'holiday' => '<i class="bi bi-star-fill text-warning"></i> Holiday',
                         'holiday_not_worked' => '<i class="bi bi-star text-warning"></i> Holiday (not worked)',
                         'absent' => 'Absent',
+                        'sil' => '<i class="bi bi-cup-hot text-info"></i> SIL',
                         default => 'Regular',
                     };
 

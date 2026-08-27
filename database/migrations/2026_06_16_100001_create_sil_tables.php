@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
             $table->smallInteger('year');
-            $table->decimal('total_days', 5, 2)->default(5.00);
+            $table->decimal('total_days', 5, 2)->default(0.00);
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->unique(['employee_id', 'year']);

@@ -335,13 +335,14 @@ class Employee extends Model
     /* ── SIL (Service Incentive Leave) Helpers ── */
 
     /**
-     * Get or create the SIL balance row for this employee/year. Default total is 5 days (DOLE).
+     * Get or create the SIL balance row for this employee/year.
+     * Default total is 0 — the CEO must manually set it (mid-year adjustments, tenure, etc.).
      */
     public function getSilBalance(int $year): EmployeeSilBalance
     {
         return EmployeeSilBalance::firstOrCreate(
             ['employee_id' => $this->id, 'year' => $year],
-            ['total_days' => 5.00]
+            ['total_days' => 0.00]
         );
     }
 

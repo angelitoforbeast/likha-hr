@@ -309,6 +309,52 @@ class PayrollService
             ];
         }
 
+        // 4b. Fill in "missing" dates so the payslip's Daily Breakdown shows the full cutoff
+        // (Absent rows, Rest Day rows, and Holiday-not-worked rows) instead of only the days
+        // that had punches. Payroll totals are unaffected — these entries are display-only rows
+        // with amount = 0 (rest/absent) or the pro-rated holiday pay row for holiday not worked.
+        $breakdownDateSet = collect($dailyBreakdown)->pluck('date')->flip()->all();
+        $period = \Carbon\CarbonPeriod::create($startStr, $endStr);
+        $restDayDateSet    = array_flip($mandaysData['rest_day_dates']    ?? []);
+        $holidayDateSet    = array_flip($mandaysData['holiday_dates']     ?? []);
+        foreach ($period as $day) {
+            $dStr = $day->format('Y-m-d');
+            if (isset($breakdownDateSet[$dStr])) continue;
+
+            $dayShift = $employee->getShiftForDate($dStr);
+            $dayRate  = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
+            $holidayForDay = Holiday::getHolidayForDate($dStr);
+
+            if (isset($restDayDateSet[$dStr])) {
+                $dailyBreakdown[] = [
+                    'date'   => $dStr, 'type' => 'rest_day', 'status' => 'Rest Day',
+                    'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,
+                    'work_mins' => 0, 'hours' => 0, 'rate' => $dayRate,
+                    'late' => 0, 'early' => 0, 'undertime' => 0, 'ot' => 0,
+                    'amount' => 0, 'not_counted' => true,
+                ];
+            } elseif (isset($holidayDateSet[$dStr]) && $holidayForDay) {
+                // Holiday but no attendance — for eligible employees this is paid (100% of daily rate).
+                $dailyBreakdown[] = [
+                    'date'   => $dStr, 'type' => 'holiday_not_worked', 'status' => 'Holiday (not worked)',
+                    'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,
+                    'work_mins' => 0, 'hours' => 0, 'rate' => $dayRate,
+                    'late' => 0, 'early' => 0, 'undertime' => 0, 'ot' => 0,
+                    'amount' => 0, 'holiday_name' => $holidayForDay->name ?? 'Holiday',
+                ];
+            } else {
+                $dailyBreakdown[] = [
+                    'date'   => $dStr, 'type' => 'absent', 'status' => 'Absent',
+                    'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,
+                    'work_mins' => 0, 'hours' => 0, 'rate' => $dayRate,
+                    'late' => 0, 'early' => 0, 'undertime' => 0, 'ot' => 0,
+                    'amount' => 0,
+                ];
+            }
+        }
+        // Keep the breakdown chronological now that fill-in rows have been appended.
+        usort($dailyBreakdown, fn ($a, $b) => strcmp($a['date'], $b['date']));
+
         // 5. Check each holiday date to determine worked vs not worked
         // Note: holiday dates returned by computeRequiredMandays are already filtered
         // to only include dates where the employee was holiday-eligible on that specific date.

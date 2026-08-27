@@ -234,6 +234,8 @@
                         $rowStyle = 'background: #ff4444 !important; color: #fff !important; font-weight: 700;';
                     } elseif (($bd['type'] ?? '') === 'holiday') {
                         $rowClass = 'table-warning';
+                    } elseif (($bd['type'] ?? '') === 'holiday_not_worked') {
+                        $rowClass = 'table-warning';
                     } elseif (($bd['type'] ?? '') === 'absent') {
                         $rowClass = 'table-danger';
                     }
@@ -241,6 +243,7 @@
                         'rest_day' => 'Rest Day',
                         'rest_day_worked' => "\u{26A0} RD-P (NOT COUNTED)",
                         'holiday' => '<i class="bi bi-star-fill text-warning"></i> Holiday',
+                        'holiday_not_worked' => '<i class="bi bi-star text-warning"></i> Holiday (not worked)',
                         'absent' => 'Absent',
                         default => 'Regular',
                     };

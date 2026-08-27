@@ -12,9 +12,24 @@ class ImportController extends Controller
 {
     public function index()
     {
-        $runs = AttendanceImportRun::with('uploader')
-            ->orderByDesc('created_at')
-            ->paginate(15);
+        // Role-based visibility:
+        //  - CEO sees ALL import runs (from anyone).
+        //  - Admin sees imports uploaded by admins/hr_staff (i.e., NOT CEO's imports).
+        //  - HR Staff sees imports uploaded by hr_staff only (i.e., NOT CEO's or admin's).
+        // Rationale: prevent lower roles from seeing the CEO's private upload history.
+        $user = Auth::user();
+        $query = AttendanceImportRun::with('uploader')->orderByDesc('created_at');
+
+        if ($user && $user->role !== 'ceo') {
+            $allowedRoles = $user->role === 'admin'
+                ? ['admin', 'hr_staff']
+                : ['hr_staff']; // default fallback for hr_staff / others
+            $query->whereHas('uploader', function ($q) use ($allowedRoles) {
+                $q->whereIn('role', $allowedRoles);
+            });
+        }
+
+        $runs = $query->paginate(15);
 
         return view('import.index', compact('runs'));
     }

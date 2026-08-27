@@ -31,8 +31,10 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
-Route::post('/register', [RegisterController::class, 'register']);
+// Public /register was disabled to prevent bot account creation. All new users must be added
+// by CEO/Admin via /users (User Management). The route name "register" is kept as an alias
+// pointing to /login so Laravel's built-in redirects don't 404.
+Route::get('/register', fn () => redirect()->route('login'))->name('register');
 
 /*
 |--------------------------------------------------------------------------

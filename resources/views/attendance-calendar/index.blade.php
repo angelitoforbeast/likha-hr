@@ -14,6 +14,7 @@
     .cal-cell-absent { background: #f8d7da !important; color: #842029; font-weight: 600; }
     .cal-cell-dayoff { background: #cfe2ff !important; color: #084298; font-weight: 600; }
     .cal-cell-rdpresent { background: #ff4444 !important; color: #fff !important; font-weight: 700; animation: rdp-blink 1.2s ease-in-out infinite; }
+    .cal-cell-sil { background: #a0e7e5 !important; color: #007a72 !important; font-weight: 700; }
     @keyframes rdp-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     .cal-cell-today { border: 2px solid #0d6efd !important; }
     .cal-cell-edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #6f42c1; border-radius: 50%; }
@@ -118,6 +119,7 @@
     <span class="cal-legend"><span class="cal-legend-box" style="background:#f8d7da"></span> Absent</span>
     <span class="cal-legend"><span class="cal-legend-box" style="background:#cfe2ff"></span> Rest Day</span>
     <span class="cal-legend"><span class="cal-legend-box" style="background:#ff4444"></span> <strong style="color:#ff4444">RD-P (Rest Day Worked!)</strong></span>
+    <span class="cal-legend"><span class="cal-legend-box" style="background:#a0e7e5"></span> SIL (Service Incentive Leave)</span>
     <span class="cal-legend"><span style="display:inline-block;width:8px;height:8px;background:#6f42c1;border-radius:50%;margin-right:2px"></span> Edited</span>
 </div>
 
@@ -201,6 +203,10 @@
                                     $cellClass = 'cal-cell-dayoff';
                                     $cellText = 'RD';
                                     break;
+                                case 'sil':
+                                    $cellClass = 'cal-cell-sil';
+                                    $cellText = 'SIL';
+                                    break;
                             }
 
                             if ($isToday) $cellClass .= ' cal-cell-today';
@@ -222,6 +228,23 @@
                                 if ($shiftIdForCell) {
                                     $dataAttrs .= ' data-shift-id="' . $shiftIdForCell . '"';
                                 }
+                            }
+
+                            // SIL info for this date (if any) — used by the modal to prefill state.
+                            $silInfo = $dayInfo['sil'] ?? null;
+                            $dataAttrs .= ' data-sil-eligible="' . ($empCal['employee']->sil_eligible ? '1' : '0') . '"';
+                            $silBalance = $empCal['employee']->getSilBalance((int) $dayDate->year);
+                            $silRemaining = $empCal['employee']->getSilRemainingDays((int) $dayDate->year);
+                            $dataAttrs .= ' data-sil-total="' . number_format((float) $silBalance->total_days, 2, '.', '') . '"'
+                                . ' data-sil-remaining="' . number_format((float) $silRemaining, 2, '.', '') . '"'
+                                . ' data-sil-year="' . (int) $dayDate->year . '"';
+                            if ($silInfo) {
+                                $dataAttrs .= ' data-sil-applied="1"'
+                                    . ' data-sil-reason="' . e($silInfo['reason']) . '"'
+                                    . ' data-sil-by="' . e($silInfo['applied_by']) . '"'
+                                    . ' data-sil-at="' . e($silInfo['applied_at']) . '"';
+                            } else {
+                                $dataAttrs .= ' data-sil-applied="0"';
                             }
 
                             // Edit-history attrs — always emitted so absent/day-off cells with day-off
@@ -423,6 +446,53 @@
                         </button>
                     </div>
                     <div id="dayOffMsgPresent" class="small mt-2 text-center" style="display:none"></div>
+
+                    {{-- ============================================================
+                         SIL section — apply / remove Service Incentive Leave for this date.
+                         Also lets CEO toggle eligibility and adjust the year's total balance.
+                         ============================================================ --}}
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold small"><i class="bi bi-cup-hot"></i> Service Incentive Leave</div>
+                        <div class="small">
+                            <span id="dSilBalanceLabel" class="badge bg-info text-dark">SIL: — remaining</span>
+                            @if(auth()->user() && auth()->user()->role === 'ceo')
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-1" style="font-size:.75rem" onclick="showSilBalanceEditor()" title="Adjust total SIL for the year">
+                                    <i class="bi bi-pencil-square"></i> edit balance
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                    <div id="dSilBalanceEditor" class="border rounded p-2 mb-2 bg-light" style="display:none">
+                        <div class="d-flex gap-1 align-items-center flex-wrap">
+                            <label class="small mb-0">Year <span id="dSilBalanceYear"></span> total days:</label>
+                            <input type="number" step="0.5" min="0" max="365" class="form-control form-control-sm" id="dSilBalanceTotal" style="max-width:100px">
+                            <button type="button" class="btn btn-sm btn-success" onclick="saveSilBalance()"><i class="bi bi-check-lg"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('dSilBalanceEditor').style.display='none'"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    </div>
+                    <div id="dSilEligibleNote" class="alert alert-warning py-1 px-2 small mb-2" style="display:none">
+                        <i class="bi bi-exclamation-triangle"></i> Employee is not marked as SIL-eligible.
+                        @if(auth()->user() && auth()->user()->role === 'ceo')
+                            <button type="button" class="btn btn-sm btn-warning py-0 px-2 ms-1" onclick="toggleSilEligibility(true)">Enable</button>
+                        @endif
+                    </div>
+                    <div id="dSilAppliedNote" class="alert alert-info py-1 px-2 small mb-2" style="display:none">
+                        <i class="bi bi-check-circle"></i> <strong>SIL is applied</strong> for this date.
+                        <div class="small text-muted mt-1"><span id="dSilAppliedDetails"></span></div>
+                    </div>
+                    <input type="text" class="form-control form-control-sm mb-1" id="dSilReason"
+                           placeholder="Reason for applying SIL (required, min 3 chars)"
+                           minlength="3" maxlength="500">
+                    <div class="d-flex gap-2 justify-content-center flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" id="dApplySilBtn" onclick="applySilForDate()">
+                            <i class="bi bi-cup-hot"></i> Apply SIL
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger flex-fill" id="dRemoveSilBtn" onclick="removeSilForDate()" style="display:none">
+                            <i class="bi bi-x-circle"></i> Remove SIL
+                        </button>
+                    </div>
+                    <div id="dSilMsg" class="small mt-2 text-center" style="display:none"></div>
                 </div>
 
                 {{-- Absent / Day Off detail --}}
@@ -873,6 +943,8 @@
         'undertime': 'Undertime',
         'absent': 'Absent',
         'day_off': 'Rest Day',
+        'rd_present': 'Rest Day Worked',
+        'sil': 'SIL (Service Incentive Leave)',
     };
 
     const statusColors = {
@@ -880,6 +952,8 @@
         'undertime': '#664d03',
         'absent': '#842029',
         'day_off': '#084298',
+        'rd_present': '#ff4444',
+        'sil': '#007a72',
     };
 
     const fieldLabels = {
@@ -1139,6 +1213,9 @@
         // Fetch raw punches once and populate all 4 punch pickers
         loadPunchesIntoPickers(td.dataset.employeeId, td.dataset.date);
 
+        // Refresh the SIL section (balance, apply/remove state, eligibility banner)
+        refreshSilSectionFromCell();
+
         document.getElementById('dWork').textContent = fmtMin(td.dataset.work);
         document.getElementById('dLate').textContent = fmtMin(td.dataset.late);
         document.getElementById('dEarly').textContent = fmtMin(td.dataset.early);
@@ -1364,6 +1441,130 @@
         el.style.display = '';
         if (isSuccess) setTimeout(() => { el.style.display = 'none'; }, 2000);
     }
+
+    // ================= SIL (Service Incentive Leave) — modal handlers =================
+    // Reads the SIL data-* attributes on the current cell and orchestrates apply / remove /
+    // eligibility toggle / balance-adjust against the calendar endpoints.
+    function refreshSilSectionFromCell() {
+        if (!currentTd) return;
+        const eligible = currentTd.dataset.silEligible === '1';
+        const applied  = currentTd.dataset.silApplied === '1';
+        const remaining = parseFloat(currentTd.dataset.silRemaining || '0');
+        const total    = parseFloat(currentTd.dataset.silTotal || '0');
+        const balLabel = document.getElementById('dSilBalanceLabel');
+        if (balLabel) balLabel.textContent =
+            'SIL: ' + remaining.toFixed(2).replace(/\.00$/, '') + ' / ' + total.toFixed(2).replace(/\.00$/, '') + ' remaining';
+        const elNote = document.getElementById('dSilEligibleNote');
+        if (elNote) elNote.style.display = eligible ? 'none' : '';
+        const applyBtn = document.getElementById('dApplySilBtn');
+        if (applyBtn) { applyBtn.disabled = !eligible || applied || remaining < 1; applyBtn.style.display = applied ? 'none' : ''; }
+        const removeBtn = document.getElementById('dRemoveSilBtn');
+        if (removeBtn) removeBtn.style.display = applied ? '' : 'none';
+        const appliedNote = document.getElementById('dSilAppliedNote');
+        if (appliedNote) appliedNote.style.display = applied ? '' : 'none';
+        if (applied) {
+            const d = document.getElementById('dSilAppliedDetails');
+            if (d) d.textContent = 'By ' + (currentTd.dataset.silBy || 'Unknown')
+                + ' on ' + (currentTd.dataset.silAt || '')
+                + ' — "' + (currentTd.dataset.silReason || '') + '"';
+        }
+        const reason = document.getElementById('dSilReason');
+        if (reason) reason.value = '';
+        const msg = document.getElementById('dSilMsg');
+        if (msg) msg.style.display = 'none';
+        const editor = document.getElementById('dSilBalanceEditor');
+        if (editor) editor.style.display = 'none';
+    }
+    function silShowMessage(text, isSuccess) {
+        const el = document.getElementById('dSilMsg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'small mt-2 text-center ' + (isSuccess ? 'text-success' : 'text-danger');
+        el.style.display = '';
+        if (isSuccess) setTimeout(() => { el.style.display = 'none'; }, 2000);
+    }
+    function applySilForDate() {
+        if (!currentTd) return;
+        const reason = (document.getElementById('dSilReason').value || '').trim();
+        if (reason.length < 3) { silShowMessage('Reason is required (min 3 chars).', false); return; }
+        fetch('{{ url("/attendance-calendar/apply-sil") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date, reason: reason }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            currentTd.dataset.silApplied = '1';
+            currentTd.dataset.silReason  = reason;
+            currentTd.dataset.silRemaining = String(data.remaining);
+            refreshSilSectionFromCell();
+            silShowMessage('SIL applied. ' + data.remaining + ' remaining.', true);
+            modalHasChanges = true;
+        })
+        .catch(() => silShowMessage('Network error.', false));
+    }
+    function removeSilForDate() {
+        if (!currentTd || !confirm('Remove SIL for this date?')) return;
+        fetch('{{ url("/attendance-calendar/remove-sil") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            currentTd.dataset.silApplied = '0';
+            currentTd.dataset.silRemaining = String(data.remaining);
+            refreshSilSectionFromCell();
+            silShowMessage('SIL removed.', true);
+            modalHasChanges = true;
+        })
+        .catch(() => silShowMessage('Network error.', false));
+    }
+    function toggleSilEligibility(eligible) {
+        if (!currentTd) return;
+        fetch('{{ url("/attendance-calendar/toggle-sil-eligibility") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, eligible: eligible }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            currentTd.dataset.silEligible = data.eligible ? '1' : '0';
+            refreshSilSectionFromCell();
+            silShowMessage(data.message, true);
+        })
+        .catch(() => silShowMessage('Network error.', false));
+    }
+    function showSilBalanceEditor() {
+        if (!currentTd) return;
+        document.getElementById('dSilBalanceYear').textContent = currentTd.dataset.silYear || '';
+        document.getElementById('dSilBalanceTotal').value = currentTd.dataset.silTotal || '5.00';
+        document.getElementById('dSilBalanceEditor').style.display = '';
+    }
+    function saveSilBalance() {
+        if (!currentTd) return;
+        const empId = currentTd.dataset.employeeId;
+        const year  = parseInt(currentTd.dataset.silYear || '0', 10);
+        const total = parseFloat(document.getElementById('dSilBalanceTotal').value || '0');
+        fetch('{{ url("/attendance-calendar/adjust-sil-balance") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ employee_id: empId, year: year, total_days: total }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            currentTd.dataset.silTotal = String(data.total);
+            currentTd.dataset.silRemaining = String(data.remaining);
+            refreshSilSectionFromCell();
+            silShowMessage(data.message, true);
+        })
+        .catch(() => silShowMessage('Network error.', false));
+    }
+    // ================= /SIL =================
 
     // Hide/show computed metric rows (Work / Late / UT / OT / Notes) and edit history.
     // These are only meaningful when an AttendanceDay exists for the cell.

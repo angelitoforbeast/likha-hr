@@ -158,6 +158,10 @@ Route::middleware('auth')->group(function () {
         Route::post("/attendance-calendar/fill-from-shift", [AttendanceCalendarController::class, "fillFromShift"])->name("attendance-calendar.fill-from-shift");
         Route::post("/attendance-calendar/bulk-action", [AttendanceCalendarController::class, "bulkAction"])->name("attendance-calendar.bulk-action");
         Route::post("/attendance-calendar/save-all", [AttendanceCalendarController::class, "saveAll"])->name("attendance-calendar.save-all");
+        Route::post("/attendance-calendar/apply-sil", [AttendanceCalendarController::class, "applySil"])->name("attendance-calendar.apply-sil");
+        Route::post("/attendance-calendar/remove-sil", [AttendanceCalendarController::class, "removeSil"])->name("attendance-calendar.remove-sil");
+        Route::post("/attendance-calendar/adjust-sil-balance", [AttendanceCalendarController::class, "adjustSilBalance"])->name("attendance-calendar.adjust-sil-balance");
+        Route::post("/attendance-calendar/toggle-sil-eligibility", [AttendanceCalendarController::class, "toggleSilEligibility"])->name("attendance-calendar.toggle-sil-eligibility");
     });
 
     // Day Off Calendar

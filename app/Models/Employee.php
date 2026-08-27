@@ -21,12 +21,14 @@ class Employee extends Model
         'department_id',
         'schedule_mode',
         'night_differential_eligible',
+        'sil_eligible',
     ];
 
     protected $casts = [
         'status' => 'string',
         'schedule_mode' => 'string',
         'night_differential_eligible' => 'boolean',
+        'sil_eligible' => 'boolean',
     ];
 
     /* ── Schedule Mode Constants ── */
@@ -328,6 +330,48 @@ class Employee extends Model
     {
         $status = $this->getStatusForDate($date);
         return $status ? (bool) $status->holiday_eligible : true;
+    }
+
+    /* ── SIL (Service Incentive Leave) Helpers ── */
+
+    /**
+     * Get or create the SIL balance row for this employee/year. Default total is 5 days (DOLE).
+     */
+    public function getSilBalance(int $year): EmployeeSilBalance
+    {
+        return EmployeeSilBalance::firstOrCreate(
+            ['employee_id' => $this->id, 'year' => $year],
+            ['total_days' => 5.00]
+        );
+    }
+
+    /**
+     * Count SIL days already applied for the given year.
+     */
+    public function getSilUsedDays(int $year): int
+    {
+        return SilApplication::where('employee_id', $this->id)
+            ->whereYear('sil_date', $year)
+            ->count();
+    }
+
+    /**
+     * Compute remaining SIL days = total_days - used_days for the year.
+     */
+    public function getSilRemainingDays(int $year): float
+    {
+        $balance = $this->getSilBalance($year);
+        return (float) $balance->total_days - $this->getSilUsedDays($year);
+    }
+
+    /**
+     * True if the given date is marked as an SIL day for this employee.
+     */
+    public function isDateSil(string $date): bool
+    {
+        return SilApplication::where('employee_id', $this->id)
+            ->whereDate('sil_date', $date)
+            ->exists();
     }
 
     /* ── Cash Advance Helpers ── */

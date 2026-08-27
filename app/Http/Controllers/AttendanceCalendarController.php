@@ -9,7 +9,9 @@ use App\Models\DayOffLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
+use App\Models\EmployeeSilBalance;
 use App\Models\Shift;
+use App\Models\SilApplication;
 use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -116,6 +118,12 @@ class AttendanceCalendarController extends Controller
             ->get()
             ->groupBy(fn ($l) => $l->employee_id . '_' . $l->off_date->format('Y-m-d'));
 
+        // Preload SIL applications so cells can be tagged as SIL and the modal can show existing SIL.
+        $silApplications = SilApplication::whereIn('employee_id', $filteredEmployees->pluck('id'))
+            ->whereBetween('sil_date', [$startDate, $endDate])
+            ->get()
+            ->keyBy(fn ($s) => $s->employee_id . '_' . $s->sil_date->format('Y-m-d'));
+
         // Build calendar data
         $calendarData = [];
 
@@ -149,6 +157,9 @@ class AttendanceCalendarController extends Controller
                 ] : null;
                 $shiftIdForDay = $shiftForDay?->id;
 
+                // Check if this date is an SIL day for this employee — takes precedence over other statuses.
+                $silRecord = $silApplications[$emp->id . '_' . $dateStr] ?? null;
+
                 // Build the day-off audit entries for this employee/date. Used across all cell types
                 // (present/absent/day_off) so the Edit History in the modal is complete regardless of status.
                 $dayOffLogList = $dayOffLogs[$emp->id . '_' . $dateStr] ?? collect();
@@ -165,7 +176,23 @@ class AttendanceCalendarController extends Controller
                     ];
                 }
 
-                if ($attDay) {
+                if ($silRecord) {
+                    // SIL day takes precedence — regardless of attendance / rest-day status.
+                    $empData['days'][$idx] = [
+                        'date' => $dateStr,
+                        'status' => 'sil',
+                        'attendance' => $attDay,
+                        'has_overrides' => !empty($dayOffLogEntries),
+                        'override_details' => $dayOffLogEntries,
+                        'shift' => $shiftInfo,
+                        'shift_id' => $shiftIdForDay,
+                        'sil' => [
+                            'reason' => $silRecord->reason,
+                            'applied_by' => $silRecord->applier?->name ?? 'Unknown',
+                            'applied_at' => $silRecord->created_at->format('M d, Y g:i A'),
+                        ],
+                    ];
+                } elseif ($attDay) {
                     $status = 'present';
                     $lateMin = $attDay->computed_late_minutes ?? 0;
                     $earlyMin = $attDay->computed_early_minutes ?? 0;
@@ -225,6 +252,11 @@ class AttendanceCalendarController extends Controller
                         'override_details' => $overrideDetails,
                         'shift' => $shiftInfo,
                         'shift_id' => $shiftIdForDay,
+                        'sil' => $silRecord ? [
+                            'reason' => $silRecord->reason,
+                            'applied_by' => $silRecord->applier?->name ?? 'Unknown',
+                            'applied_at' => $silRecord->created_at->format('M d, Y g:i A'),
+                        ] : null,
                     ];
                 } elseif ($isDayOff) {
                     $empData['days'][$idx] = [
@@ -235,6 +267,11 @@ class AttendanceCalendarController extends Controller
                         'override_details' => $dayOffLogEntries,
                         'shift' => $shiftInfo,
                         'shift_id' => $shiftIdForDay,
+                        'sil' => $silRecord ? [
+                            'reason' => $silRecord->reason,
+                            'applied_by' => $silRecord->applier?->name ?? 'Unknown',
+                            'applied_at' => $silRecord->created_at->format('M d, Y g:i A'),
+                        ] : null,
                     ];
                 } else {
                     $empData['days'][$idx] = [
@@ -245,6 +282,11 @@ class AttendanceCalendarController extends Controller
                         'override_details' => $dayOffLogEntries,
                         'shift' => $shiftInfo,
                         'shift_id' => $shiftIdForDay,
+                        'sil' => $silRecord ? [
+                            'reason' => $silRecord->reason,
+                            'applied_by' => $silRecord->applier?->name ?? 'Unknown',
+                            'applied_at' => $silRecord->created_at->format('M d, Y g:i A'),
+                        ] : null,
                     ];
                 }
             }
@@ -918,6 +960,132 @@ class AttendanceCalendarController extends Controller
             'payable_work_minutes'   => 0,
             'needs_review'           => true,
             'notes'                  => 'Auto-created via bulk action',
+        ]);
+    }
+
+    /**
+     * Apply SIL (Service Incentive Leave) for one employee/date. Requires the employee to be
+     * marked SIL-eligible and to have remaining SIL days for that year. Returns the fresh
+     * remaining count so the modal can update the balance shown to the user immediately.
+     */
+    public function applySil(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+            'reason'      => 'required|string|min:3|max:500',
+        ]);
+
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $date     = $validated['date'];
+        $year     = Carbon::parse($date)->year;
+
+        if (!$employee->sil_eligible) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employee is not marked as SIL-eligible. Toggle SIL eligibility on the Employee edit page first.',
+            ], 422);
+        }
+        if ($employee->getSilRemainingDays($year) < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No remaining SIL days for ' . $year . '.',
+            ], 422);
+        }
+        if ($employee->isDateSil($date)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'SIL is already applied for this date.',
+            ], 422);
+        }
+
+        SilApplication::create([
+            'employee_id' => $employee->id,
+            'sil_date'    => $date,
+            'reason'      => $validated['reason'],
+            'applied_by'  => Auth::id(),
+        ]);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => 'SIL applied.',
+            'remaining' => $employee->getSilRemainingDays($year),
+            'total'     => (float) $employee->getSilBalance($year)->total_days,
+        ]);
+    }
+
+    /**
+     * Remove an SIL application for one employee/date. Returns updated remaining count.
+     */
+    public function removeSil(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date'        => 'required|date',
+        ]);
+
+        $deleted = SilApplication::where('employee_id', $validated['employee_id'])
+            ->whereDate('sil_date', $validated['date'])
+            ->delete();
+
+        $employee = Employee::find($validated['employee_id']);
+        $year = Carbon::parse($validated['date'])->year;
+
+        return response()->json([
+            'success'   => true,
+            'message'   => $deleted ? 'SIL removed.' : 'No SIL was applied on this date.',
+            'remaining' => $employee ? $employee->getSilRemainingDays($year) : 0,
+            'total'     => $employee ? (float) $employee->getSilBalance($year)->total_days : 0,
+        ]);
+    }
+
+    /**
+     * Adjust the SIL total_days for an employee's year balance. CEO only.
+     * Used when starting mid-year with days already consumed elsewhere, or year-end conversions.
+     */
+    public function adjustSilBalance(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can adjust SIL balances.'], 403);
+        }
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'year'        => 'required|integer|min:2000|max:2100',
+            'total_days'  => 'required|numeric|min:0|max:365',
+            'notes'       => 'nullable|string|max:500',
+        ]);
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $balance = $employee->getSilBalance($validated['year']);
+        $balance->update([
+            'total_days' => $validated['total_days'],
+            'notes'      => $validated['notes'] ?? $balance->notes,
+        ]);
+        return response()->json([
+            'success'   => true,
+            'message'   => 'SIL balance updated.',
+            'remaining' => $employee->getSilRemainingDays($validated['year']),
+            'total'     => (float) $balance->total_days,
+        ]);
+    }
+
+    /**
+     * Toggle SIL eligibility for an employee (CEO only). Convenience for the calendar modal.
+     */
+    public function toggleSilEligibility(Request $request)
+    {
+        if (Auth::user()?->role !== 'ceo') {
+            return response()->json(['success' => false, 'message' => 'Only CEO can toggle SIL eligibility.'], 403);
+        }
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'eligible'    => 'required|boolean',
+        ]);
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $employee->update(['sil_eligible' => $validated['eligible']]);
+        return response()->json([
+            'success' => true,
+            'message' => $validated['eligible'] ? 'SIL eligibility enabled.' : 'SIL eligibility disabled.',
+            'eligible' => (bool) $employee->sil_eligible,
         ]);
     }
 

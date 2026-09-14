@@ -290,6 +290,26 @@ class Employee extends Model
             if ($isRestDay) {
                 $restDays++;
                 $restDayDates[] = $dateStr;
+                // DOLE Rule: If the rest day is ALSO a holiday (and the employee is
+                // holiday-eligible), we still track it as a holiday date so holiday
+                // pay is applied. The rest-day flag keeps the date OUT of required
+                // mandays (no absence deduction), but holiday earnings kick in:
+                //   - Regular Holiday not worked  = 100% daily rate
+                //   - Regular Holiday worked      = 200% (Option A default; 260% needs
+                //                                   a rest-day premium multiplier - Option B)
+                //   - Special Non-Working not worked = 0
+                //   - Special Non-Working worked  = 130% (150% with rest-day premium)
+                if ($holiday && $isHolidayEligibleForDay) {
+                    $holidays++;
+                    $holidayDates[] = $dateStr;
+                    if ($holiday->type === Holiday::TYPE_REGULAR) {
+                        $regularHolidays++;
+                        $regularHolidayDates[] = $dateStr;
+                    } else {
+                        $specialHolidays++;
+                        $specialHolidayDates[] = $dateStr;
+                    }
+                }
             } elseif ($holiday && $isHolidayEligibleForDay) {
                 // Only count as holiday if employee is eligible on this specific date
                 $holidays++;

@@ -14,6 +14,15 @@
         </span>
     </div>
     <div class="d-flex gap-2">
+        @if(!$run->isFinal() && auth()->user() && auth()->user()->role === 'ceo')
+        <form method="POST" action="{{ route('payroll.recompute', $run) }}"
+              onsubmit="return confirm('Recompute this payroll run?\n\n• Master adjustments (payroll_adjustments) will be re-applied to each item snapshot.\n• Attendance changes will be re-applied.\n• Item notes attached to adjustments will be preserved.\n\nContinue?')">
+            @csrf
+            <button type="submit" class="btn btn-info btn-sm">
+                <i class="bi bi-arrow-clockwise"></i> Recompute
+            </button>
+        </form>
+        @endif
         @if(!$run->isFinal())
         <form method="POST" action="{{ route('payroll.finalize', $run) }}"
               onsubmit="return confirm('Are you sure you want to finalize this payroll run? This action cannot be undone.')">

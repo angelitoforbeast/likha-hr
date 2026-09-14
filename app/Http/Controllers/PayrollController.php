@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CutoffRule;
 use App\Models\Department;
+use App\Models\PayrollAdjustment;
 use App\Models\PayrollItem;
 use App\Models\PayrollRun;
 use App\Services\PayrollService;
@@ -142,7 +143,14 @@ class PayrollController extends Controller
     }
 
     /**
-     * Save adjustment for a payroll item.
+     * Save an adjustment for a payroll item.
+     *
+     * Dual-write:
+     *   1. Master payroll_adjustments (source of truth, keyed by
+     *      employee + cutoff — survives run deletion and recompute)
+     *   2. payroll_items snapshot for THIS run (immediate feedback)
+     * Other runs' snapshots are left alone; a Recompute is needed for
+     * them to pick up the new master value.
      */
     public function saveAdjustment(Request $request, PayrollRun $run)
     {
@@ -161,6 +169,7 @@ class PayrollController extends Controller
             ->firstOrFail();
 
         $adjustments = (float) $request->adjustments;
+        $notes       = $request->notes;
 
         // Final Pay = Gross Pay + Earnings - Deductions + Adjustments
         $finalPay = round(
@@ -171,16 +180,55 @@ class PayrollController extends Controller
             2
         );
 
-        $item->update([
-            'adjustments' => $adjustments,
-            'final_pay'   => max(0, $finalPay),
-            'notes'       => $request->notes,
-        ]);
+        \DB::transaction(function () use ($item, $run, $adjustments, $notes, $finalPay) {
+            // 1. Master upsert — one row per (employee, cutoff)
+            PayrollAdjustment::updateOrCreate(
+                [
+                    'employee_id'  => $item->employee_id,
+                    'cutoff_start' => $run->cutoff_start->format('Y-m-d'),
+                    'cutoff_end'   => $run->cutoff_end->format('Y-m-d'),
+                ],
+                [
+                    'amount' => $adjustments,
+                    'notes'  => $notes,
+                ]
+            );
+
+            // 2. Snapshot this run's payroll_item (other runs untouched)
+            $item->update([
+                'adjustments' => $adjustments,
+                'final_pay'   => max(0, $finalPay),
+                'notes'       => $notes,
+            ]);
+        });
 
         return response()->json([
             'success'   => true,
             'final_pay' => number_format(max(0, $finalPay), 2),
         ]);
+    }
+
+    /**
+     * Recompute every payroll item in a draft run.
+     *
+     * CEO-only. Finalized runs are refused so historical snapshots stay
+     * immutable. The master payroll_adjustments table is queried inside
+     * PayrollService::computeForEmployee — so this refresh picks up the
+     * current master values without the CEO having to click each item.
+     */
+    public function recompute(PayrollRun $run)
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'ceo') {
+            abort(403, 'Only the CEO can recompute a payroll run.');
+        }
+        if ($run->isFinal()) {
+            return back()->with('error', 'Finalized payroll runs cannot be recomputed.');
+        }
+
+        (new \App\Services\PayrollService())->computePayroll($run);
+
+        return back()->with('success', 'Payroll run recomputed. Master adjustments were re-applied to each item snapshot.');
     }
 
     /**

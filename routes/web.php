@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/payroll/{run}', [PayrollController::class, 'show'])->name('payroll.show');
         Route::post('/payroll/{run}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
         Route::post('/payroll/{run}/adjustment', [PayrollController::class, 'saveAdjustment'])->name('payroll.adjustment');
+        Route::post('/payroll/{run}/recompute', [PayrollController::class, 'recompute'])->name('payroll.recompute');
         Route::get('/payroll/{run}/export-csv', [PayrollController::class, 'exportCsv'])->name('payroll.export-csv');
         Route::get('/payroll/{run}/export-pdf', [PayrollController::class, 'exportPdf'])->name('payroll.export-pdf');
         Route::get('/payroll/{run}/payslip/{item}', [PayrollController::class, 'payslip'])->name('payroll.payslip');

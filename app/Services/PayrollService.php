@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\EmployeeBenefit;
 use App\Models\EmployeeRate;
 use App\Models\Holiday;
+use App\Models\PayrollAdjustment;
 use App\Models\PayRate;
 use App\Models\PayrollItem;
 use App\Models\PayrollRun;
@@ -666,8 +667,18 @@ class PayrollService
         // Gross Pay = Basic Pay + OT Pay
         $grossPay = round($basePay + $otPay, 2);
 
+        // Look up any master adjustment for this (employee, cutoff) so it
+        // carries across recomputes and delete-and-recreate cycles.
+        $masterAdj = PayrollAdjustment::findFor(
+            $employee->id,
+            $run->cutoff_start->format('Y-m-d'),
+            $run->cutoff_end->format('Y-m-d')
+        );
+        $adjustmentAmount = $masterAdj ? (float) $masterAdj->amount : 0.0;
+        $adjustmentNotes  = $masterAdj?->notes;
+
         // Final Pay = Gross Pay + Earnings - Deductions + Adjustments
-        $finalPay = round($grossPay + $totalEarnings - $totalDeductions, 2);
+        $finalPay = round($grossPay + $totalEarnings - $totalDeductions + $adjustmentAmount, 2);
         $finalPay = max(0, $finalPay);
 
         // 14. Create payroll item
@@ -693,8 +704,9 @@ class PayrollService
             'total_earnings'         => $totalEarnings,
             'total_deductions'       => $totalDeductions,
             'gross_pay'              => $grossPay,
-            'adjustments'            => 0,
+            'adjustments'            => $adjustmentAmount,
             'final_pay'              => $finalPay,
+            'notes'                  => $adjustmentNotes,
             'daily_breakdown'        => $dailyBreakdown,
             'holiday_earnings_detail' => $holidayEarningsDetail,
         ]);

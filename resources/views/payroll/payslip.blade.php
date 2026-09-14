@@ -142,6 +142,13 @@
             $otPay = (float) ($item->ot_pay ?? 0);
             $otMinutes = (int) ($item->total_overtime_minutes ?? 0);
             $hasAdditions = $otPay > 0 || count($earnings) > 0;
+
+            // Pull per-day OT breakdown from daily_breakdown so we can show
+            // each day at its own rate when a rate change happened mid-cutoff.
+            $otDays = collect($item->daily_breakdown ?? [])
+                ->filter(fn ($b) => (int) ($b['ot'] ?? 0) > 0 && (float) ($b['ot_amount'] ?? 0) > 0)
+                ->values()
+                ->all();
         @endphp
         @if($hasAdditions)
         <div class="payslip-divider"></div>
@@ -151,10 +158,22 @@
         <div class="payslip-row">
             <span>
                 Overtime Pay
-                <span class="text-muted small">({{ number_format($otMinutes / 60, 2) }}h approved &times; 1.25 hourly rate)</span>
+                <span class="text-muted small">({{ number_format($otMinutes / 60, 2) }}h approved &times; 1.25)</span>
             </span>
             <span class="text-success">+&#8369;{{ number_format($otPay, 2) }}</span>
         </div>
+        @if(count($otDays) > 0)
+            @foreach($otDays as $d)
+            <div class="payslip-row" style="padding-left:20px; font-size:0.85em;">
+                <span class="text-muted">
+                    &#8618; {{ \Carbon\Carbon::parse($d['date'])->format('M d') }}:
+                    {{ number_format((int) $d['ot'] / 60, 2) }}h &times;
+                    &#8369;{{ number_format((float) ($d['ot_rate'] ?? $d['rate'] ?? 0), 2) }} &times; 1.25
+                </span>
+                <span class="text-muted">+&#8369;{{ number_format((float) $d['ot_amount'], 2) }}</span>
+            </div>
+            @endforeach
+        @endif
         @endif
 
         @foreach($earnings as $earning)

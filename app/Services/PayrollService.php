@@ -225,9 +225,12 @@ class PayrollService
 
             // Accumulate OT pay using THIS day's active rate so a rate change
             // mid-cutoff pays the OT that follows it at the correct hourly rate.
+            $dayOtAmount = 0.0;
+            $dayOtRate = null;
             if ($this->otEnabled && $dayOtMinutes > 0) {
                 $dayOtRate = EmployeeRate::getActiveRate($employee->id, $dateStr) ?? $dailyRate;
-                $otPay += $this->computeOtPay($dayOtMinutes, $dayOtRate);
+                $dayOtAmount = $this->computeOtPay($dayOtMinutes, $dayOtRate);
+                $otPay += $dayOtAmount;
             }
 
             // Compute actual undertime per day: difference between required and payable
@@ -324,6 +327,8 @@ class PayrollService
                 'early'      => $dayEarly,
                 'undertime'  => $dayUndertime,
                 'ot'         => $dayOtMinutes,
+                'ot_rate'    => $dayOtRate,      // per-day rate used for OT pay (null if no OT)
+                'ot_amount'  => $dayOtAmount,    // per-day OT pay amount
                 'amount'     => $breakdownAmount,
             ];
         }

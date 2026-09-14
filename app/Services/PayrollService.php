@@ -137,6 +137,7 @@ class PayrollService
         $totalLateMinutes = 0;
         $totalEarlyMinutes = 0;
         $totalOvertimeMinutes = 0;
+        $otPay = 0.0; // Accumulated per-day using each day's active rate (respects rate changes mid-cutoff)
         $totalUndertimeMinutes = 0; // Actual undertime = required - payable per day
         $perDayGrossBasic = 0;        // Sum of per-day rate for each worked day
         $perDayLateDeduction = 0;     // Sum of per-day late deductions
@@ -221,6 +222,13 @@ class PayrollService
             $totalWorkMinutes += $day->payable_work_minutes;
             $dayOtMinutes = (int) ($day->approved_overtime_minutes ?? 0);
             $totalOvertimeMinutes += $dayOtMinutes;
+
+            // Accumulate OT pay using THIS day's active rate so a rate change
+            // mid-cutoff pays the OT that follows it at the correct hourly rate.
+            if ($this->otEnabled && $dayOtMinutes > 0) {
+                $dayOtRate = EmployeeRate::getActiveRate($employee->id, $dateStr) ?? $dailyRate;
+                $otPay += $this->computeOtPay($dayOtMinutes, $dayOtRate);
+            }
 
             // Compute actual undertime per day: difference between required and payable
             $dayShift = $employee->getShiftForDate($dateStr);
@@ -491,11 +499,8 @@ class PayrollService
         $basePay = round($grossBasic - $absenceDeduction - $lateDeduction - $earlyDeduction - $undertimeDeduction, 2);
         $basePay = max(0, $basePay);
 
-        // 10. OT Pay (prepared but disabled by default)
-        $otPay = 0;
-        if ($this->otEnabled) {
-            $otPay = $this->computeOtPay($totalOvertimeMinutes, $dailyRate);
-        }
+        // 10. OT Pay — already accumulated per day above (respects mid-cutoff rate changes).
+        $otPay = round($otPay, 2);
 
         // 11. Compute Earnings (holiday premiums + benefits with category = 'earning')
         $earningsBreakdown = [];

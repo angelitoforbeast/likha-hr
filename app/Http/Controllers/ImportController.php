@@ -73,7 +73,7 @@ class ImportController extends Controller
      * Blocks the Proceed button when the file contains ZKTeco IDs that are
      * not mapped to any employee (must be resolved first, per Q5=B).
      */
-    public function preview(ZktecoParserService $parser)
+    public function preview(Request $request, ZktecoParserService $parser)
     {
         $stage = session('import_temp_attlog');
         if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
@@ -86,8 +86,10 @@ class ImportController extends Controller
             return redirect()->route('import.index')->with('error', 'Staged file expired. Please upload again.');
         }
 
-        $to   = now()->format('Y-m-d');
-        $from = now()->subDays(29)->format('Y-m-d');
+        // Date range — user-adjustable, defaults to the last 30 days from today.
+        $to   = $this->normaliseDate($request->query('date_to'),   now()->format('Y-m-d'));
+        $from = $this->normaliseDate($request->query('date_from'), now()->subDays(29)->format('Y-m-d'));
+        if ($from > $to) [$from, $to] = [$to, $from];
         $summary = $parser->extractAttlogSummary($path, $from, $to);
 
         // Map zkteco_id -> employee row (with department)
@@ -136,9 +138,12 @@ class ImportController extends Controller
 
     /**
      * Commit the staged attlog.dat into a real import run and dispatch parsing.
+     * Filters the file to:
+     *   - only lines within the chosen date_from..date_to window, and
+     *   - only ZKTeco IDs the user kept checked (include_zkteco[]).
      * Refuses when there are unmatched ZKTeco IDs (Q5=B).
      */
-    public function previewCommit(ZktecoParserService $parser)
+    public function previewCommit(Request $request, ZktecoParserService $parser)
     {
         $stage = session('import_temp_attlog');
         if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
@@ -151,9 +156,12 @@ class ImportController extends Controller
             return redirect()->route('import.index')->with('error', 'Staged file expired. Please upload again.');
         }
 
+        // Range must match what the preview showed. Fall back to defaults if missing.
+        $to   = $this->normaliseDate($request->input('date_to'),   now()->format('Y-m-d'));
+        $from = $this->normaliseDate($request->input('date_from'), now()->subDays(29)->format('Y-m-d'));
+        if ($from > $to) [$from, $to] = [$to, $from];
+
         // Re-check for unknown IDs — a resolution could have happened between preview and commit.
-        $to   = now()->format('Y-m-d');
-        $from = now()->subDays(29)->format('Y-m-d');
         $summary = $parser->extractAttlogSummary($path, $from, $to);
         $knownZk = Employee::whereNotNull('zkteco_id')->pluck('zkteco_id')->flip();
         foreach (array_keys($summary['presence']) as $zk) {
@@ -163,21 +171,86 @@ class ImportController extends Controller
             }
         }
 
-        // Create the real run and move the staged file over.
+        // Determine which zkteco_ids the user included. When the form doesn't
+        // send any (rare), we default to all known IDs in the summary.
+        $included = (array) $request->input('include_zkteco', []);
+        $included = array_map('strval', $included);
+        $includedSet = array_flip($included);
+        if (empty($includedSet)) {
+            // Nothing checked at all — refuse rather than silently importing zero.
+            return redirect()->route('import.preview')
+                ->with('error', 'No employees were selected. Check at least one row to import.');
+        }
+
+        // Create the real run FIRST so we can write the filtered file into imports/{run}.
         $run = AttendanceImportRun::create([
             'uploaded_by' => Auth::id(),
             'status'      => 'queued',
         ]);
-        $destDir = "imports/{$run->id}";
+        $destDir  = "imports/{$run->id}";
         Storage::disk('local')->makeDirectory($destDir);
-        Storage::disk('local')->move("import_temp/{$stage['id']}/attlog.dat", "{$destDir}/attlog.dat");
+        $destPath = Storage::disk('local')->path("{$destDir}/attlog.dat");
+
+        // Filter: keep only lines within the date window whose zkteco_id is
+        // in the included set. Writes filtered content to the run's folder.
+        $fromTs = strtotime($from . ' 00:00:00');
+        $toTs   = strtotime($to   . ' 23:59:59');
+        $kept = 0;
+        $dropped = 0;
+        $src = fopen($path, 'r');
+        $dst = fopen($destPath, 'w');
+        if (!$src || !$dst) {
+            if ($src) fclose($src);
+            if ($dst) fclose($dst);
+            $run->delete();
+            return redirect()->route('import.preview')->with('error', 'Could not stage the filtered file. Please try again.');
+        }
+        while (($line = fgets($src)) !== false) {
+            $trim = trim($line);
+            if ($trim === '') continue;
+            $cols = preg_split('/\t+/', $trim);
+            if (count($cols) < 2) { $dropped++; continue; }
+            $zk = trim($cols[0]);
+            $ts = strtotime(trim($cols[1]));
+            if ($ts === false || $ts < $fromTs || $ts > $toTs) { $dropped++; continue; }
+            if (!isset($includedSet[$zk])) { $dropped++; continue; }
+            fwrite($dst, $line);
+            $kept++;
+        }
+        fclose($src);
+        fclose($dst);
+
+        // Discard the staged file — filtered copy is now under imports/{run}/.
         Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
         session()->forget('import_temp_attlog');
+
+        // Record the filter metadata on the run for later reference.
+        $run->update([
+            'stats_json' => json_encode([
+                'preview_filter' => [
+                    'date_from'      => $from,
+                    'date_to'        => $to,
+                    'included_count' => count($includedSet),
+                    'kept_lines'     => $kept,
+                    'dropped_lines'  => $dropped,
+                ],
+            ]),
+        ]);
 
         ParseZktecoImport::dispatch($run->id);
 
         return redirect()->route('import.index')
-            ->with('success', "Import #{$run->id} queued after preview approval.");
+            ->with('success', "Import #{$run->id} queued. Kept {$kept} of {$kept + $dropped} lines after preview filter.");
+    }
+
+    /**
+     * Coerce a request date value to Y-m-d or fall back to the provided default.
+     */
+    protected function normaliseDate($raw, string $default): string
+    {
+        if (!is_string($raw) || $raw === '') return $default;
+        $ts = strtotime($raw);
+        return $ts === false ? $default : date('Y-m-d', $ts);
     }
 
     public function previewCancel()

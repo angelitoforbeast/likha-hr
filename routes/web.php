@@ -53,6 +53,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('feature:nav_import')->group(function () {
         Route::get('/import', [ImportController::class, 'index'])->name('import.index');
         Route::post('/import/upload', [ImportController::class, 'upload'])->name('import.upload');
+        // Dry-run mapping check for user.dat — reads the file but writes nothing to the DB.
+        Route::get('/import/check', [ImportController::class, 'checkForm'])->name('import.check.form');
+        Route::post('/import/check', [ImportController::class, 'check'])->name('import.check');
         Route::get('/import/{run}/status', [ImportController::class, 'status'])->name('import.status');
     });
 

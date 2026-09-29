@@ -8,10 +8,19 @@
     {{-- Upload Form --}}
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0"><i class="bi bi-upload"></i> Upload ZKTeco Files</h5>
+                <a href="{{ route('import.check.form') }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-search"></i> Check user.dat first
+                </a>
             </div>
             <div class="card-body">
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    Unsure about IDs after a biometric transfer? Use
+                    <a href="{{ route('import.check.form') }}" class="fw-semibold">Check user.dat</a>
+                    first — it previews the mapping without saving anything.
+                </div>
                 <form method="POST" action="{{ route('import.upload') }}" enctype="multipart/form-data">
                     @csrf
                     <div class="mb-3">

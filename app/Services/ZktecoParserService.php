@@ -108,6 +108,59 @@ class ZktecoParserService
     }
 
     /**
+     * Read a uploaded user.dat from an absolute local path and return the
+     * parsed users WITHOUT touching the employees table. Used by the
+     * "check user.dat" preview flow so CEO/Admin can verify a mapping
+     * before running an actual import.
+     *
+     * @return array<int,array{zkteco_id:string,full_name:string}>
+     */
+    public function extractUsersFromDat(string $absolutePath): array
+    {
+        if (!file_exists($absolutePath)) {
+            throw new \RuntimeException("File not found: {$absolutePath}");
+        }
+
+        $data = file_get_contents($absolutePath);
+        if ($data === false || $data === '') {
+            return [];
+        }
+
+        $rows = [];
+        $stats = ['total_users_parsed' => 0];
+
+        if ($this->isBinaryUserDat($data)) {
+            $recordSize = 72;
+            $numRecords = intdiv(strlen($data), $recordSize);
+            for ($i = 0; $i < $numRecords; $i++) {
+                $record = substr($data, $i * $recordSize, $recordSize);
+                $nameRaw = substr($record, 11, 28);
+                if (($e = strpos($nameRaw, "\x00")) !== false) $nameRaw = substr($nameRaw, 0, $e);
+                $fullName = trim($nameRaw);
+                $idRaw = substr($record, 48, 8);
+                if (($e = strpos($idRaw, "\x00")) !== false) $idRaw = substr($idRaw, 0, $e);
+                $zktecoId = trim($idRaw);
+                if ($zktecoId === '' || $fullName === '') continue;
+                $rows[] = ['zkteco_id' => $zktecoId, 'full_name' => $fullName];
+            }
+            return $rows;
+        }
+
+        // Text format — reuse the existing line parser.
+        $handle = fopen($absolutePath, 'r');
+        if (!$handle) return [];
+        while (($line = fgets($handle)) !== false) {
+            $line = trim($line);
+            if ($line === '') continue;
+            $parsed = $this->parseUserLine($line);
+            if (!$parsed) continue;
+            $rows[] = $parsed;
+        }
+        fclose($handle);
+        return $rows;
+    }
+
+    /**
      * Parse binary user.dat (ZKTeco 72-byte fixed-length records).
      *
      * Record structure (72 bytes):

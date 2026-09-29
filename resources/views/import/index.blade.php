@@ -8,30 +8,20 @@
     {{-- Upload Form --}}
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="mb-0"><i class="bi bi-upload"></i> Upload ZKTeco Files</h5>
-                <a href="{{ route('import.check.form') }}" class="btn btn-sm btn-outline-info">
-                    <i class="bi bi-search"></i> Check user.dat first
-                </a>
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Upload attlog.dat</h5>
             </div>
             <div class="card-body">
-                <div class="alert alert-info small mb-3">
+                <div class="alert alert-info small mb-3 mb-0-child">
                     <i class="bi bi-info-circle"></i>
-                    Unsure about IDs after a biometric transfer? Use
+                    Users are synced separately.
+                    <a href="{{ route('import.sync-users.form') }}" class="fw-semibold">Sync Users</a>
+                    handles user.dat (with its own preview);
                     <a href="{{ route('import.check.form') }}" class="fw-semibold">Check user.dat</a>
-                    first — it previews the mapping without saving anything.
+                    is a read-only mapping check.
                 </div>
                 <form method="POST" action="{{ route('import.upload') }}" enctype="multipart/form-data">
                     @csrf
-                    <div class="mb-3">
-                        <label for="user_dat" class="form-label">user.dat <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control @error('user_dat') is-invalid @enderror"
-                               id="user_dat" name="user_dat" accept=".dat,.txt" required>
-                        @error('user_dat')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">ZKTeco user data file (maps user IDs to names)</div>
-                    </div>
                     <div class="mb-3">
                         <label for="attlog_dat" class="form-label">attlog.dat <span class="text-danger">*</span></label>
                         <input type="file" class="form-control @error('attlog_dat') is-invalid @enderror"
@@ -42,9 +32,20 @@
                         <div class="form-text">ZKTeco attendance log file (punch records)</div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-cloud-upload"></i> Upload &amp; Process
+                        <i class="bi bi-eye"></i> Upload &amp; Preview
                     </button>
                 </form>
+
+                <hr>
+
+                <div class="d-grid gap-2">
+                    <a href="{{ route('import.sync-users.form') }}" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-people-fill"></i> Sync Users (user.dat)
+                    </a>
+                    <a href="{{ route('import.check.form') }}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-search"></i> Check user.dat (read-only)
+                    </a>
+                </div>
             </div>
         </div>
     </div>

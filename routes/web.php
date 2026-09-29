@@ -52,10 +52,20 @@ Route::middleware('auth')->group(function () {
     // Import Attendance (Phase 1)
     Route::middleware('feature:nav_import')->group(function () {
         Route::get('/import', [ImportController::class, 'index'])->name('import.index');
+        // Upload attlog.dat -> stage for preview -> commit or cancel.
         Route::post('/import/upload', [ImportController::class, 'upload'])->name('import.upload');
+        Route::get('/import/preview', [ImportController::class, 'preview'])->name('import.preview');
+        Route::post('/import/preview/commit', [ImportController::class, 'previewCommit'])->name('import.preview.commit');
+        Route::post('/import/preview/cancel', [ImportController::class, 'previewCancel'])->name('import.preview.cancel');
         // Dry-run mapping check for user.dat — reads the file but writes nothing to the DB.
         Route::get('/import/check', [ImportController::class, 'checkForm'])->name('import.check.form');
         Route::post('/import/check', [ImportController::class, 'check'])->name('import.check');
+        // Sync Users (user.dat only) — separate flow with its own preview.
+        Route::get('/import/sync-users', [ImportController::class, 'syncUsersForm'])->name('import.sync-users.form');
+        Route::post('/import/sync-users', [ImportController::class, 'syncUsersUpload'])->name('import.sync-users.upload');
+        Route::get('/import/sync-users/preview', [ImportController::class, 'syncUsersPreview'])->name('import.sync-users.preview');
+        Route::post('/import/sync-users/commit', [ImportController::class, 'syncUsersCommit'])->name('import.sync-users.commit');
+        Route::post('/import/sync-users/cancel', [ImportController::class, 'syncUsersCancel'])->name('import.sync-users.cancel');
         Route::get('/import/{run}/status', [ImportController::class, 'status'])->name('import.status');
     });
 

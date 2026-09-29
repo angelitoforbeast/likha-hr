@@ -296,6 +296,81 @@ class ZktecoParserService
     }
 
     /**
+     * Read a uploaded attlog.dat from an absolute local path and return a
+     * per-employee, per-date presence summary WITHOUT writing anything.
+     *
+     * Used by the attlog preview flow so CEO / Admin can see who has punches
+     * before running the real import.
+     *
+     * @param  string  $absolutePath  Local file path to attlog.dat
+     * @param  string  $dateFrom      'Y-m-d' — earliest date to include (inclusive)
+     * @param  string  $dateTo        'Y-m-d' — latest date to include (inclusive)
+     * @return array{
+     *   dates: string[],
+     *   presence: array<string, array<string,bool>>,   // [zkteco_id => [date => true]]
+     *   total_lines: int,
+     *   invalid_lines: int,
+     *   out_of_range: int,
+     * }
+     */
+    public function extractAttlogSummary(string $absolutePath, string $dateFrom, string $dateTo): array
+    {
+        if (!file_exists($absolutePath)) {
+            throw new \RuntimeException("attlog.dat not found: {$absolutePath}");
+        }
+
+        $fromTs = strtotime($dateFrom . ' 00:00:00');
+        $toTs   = strtotime($dateTo   . ' 23:59:59');
+        if ($fromTs === false || $toTs === false || $toTs < $fromTs) {
+            throw new \RuntimeException("Invalid date range: {$dateFrom} to {$dateTo}");
+        }
+
+        $presence   = [];
+        $totalLines = 0;
+        $invalid    = 0;
+        $outRange   = 0;
+
+        $handle = fopen($absolutePath, 'r');
+        if (!$handle) return ['dates' => [], 'presence' => [], 'total_lines' => 0, 'invalid_lines' => 0, 'out_of_range' => 0];
+
+        while (($line = fgets($handle)) !== false) {
+            $line = trim($line);
+            if ($line === '') continue;
+            $totalLines++;
+
+            $parsed = $this->parseAttlogLine($line);
+            if (!$parsed) { $invalid++; continue; }
+
+            $ts = strtotime($parsed['punched_at']);
+            if ($ts === false) { $invalid++; continue; }
+
+            if ($ts < $fromTs || $ts > $toTs) {
+                $outRange++;
+                continue;
+            }
+
+            $date = date('Y-m-d', $ts);
+            $zk   = $parsed['zkteco_id'];
+            $presence[$zk][$date] = true;
+        }
+        fclose($handle);
+
+        // Build the ordered date list.
+        $dates = [];
+        for ($ts = $fromTs; $ts <= $toTs; $ts += 86400) {
+            $dates[] = date('Y-m-d', $ts);
+        }
+
+        return [
+            'dates'         => $dates,
+            'presence'      => $presence,
+            'total_lines'   => $totalLines,
+            'invalid_lines' => $invalid,
+            'out_of_range'  => $outRange,
+        ];
+    }
+
+    /**
      * Parse attlog.dat and insert attendance logs.
      */
     protected function parseAttlogDat(string $path, AttendanceImportRun $run, array $userMap, array &$stats): void

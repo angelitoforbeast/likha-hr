@@ -9,6 +9,7 @@ use App\Services\ZktecoParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ImportController extends Controller
 {
@@ -36,32 +37,165 @@ class ImportController extends Controller
         return view('import.index', compact('runs'));
     }
 
+    /**
+     * Upload attlog.dat and stage it for preview.
+     *
+     * The file is stored in a per-user temp folder; the preview page reads
+     * it read-only and either commits it into a real import run or discards
+     * it on cancel. user.dat is handled separately by the Sync Users page,
+     * so a stable-employee run doesn't need it every time.
+     */
     public function upload(Request $request)
     {
         $request->validate([
-            'user_dat'   => 'required|file|max:51200',  // 50MB max
             'attlog_dat' => 'required|file|max:51200',
         ], [
-            'user_dat.required'   => 'The user.dat file is required.',
             'attlog_dat.required' => 'The attlog.dat file is required.',
         ]);
 
-        // Create import run record
+        $this->discardTempAttlog(); // any prior preview belonging to this user
+
+        $tempId = (string) Str::uuid();
+        $dir    = "import_temp/{$tempId}";
+        Storage::disk('local')->putFileAs($dir, $request->file('attlog_dat'), 'attlog.dat');
+
+        session(['import_temp_attlog' => [
+            'id'       => $tempId,
+            'filename' => $request->file('attlog_dat')->getClientOriginalName(),
+            'uploaded_by' => Auth::id(),
+        ]]);
+
+        return redirect()->route('import.preview');
+    }
+
+    /**
+     * Show a 30-day presence grid for a staged attlog.dat.
+     * Blocks the Proceed button when the file contains ZKTeco IDs that are
+     * not mapped to any employee (must be resolved first, per Q5=B).
+     */
+    public function preview(ZktecoParserService $parser)
+    {
+        $stage = session('import_temp_attlog');
+        if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
+            return redirect()->route('import.index')->with('error', 'No staged attlog.dat to preview. Please upload again.');
+        }
+
+        $path = Storage::disk('local')->path("import_temp/{$stage['id']}/attlog.dat");
+        if (!file_exists($path)) {
+            session()->forget('import_temp_attlog');
+            return redirect()->route('import.index')->with('error', 'Staged file expired. Please upload again.');
+        }
+
+        $to   = now()->format('Y-m-d');
+        $from = now()->subDays(29)->format('Y-m-d');
+        $summary = $parser->extractAttlogSummary($path, $from, $to);
+
+        // Map zkteco_id -> employee row (with department)
+        $byZk = Employee::with('department')
+            ->select('id', 'zkteco_id', 'full_name', 'actual_name', 'department_id')
+            ->get()
+            ->keyBy('zkteco_id');
+
+        $knownRows   = [];
+        $unknownRows = [];
+        foreach ($summary['presence'] as $zk => $dateMap) {
+            if (isset($byZk[$zk])) {
+                $e = $byZk[$zk];
+                $knownRows[] = [
+                    'zkteco_id'  => $zk,
+                    'employee_id' => $e->id,
+                    'name'       => $e->actual_name ?: $e->full_name,
+                    'department' => $e->department->name ?? '—',
+                    'presence'   => $dateMap,
+                    'punch_days' => count($dateMap),
+                ];
+            } else {
+                $unknownRows[] = [
+                    'zkteco_id'  => $zk,
+                    'presence'   => $dateMap,
+                    'punch_days' => count($dateMap),
+                ];
+            }
+        }
+
+        usort($knownRows, fn ($a, $b) => strcmp($a['department'] . $a['name'], $b['department'] . $b['name']));
+        usort($unknownRows, fn ($a, $b) => strcmp($a['zkteco_id'], $b['zkteco_id']));
+
+        return view('import.preview-attlog', [
+            'stage'        => $stage,
+            'dateFrom'     => $from,
+            'dateTo'       => $to,
+            'dates'        => $summary['dates'],
+            'knownRows'    => $knownRows,
+            'unknownRows'  => $unknownRows,
+            'totalLines'   => $summary['total_lines'],
+            'invalidLines' => $summary['invalid_lines'],
+            'outOfRange'   => $summary['out_of_range'],
+        ]);
+    }
+
+    /**
+     * Commit the staged attlog.dat into a real import run and dispatch parsing.
+     * Refuses when there are unmatched ZKTeco IDs (Q5=B).
+     */
+    public function previewCommit(ZktecoParserService $parser)
+    {
+        $stage = session('import_temp_attlog');
+        if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
+            return redirect()->route('import.index')->with('error', 'No staged attlog.dat to commit.');
+        }
+
+        $path = Storage::disk('local')->path("import_temp/{$stage['id']}/attlog.dat");
+        if (!file_exists($path)) {
+            session()->forget('import_temp_attlog');
+            return redirect()->route('import.index')->with('error', 'Staged file expired. Please upload again.');
+        }
+
+        // Re-check for unknown IDs — a resolution could have happened between preview and commit.
+        $to   = now()->format('Y-m-d');
+        $from = now()->subDays(29)->format('Y-m-d');
+        $summary = $parser->extractAttlogSummary($path, $from, $to);
+        $knownZk = Employee::whereNotNull('zkteco_id')->pluck('zkteco_id')->flip();
+        foreach (array_keys($summary['presence']) as $zk) {
+            if (!isset($knownZk[$zk])) {
+                return redirect()->route('import.preview')
+                    ->with('error', 'One or more ZKTeco IDs are still unmatched. Resolve them before proceeding.');
+            }
+        }
+
+        // Create the real run and move the staged file over.
         $run = AttendanceImportRun::create([
             'uploaded_by' => Auth::id(),
             'status'      => 'queued',
         ]);
+        $destDir = "imports/{$run->id}";
+        Storage::disk('local')->makeDirectory($destDir);
+        Storage::disk('local')->move("import_temp/{$stage['id']}/attlog.dat", "{$destDir}/attlog.dat");
+        Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
+        session()->forget('import_temp_attlog');
 
-        // Store files
-        $dir = "imports/{$run->id}";
-        Storage::disk('local')->putFileAs($dir, $request->file('user_dat'), 'user.dat');
-        Storage::disk('local')->putFileAs($dir, $request->file('attlog_dat'), 'attlog.dat');
-
-        // Dispatch parsing job
         ParseZktecoImport::dispatch($run->id);
 
         return redirect()->route('import.index')
-            ->with('success', "Import #{$run->id} queued for processing.");
+            ->with('success', "Import #{$run->id} queued after preview approval.");
+    }
+
+    public function previewCancel()
+    {
+        $this->discardTempAttlog();
+        return redirect()->route('import.index')->with('success', 'Preview cancelled. Staged file discarded.');
+    }
+
+    /**
+     * Delete the currently-staged attlog.dat (if any) for the acting user.
+     */
+    protected function discardTempAttlog(): void
+    {
+        $stage = session('import_temp_attlog');
+        if ($stage && ($stage['uploaded_by'] ?? null) === Auth::id()) {
+            Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
+        }
+        session()->forget('import_temp_attlog');
     }
 
     public function status(AttendanceImportRun $run)
@@ -178,5 +312,164 @@ class ImportController extends Controller
             'missing'  => $missing,
             'fileName' => $request->file('user_dat')->getClientOriginalName(),
         ]);
+    }
+
+    /**
+     * Show the Sync Users form (user.dat upload only).
+     */
+    public function syncUsersForm()
+    {
+        return view('import.sync-users');
+    }
+
+    /**
+     * Stage the uploaded user.dat and redirect to preview.
+     */
+    public function syncUsersUpload(Request $request)
+    {
+        $request->validate([
+            'user_dat' => 'required|file|max:51200',
+        ], [
+            'user_dat.required' => 'The user.dat file is required.',
+        ]);
+
+        $this->discardTempUserDat();
+
+        $tempId = (string) Str::uuid();
+        Storage::disk('local')->putFileAs("import_temp/{$tempId}", $request->file('user_dat'), 'user.dat');
+
+        session(['import_temp_user' => [
+            'id'          => $tempId,
+            'filename'    => $request->file('user_dat')->getClientOriginalName(),
+            'uploaded_by' => Auth::id(),
+        ]]);
+
+        return redirect()->route('import.sync-users.preview');
+    }
+
+    /**
+     * Show the mapping preview for a staged user.dat.
+     */
+    public function syncUsersPreview(ZktecoParserService $parser)
+    {
+        $stage = session('import_temp_user');
+        if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
+            return redirect()->route('import.sync-users.form')->with('error', 'No staged user.dat. Please upload again.');
+        }
+
+        $path = Storage::disk('local')->path("import_temp/{$stage['id']}/user.dat");
+        if (!file_exists($path)) {
+            session()->forget('import_temp_user');
+            return redirect()->route('import.sync-users.form')->with('error', 'Staged file expired. Please upload again.');
+        }
+
+        $rows = $parser->extractUsersFromDat($path);
+
+        $byZk = Employee::pluck('id', 'zkteco_id')->toArray();
+        $emps = Employee::select('id', 'zkteco_id', 'full_name', 'actual_name')->get()->keyBy('id');
+        $byName = [];
+        foreach ($emps as $e) {
+            foreach ([$e->full_name, $e->actual_name] as $n) {
+                $key = mb_strtolower(trim((string) $n));
+                if ($key !== '') $byName[$key][] = $e->id;
+            }
+        }
+
+        $results = [];
+        $counts  = ['match_exact' => 0, 'match_id_only' => 0, 'name_conflict' => 0, 'new' => 0];
+        foreach ($rows as $row) {
+            $zk     = (string) $row['zkteco_id'];
+            $name   = (string) $row['full_name'];
+            $lookup = mb_strtolower(trim($name));
+
+            if (isset($byZk[$zk])) {
+                $existing = $emps[$byZk[$zk]];
+                $sysName  = trim((string) ($existing->actual_name ?: $existing->full_name));
+                $cat = mb_strtolower($sysName) === $lookup ? 'match_exact' : 'match_id_only';
+                $results[] = [
+                    'zkteco_id'   => $zk,
+                    'file_name'   => $name,
+                    'category'    => $cat,
+                    'system_id'   => $existing->id,
+                    'system_name' => $sysName,
+                    'name_matches_other' => $byName[$lookup] ?? [],
+                ];
+            } else {
+                $nameMatches = $byName[$lookup] ?? [];
+                $cat = !empty($nameMatches) ? 'name_conflict' : 'new';
+                $results[] = [
+                    'zkteco_id'   => $zk,
+                    'file_name'   => $name,
+                    'category'    => $cat,
+                    'system_id'   => null,
+                    'system_name' => null,
+                    'name_matches_other' => $nameMatches,
+                ];
+            }
+            $counts[$cat]++;
+        }
+
+        return view('import.sync-users-preview', [
+            'stage'   => $stage,
+            'results' => $results,
+            'counts'  => $counts,
+        ]);
+    }
+
+    /**
+     * Commit the staged user.dat by running the parser's user-sync step
+     * (updateOrCreate on Employee for every row). No attendance import is
+     * dispatched here.
+     */
+    public function syncUsersCommit(ZktecoParserService $parser)
+    {
+        $stage = session('import_temp_user');
+        if (!$stage || ($stage['uploaded_by'] ?? null) !== Auth::id()) {
+            return redirect()->route('import.sync-users.form')->with('error', 'No staged user.dat to commit.');
+        }
+
+        $path = Storage::disk('local')->path("import_temp/{$stage['id']}/user.dat");
+        if (!file_exists($path)) {
+            session()->forget('import_temp_user');
+            return redirect()->route('import.sync-users.form')->with('error', 'Staged file expired.');
+        }
+
+        $rows = $parser->extractUsersFromDat($path);
+        $changes = ['created' => 0, 'updated' => 0, 'unchanged' => 0];
+        foreach ($rows as $row) {
+            $zk = $row['zkteco_id'];
+            $name = $row['full_name'];
+            $emp = Employee::where('zkteco_id', $zk)->first();
+            if (!$emp) {
+                Employee::create(['zkteco_id' => $zk, 'full_name' => $name]);
+                $changes['created']++;
+            } elseif (trim((string) $emp->full_name) !== trim($name)) {
+                $emp->update(['full_name' => $name]);
+                $changes['updated']++;
+            } else {
+                $changes['unchanged']++;
+            }
+        }
+
+        Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
+        session()->forget('import_temp_user');
+
+        $msg = "Users synced: {$changes['created']} created, {$changes['updated']} renamed, {$changes['unchanged']} unchanged.";
+        return redirect()->route('import.index')->with('success', $msg);
+    }
+
+    public function syncUsersCancel()
+    {
+        $this->discardTempUserDat();
+        return redirect()->route('import.index')->with('success', 'Sync cancelled. Staged file discarded.');
+    }
+
+    protected function discardTempUserDat(): void
+    {
+        $stage = session('import_temp_user');
+        if ($stage && ($stage['uploaded_by'] ?? null) === Auth::id()) {
+            Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
+        }
+        session()->forget('import_temp_user');
     }
 }

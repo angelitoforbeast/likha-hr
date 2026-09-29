@@ -86,7 +86,13 @@ class PayrollController extends Controller
             });
         }
 
-        $items = $query->orderBy('employee_id')->get();
+        // Sort by department name (A-Z), then employee display name (A-Z within department).
+        // Employees without a department fall to the end under "(No department)".
+        $items = $query->get()->sortBy(function ($item) {
+            $dept = $item->employee?->department?->name ?: 'zzz_no_department';
+            $name = $item->employee?->actual_name ?: $item->employee?->full_name ?: '';
+            return mb_strtolower($dept) . '|' . mb_strtolower($name);
+        })->values();
 
         $totals = [
             'required_mandays'       => $items->sum('required_mandays'),
@@ -252,8 +258,13 @@ class PayrollController extends Controller
     {
         $items = PayrollItem::with(['employee', 'employee.department'])
             ->where('payroll_run_id', $run->id)
-            ->orderBy('employee_id')
-            ->get();
+            ->get()
+            ->sortBy(function ($item) {
+                $dept = $item->employee?->department?->name ?: 'zzz_no_department';
+                $name = $item->employee?->actual_name ?: $item->employee?->full_name ?: '';
+                return mb_strtolower($dept) . '|' . mb_strtolower($name);
+            })
+            ->values();
 
         $filename = "payroll_run_{$run->id}_{$run->cutoff_start->format('Ymd')}_{$run->cutoff_end->format('Ymd')}.csv";
 
@@ -322,8 +333,13 @@ class PayrollController extends Controller
     {
         $items = PayrollItem::with(['employee', 'employee.department'])
             ->where('payroll_run_id', $run->id)
-            ->orderBy('employee_id')
-            ->get();
+            ->get()
+            ->sortBy(function ($item) {
+                $dept = $item->employee?->department?->name ?: 'zzz_no_department';
+                $name = $item->employee?->actual_name ?: $item->employee?->full_name ?: '';
+                return mb_strtolower($dept) . '|' . mb_strtolower($name);
+            })
+            ->values();
 
         $totals = [
             'base_pay'           => $items->sum('base_pay'),

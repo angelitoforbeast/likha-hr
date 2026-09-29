@@ -616,40 +616,55 @@ class AttendanceComputeService
 
         $hasLunch = $shiftLunchStart && $shiftLunchEnd;
 
-        // === WORK MINUTES ===
-        // Calculate actual work time within shift periods, excluding lunch
+        // === WORK MINUTES (STRICT RULE) ===
+        // Every punch is required to credit its half of the day. Any missing
+        // punch zeroes out the corresponding half — no scheduled fallback,
+        // no on-time-return assumption.
+        //   - Missing Time In    → morning = 0 (handled earlier for the no-time-in branch)
+        //   - Missing Lunch Out  → morning = 0 (change from previous lenient rule)
+        //   - Missing Lunch In   → afternoon = 0 (change from previous lenient rule)
+        //   - Missing Time Out   → afternoon = 0
+        //
+        // Result: to earn a full 8h, all 4 punches must be present. HR can
+        // still fill in the missing punch manually via the calendar override.
         if ($hasLunch) {
             // Morning period: shift start to lunch start
-            $morningActualStart = $timeIn;
-            $morningActualEnd = $lunchOut ?? ($timeOut ?? $shiftLunchStart);
-            // Cap morning end to lunch start
-            if ($morningActualEnd->gt($shiftLunchStart)) {
-                $morningActualEnd = $shiftLunchStart;
+            if (!$lunchOut) {
+                $morningMinutes = 0;
+                $result['notes'][] = 'Morning = 0 (missing Lunch Out — strict rule).';
+            } else {
+                $morningActualStart = $timeIn;
+                $morningActualEnd   = $lunchOut;
+                // Cap morning end to scheduled lunch start so late lunch-out
+                // does not spill into the lunch window as work.
+                if ($morningActualEnd->gt($shiftLunchStart)) {
+                    $morningActualEnd = $shiftLunchStart;
+                }
+                $morningMinutes = $this->overlapMinutes($morningActualStart, $morningActualEnd, $shiftStart, $shiftLunchStart);
             }
-            $morningMinutes = $this->overlapMinutes($morningActualStart, $morningActualEnd, $shiftStart, $shiftLunchStart);
 
             // Afternoon period: lunch end to shift end
-            $afternoonActualStart = $lunchIn ?? $shiftLunchEnd;
-            $afternoonActualEnd = $timeOut ?? $shiftEnd;
-            // If no time out, we don't assume they stayed till shift end — mark 0 afternoon
-            if (!$timeOut) {
-                // Check if they at least came back from lunch
-                if ($lunchIn && $lunchIn->gte($shiftLunchEnd)) {
-                    // They came back but no time out — we can't compute afternoon
-                    $afternoonMinutes = 0;
-                } else {
-                    $afternoonMinutes = 0;
-                }
+            if (!$lunchIn) {
+                $afternoonMinutes = 0;
+                $result['notes'][] = 'Afternoon = 0 (missing Lunch In — strict rule).';
+            } elseif (!$timeOut) {
+                $afternoonMinutes = 0;
+                $result['notes'][] = 'Afternoon = 0 (missing Time Out — strict rule).';
             } else {
+                $afternoonActualStart = $lunchIn;
+                $afternoonActualEnd   = $timeOut;
                 $afternoonMinutes = $this->overlapMinutes($afternoonActualStart, $afternoonActualEnd, $shiftLunchEnd, $shiftEnd);
             }
         } else {
-            // No lunch break — single work period
-            $morningMinutes = $this->overlapMinutes($timeIn, $timeOut ?? $shiftEnd, $shiftStart, $shiftEnd);
-            $afternoonMinutes = 0;
+            // No lunch break — single work period. Both Time In and Time Out
+            // required for any credit.
             if (!$timeOut) {
                 $morningMinutes = 0;
+                $result['notes'][] = 'Work = 0 (missing Time Out — strict rule).';
+            } else {
+                $morningMinutes = $this->overlapMinutes($timeIn, $timeOut, $shiftStart, $shiftEnd);
             }
+            $afternoonMinutes = 0;
         }
 
         $result['work_minutes'] = max(0, $morningMinutes + $afternoonMinutes);

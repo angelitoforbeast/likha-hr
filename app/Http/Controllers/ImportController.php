@@ -239,8 +239,9 @@ class ImportController extends Controller
 
         ParseZktecoImport::dispatch($run->id);
 
+        $totalConsidered = $kept + $dropped;
         return redirect()->route('import.index')
-            ->with('success', "Import #{$run->id} queued. Kept {$kept} of {$kept + $dropped} lines after preview filter.");
+            ->with('success', "Import #{$run->id} queued. Kept {$kept} of {$totalConsidered} lines after preview filter.");
     }
 
     /**

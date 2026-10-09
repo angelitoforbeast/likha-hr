@@ -224,9 +224,11 @@ class ImportController extends Controller
         Storage::disk('local')->deleteDirectory("import_temp/{$stage['id']}");
         session()->forget('import_temp_attlog');
 
-        // Record the filter metadata on the run for later reference.
+        // Record the filter metadata on the run for later reference. Stored as an
+        // array: the model casts this column, so encoding it here as well would
+        // store a JSON string inside the JSON column.
         $run->update([
-            'stats_json' => json_encode([
+            'stats_json' => [
                 'preview_filter' => [
                     'date_from'      => $from,
                     'date_to'        => $to,
@@ -234,7 +236,7 @@ class ImportController extends Controller
                     'kept_lines'     => $kept,
                     'dropped_lines'  => $dropped,
                 ],
-            ]),
+            ],
         ]);
 
         ParseZktecoImport::dispatch($run->id);
@@ -278,6 +280,8 @@ class ImportController extends Controller
             'id'         => $run->id,
             'status'     => $run->status,
             'stats_json' => $run->stats_json,
+            // Built here, not in the page script, so the poll shows the same words as the page.
+            'compute_text' => $run->computeSummaryText(),
             'created_at' => $run->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $run->updated_at->format('Y-m-d H:i:s'),
         ]);

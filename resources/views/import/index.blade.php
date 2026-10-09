@@ -91,6 +91,9 @@
                                     @if(isset($run->stats_json['duration_seconds']))
                                         ({{ $run->stats_json['duration_seconds'] }}s)
                                     @endif
+                                    @if($run->computeSummaryText())
+                                        <br>{{ $run->computeSummaryText() }}
+                                    @endif
                                 @else
                                     —
                                 @endif
@@ -149,6 +152,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 `Dupes: ${s.total_duplicates_skipped || 0}, ` +
                                 `Unmatched: ${s.unmatched_zkteco_ids || 0}` +
                                 (s.duration_seconds ? ` (${s.duration_seconds}s)` : '');
+                            // The wording comes from the server so it matches a reloaded page.
+                            if (data.compute_text) {
+                                statsCell.appendChild(document.createElement('br'));
+                                statsCell.appendChild(document.createTextNode(data.compute_text));
+                            }
                         }
                     })
                     .catch(() => {});

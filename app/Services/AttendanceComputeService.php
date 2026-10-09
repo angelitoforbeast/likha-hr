@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AttendanceDateLock;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceLog;
 use App\Models\AttendanceOverride;
@@ -523,6 +524,90 @@ class AttendanceComputeService
             ->toArray();
 
         return AttendanceOverride::whereIn('attendance_day_id', $dayIds)->count();
+    }
+
+    /**
+     * Compute a given list of employee-days and nothing else. Used by the import, which
+     * must fill in the days its file names without touching other dates or employees.
+     *
+     * Each day goes through the same override-aware compute as "Compute Attendance"
+     * (force = false). Unlike that button, a locked date is skipped whole here: an import
+     * runs unattended, so nobody would notice it changing a date that was closed.
+     * Only active employees are computed; the others are counted nowhere.
+     *
+     * A day is computed only when it received a new punch or has no day row yet. A day
+     * that already has a row and got nothing new is left as it is and counted nowhere:
+     * recomputing it would change days computed earlier whenever a shift assignment or
+     * the calculation changed in between, and nobody asked for that. Refreshing such
+     * days stays a deliberate act, the "Compute Attendance" button.
+     *
+     * @param array<int, array<string, bool>> $employeeDays employee id => ['Y-m-d' => whether
+     *                                                      the day received a new punch]
+     * @return array{days_computed:int, locked_skipped:int, errors:int}
+     */
+    public function computeEmployeeDays(array $employeeDays, ?int $sourceRunId = null): array
+    {
+        $summary = ['days_computed' => 0, 'locked_skipped' => 0, 'errors' => 0];
+
+        $allDates = array_map('strval', array_merge([], ...array_map('array_keys', array_values($employeeDays))));
+        if (empty($allDates)) {
+            return $summary;
+        }
+
+        // whereDate, because the stored value carries a time part on some database drivers.
+        $lockedDates = AttendanceDateLock::whereDate('lock_date', '>=', min($allDates))
+            ->whereDate('lock_date', '<=', max($allDates))
+            ->get()
+            ->mapWithKeys(fn ($lock) => [$lock->lock_date->format('Y-m-d') => true])
+            ->all();
+
+        $employees = Employee::whereIn('id', array_keys($employeeDays))
+            ->where('status', 'active')
+            ->get();
+
+        foreach ($employees as $employee) {
+            $days = $employeeDays[$employee->id] ?? [];
+            ksort($days);
+
+            foreach ($days as $date => $hasNewPunch) {
+                $date = (string) $date;
+
+                if (isset($lockedDates[$date])) {
+                    $summary['locked_skipped']++;
+                    continue;
+                }
+
+                if (!$hasNewPunch && $this->dayRowExists($employee->id, $date)) {
+                    continue;
+                }
+
+                // One call per day: a range would also compute dates that are not in the list.
+                $stats = ['processed' => 0, 'skipped' => 0, 'errors' => 0];
+                $this->computeForEmployee(
+                    $employee,
+                    Carbon::parse($date)->startOfDay(),
+                    Carbon::parse($date)->endOfDay(),
+                    $sourceRunId,
+                    $stats,
+                    false
+                );
+                $summary['days_computed'] += $stats['processed'];
+                $summary['errors'] += $stats['errors'];
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Whether the employee already has a day row for the date.
+     */
+    protected function dayRowExists(int $employeeId, string $date): bool
+    {
+        // whereDate, because the stored value carries a time part on some database drivers.
+        return AttendanceDay::where('employee_id', $employeeId)
+            ->whereDate('work_date', $date)
+            ->exists();
     }
 
     /**

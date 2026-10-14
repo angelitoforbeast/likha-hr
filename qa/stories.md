@@ -68,6 +68,307 @@ Independent test: render the Import page for a done run with a compute summary o
 | S-04.6 | edge | Given a run that is still processing and then finishes while the page is open, when the page's status poll receives the finished run, then the Stats cell shows the same "Computed: …" text without a reload (the text comes from the status response; the poll running in a browser is checked by hand) | `ImportPageShowsComputeTest::test_s_04_6_status_poll_carries_the_compute_text` | Passed · 2026-10-09 · auto |
 | S-04.7 | edge | Given a summary of computed 1, locked skipped 0, errors 0, when the page renders, then the cell shows "Computed: 1 day" (singular) | `ImportPageShowsComputeTest::test_s_04_7_one_day_is_singular` | Passed · 2026-10-09 · auto |
 
+## Slice 002 – Approvals for attendance changes
+
+Slice 002: 164 passed, 0 failed, 0 blocked, 0 skipped, 0 not run
+
+Tests live in `tests/Feature/Approvals/`. Run them with `php vendor/phpunit/phpunit/phpunit --testdox`. Cases that name a phone width or what a page shows are checked on the rendered HTML; no test renders a real screen. `LockConflictAndGuardsTest` holds 13 tests without a case number, written after a run on MySQL: they pin rules of S-16 and S-19 (one lock order, the retry after a deadlock, who may do what with their own old request). `PageUpdatesTest` holds 6 more, written after a run in a browser: the replies that let a page show a saved request at once, no browser dialogs on the controls of this slice, and the calendar's request script run under `node` (skipped where `node` is not installed).
+
+Fixtures used in every case. Users: C (role ceo), H and H2 (role hr_staff), M (role admin). Employees: E1 and E2 (active, shift 08:00–17:00 with lunch 12:00–13:00), E3 (inactive). Dates: Dn is an unlocked weekday where E1 has no day row, no rest day and no SIL; Dr is an unlocked weekday where E1 has a day row from punches at 08:03, 12:00, 13:00 and 17:00; Dl is a locked date. "Request" means one pending change asked by HR staff or an admin; the Approvals page shows one entry per employee and date that holds all of that day's pending fields, and an entry is approved or rejected as a whole. "Official" means what is in `attendance_days`, `attendance_overrides`, `day_offs`, `sil_applications` and `employee_shift_assignments`. "Day row" means one `attendance_days` row for that employee and `work_date`. "Payroll" means what `PayrollService` computes for E1. "Direct" means saved at once with no request. Cases that compare payroll note E1's payroll numbers, the count of E1's day rows and Dr's `updated_at` before the action. Rules in force: an admin is treated exactly like HR staff (asks, never approves); times, approved overtime, applying and removing SIL, assigning a shift for a date and bulk actions by HR staff or an admin all go through approval; a rest day change (add, cancel or remove) is direct when the employee has no day row on that date and goes through approval when there is a day row; the CEO's own edits are direct; only the CEO approves; a locked date takes no request and cannot be approved while locked.
+
+### S-05 HR staff asks for times on a day (P1)
+As an HR staff member, I want to enter times and a reason and have them wait for the CEO, so that I can record a missed punch without changing pay myself.
+Independent test: H saves four times with a reason on E1/Dn; a pending request exists and E1/Dn has no day row.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-05.1 | happy | Given Dn with no day row, when H saves 08:00, 12:00, 13:00 and 17:00 with reason "Nakalimutan mag-punch" (`saveAll`), then the reply says it was sent for approval (not a 403), one pending request holds employee, date, the four values, the reason, requester H and when it was asked, and there is no day row, no override row, and payroll is unchanged | `RequestTimesTest::test_s_05_1_times_on_a_day_without_a_row_become_a_request` | Passed · 2026-10-14 · auto |
+| S-05.2 | happy | Given Dr (time_in 08:03), when H changes time_in to 08:00, then a pending request holds old 08:03:00 and new 08:00:00, and the day row (values, `updated_at`), its totals and the override table are unchanged | `RequestTimesTest::test_s_05_2_change_on_a_day_with_a_row_leaves_the_row_untouched` | Passed · 2026-10-14 · auto |
+| S-05.3 | happy | Given Dr, when H edits one field from the modal (`overrideTime`), then a pending request exists and the day row is untouched | `RequestTimesTest::test_s_05_3_single_field_edit_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-05.4 | happy | Given Dn, when H uses the add-time flow of the modal (today: create day, then enter times), then exactly one request holding the times exists, no blank day row exists, no "CEO access required" message shows, and no request without values is listed | `RequestTimesTest::test_s_05_4_add_time_flow_makes_no_blank_day_row` | Passed · 2026-10-14 · auto |
+| S-05.5 | happy | Given Dn and a shift for E1, when H uses Fill from Shift, then one pending request holds the four times of the shift as they were at the request, and there is no day row | `RequestTimesTest::test_s_05_5_fill_from_shift_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-05.6 | happy | Given the same as S-05.1, when admin M saves, then the result is the same, with requester M, and M can never approve | `RequestTimesTest::test_s_05_6_admin_asks_like_hr_staff` | Passed · 2026-10-14 · auto |
+| S-05.7 | negative | Given a reason that is empty or 2 characters, when H saves, then it is refused (422) and nothing is stored | `RequestTimesTest::test_s_05_7_short_reason_is_refused` | Passed · 2026-10-14 · auto |
+| S-05.8 | negative | Given Dl, when H saves through any entry point (`saveAll`, `overrideTime`, `createDay`, `fillFromShift`), then it is refused (423) and no request exists | `RequestTimesTest::test_s_05_8_locked_date_takes_no_request` | Passed · 2026-10-14 · auto |
+| S-05.9 | negative | Given Dr, when H saves the values the day already has, then the reply says "No changes to save." and no request is created | `RequestTimesTest::test_s_05_9_unchanged_values_create_no_request` | Passed · 2026-10-14 · auto |
+| S-05.10 | negative | Given a time such as `25:61`, an unknown employee id or a value that is not a date, when H saves, then it is refused (422) and nothing is stored | `RequestTimesTest::test_s_05_10_bad_input_is_refused` | Passed · 2026-10-14 · auto |
+| S-05.11 | edge | Given H sends `saveAll` on Dn with times and `shift_id` together, when it is processed, then nothing official is written: no day row and no `employee_shift_assignments` row (today the shift row is written before the refusal) | `RequestTimesTest::test_s_05_11_times_with_a_shift_write_nothing_official` | Passed · 2026-10-14 · auto |
+| S-05.12 | edge | Given Dr, when H clears time_out (`clear_fields`), then the request records "clear" with old value 17:00:00, and the Approvals page shows "cleared", not a blank | `RequestTimesTest::test_s_05_12_clear_is_recorded_as_clear` | Passed · 2026-10-14 · auto |
+| S-05.13 | edge | Given a reason of exactly 500 characters, then it is accepted; at 501 it is refused. A reason in Filipino and non-ASCII ("Hindi nakapag-punch dahil sira ang makina, Ñoño") is stored and shown intact in the modal and on the Approvals page | `RequestTimesTest::test_s_05_13_reason_length_and_characters` | Passed · 2026-10-14 · auto |
+| S-05.14 | edge | Given the same save is sent twice (double click), then one request exists | `RequestTimesTest::test_s_05_14_double_click_leaves_one_request` | Passed · 2026-10-14 · auto |
+| S-05.15 | edge | Given the server saved but the reply was lost (failed network), when H reloads the calendar, then the day shows pending once, and saving again does not create a second request (rule in S-15) | `RequestTimesTest::test_s_05_15_lost_reply_then_save_again` | Passed · 2026-10-14 · auto |
+| S-05.16 | edge | Given the HR modal opened on a phone (390 × 844), when H saves, then the confirmation, the pending marker and the reason field are all visible without horizontal scrolling | `RequestTimesTest::test_s_05_16_modal_parts_for_a_phone` | Passed · 2026-10-14 · auto |
+
+### S-06 Overtime, SIL and shift changes also wait (P1)
+As an HR staff member, I want every kind of change to a day to wait for approval, so that nothing that moves pay is decided by me alone.
+Independent test: H applies SIL for E1 on Dn; a pending request exists and there is no `sil_applications` row.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-06.1 | happy | Given Dr, when H sets approved overtime to 2 hours, then a pending request holds 2 h, and `approved_overtime_minutes`, the totals and the override table are unchanged. "0" (approve no overtime) and "back to automatic" are two different requests, shown as "0 h" and "automatic" | `RequestOtherKindsTest::test_s_06_1_overtime_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-06.2 | happy | Given E1 is SIL-eligible with balance, when H applies SIL for Dn, then a pending request exists, no `sil_applications` row exists, the remaining balance is unchanged, and payroll is unchanged | `RequestOtherKindsTest::test_s_06_2_sil_apply_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-06.3 | happy | Given SIL applied on a date, when H removes it with a reason, then a pending removal exists and the SIL is still applied and counted until approval. Without a reason the removal is refused (422): every request carries a reason | `RequestOtherKindsTest::test_s_06_3_sil_removal_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-06.4 | happy | Given a date with the current shift, when H assigns another shift for that date with a reason (`assignShiftForDate`), then a pending request exists, no new `employee_shift_assignments` row exists, and `getShiftForDate` still returns the old shift. Without a reason it is refused (422) | `RequestOtherKindsTest::test_s_06_4_shift_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-06.5 | negative | Given E1 is not SIL-eligible, or the balance is 0, or SIL is already applied on that date, when H applies SIL, then it is refused (422) with the existing message and no request is created | `RequestOtherKindsTest::test_s_06_5_sil_that_cannot_be_applied` | Passed · 2026-10-14 · auto |
+| S-06.6 | edge | Given a balance of 1 and two pending SIL requests for two different dates, when C approves the first, then the second cannot be approved ("No remaining SIL days") and nothing is applied for it | `RequestOtherKindsTest::test_s_06_6_last_sil_day_goes_once` | Passed · 2026-10-14 · auto |
+| S-06.7 | edge | Given H saves times, overtime and a shift for E1/Dr in one save, then one request per field is created, the Approvals page shows ONE entry for E1/Dr holding all of them, and Approve or Reject applies to all of them together | `RequestOtherKindsTest::test_s_06_7_one_save_one_entry` | Passed · 2026-10-14 · auto |
+| S-06.8 | edge | Given a SIL request on a date where E1 already has a day row with times, then the Approvals page shows both, so the CEO sees what SIL will replace | `RequestOtherKindsTest::test_s_06_8_sil_request_shows_the_day` | Passed · 2026-10-14 · auto |
+
+### S-07 Rest day changes (P1)
+As an HR staff member, I want turning an absent day into a rest day to take effect at once, and a rest day change on a day that already has a record to wait for the CEO, so that a mis-scheduled day is fixed fast but a worked day can't be taken out of pay alone.
+Independent test: H marks E1/Dn (no day row) as a rest day; `day_offs` and `day_off_logs` have rows and no request exists.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-07.1 | happy | Given Dn with no day row, when H adds a day off with a reason, then a `day_offs` row (type day off) exists, one `day_off_logs` row names H and the reason, there is no request, and the calendar shows the rest day | `RequestOtherKindsTest::test_s_07_1_rest_day_on_an_absent_day_is_direct` | Passed · 2026-10-14 · auto |
+| S-07.2 | happy | Given a rest day on Dn with no day row, when H cancels it ("must work"), then it is direct, with a log row, and no request | `RequestOtherKindsTest::test_s_07_2_cancel_on_an_absent_day_is_direct` | Passed · 2026-10-14 · auto |
+| S-07.3 | happy | Given a day-off override on Dn with no day row, when H removes the override, then it is direct, with a log row, and no request | `RequestOtherKindsTest::test_s_07_3_remove_on_an_absent_day_is_direct` | Passed · 2026-10-14 · auto |
+| S-07.4 | happy | Given Dr (E1 has a day row), when H adds a day off, then a pending request exists, nothing is official yet (no `day_offs` row, no log row, day row and totals unchanged, payroll unchanged), and the cell is marked pending | `RequestOtherKindsTest::test_s_07_4_rest_day_on_a_worked_day_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-07.5 | happy | Given a rest day and a day row on the same date, when H cancels the rest day or removes the override, then each is a pending request and nothing changes until approved | `RequestOtherKindsTest::test_s_07_5_cancel_or_remove_on_a_worked_day_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-07.6 | happy | Given the S-07.4 request, when C approves, then the `day_offs` row and one `day_off_logs` row exist as if C had set them, the log names C as the one who set it, the request and the day's history name H as the one who asked, and payroll equals the payroll after C sets the same rest day directly | `RequestOtherKindsTest::test_s_07_6_approved_rest_day_equals_a_direct_one` | Passed · 2026-10-14 · auto |
+| S-07.7 | negative | Given Dl, when H toggles a day off (with or without a day row), then it is refused (423) as today. A missing or 2-character reason is refused (422) | `RequestOtherKindsTest::test_s_07_7_locked_date_and_short_reason` | Passed · 2026-10-14 · auto |
+| S-07.8 | edge | Given a pending times request for E1/Dn, when H makes Dn a rest day directly (no day row), then the rest day stands and the request is flagged "now a rest day", cannot be approved and can be rejected (S-17.4) | `RequestOtherKindsTest::test_s_07_8_times_request_then_rest_day` | Passed · 2026-10-14 · auto |
+| S-07.9 | edge | Given a bulk day-off action by H over 3 employees where 2 have no day row on that date and 1 has one, then the 2 are direct (one log row each) and the third becomes a pending request, and the reply says "2 done, 1 sent for approval" | `BulkAndBatchTest::test_s_07_9_bulk_day_off_mixed` | Passed · 2026-10-14 · auto |
+| S-07.10 | edge | Given a pending rest-day request on Dr, when H asks the same again, then one request remains (rule in S-15) | `RequestOtherKindsTest::test_s_07_10_same_rest_day_request_again` | Passed · 2026-10-14 · auto |
+| S-07.11 | edge | Given the CEO sets or cancels a rest day on a date with or without a day row, then it is direct and no request exists | `RequestOtherKindsTest::test_s_07_11_ceo_rest_day_is_direct` | Passed · 2026-10-14 · auto |
+| S-07.12 | negative | Given H or M on the Day Off Calendar (`/day-off-calendar/toggle`), when they change a rest day on Dl, then it is refused (423); on Dr (E1 has a day row) it is refused with "This day has attendance. Change it on the Attendance Calendar." and nothing is written; on Dn (no day row) it is direct as before. The CEO is unchanged | `RequestOtherKindsTest::test_s_07_12_day_off_calendar_guard` | Passed · 2026-10-14 · auto |
+| S-07.13 | negative | Given H or M on the Employee page, when they add, change or delete a day-off override, then the same guard applies: 423 on a locked date, the same refusal on a date with a day row (also for the date an override is moved to), direct with no day row. The CEO is unchanged | `RequestOtherKindsTest::test_s_07_13_employee_page_guard` | Passed · 2026-10-14 · auto |
+
+### S-08 The CEO's own edits stay direct (P1)
+As the CEO, I want my own edits to apply at once, so that I never have to approve myself.
+Independent test: C saves times on E1/Dn; the day row and override rows exist and no request exists.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-08.1 | happy | Given Dn, when C saves four times with a reason, then the day row and one override row per field exist (`updated_by` = C), and no request is created | `RequestTimesTest::test_s_08_1_ceo_saves_times_directly` | Passed · 2026-10-14 · auto |
+| S-08.2 | happy | Given C changes a time on Dr, approved overtime, SIL, a shift for a date, a rest day, or runs a bulk action, then each is direct as today and no request is created | `RequestOtherKindsTest::test_s_08_2_ceo_changes_are_direct` | Passed · 2026-10-14 · auto |
+| S-08.3 | negative | Given Dl, when C edits through the calendar, then it is refused (423) | `RequestTimesTest::test_s_08_3_ceo_is_refused_on_a_locked_date` | Passed · 2026-10-14 · auto |
+| S-08.4 | edge | Given a user who was admin when they asked and is now CEO, when they edit, then the edit is direct (the role is read at each call), and their earlier request follows S-19.5 | `RequestOtherKindsTest::test_s_08_4_role_is_read_at_each_call` | Passed · 2026-10-14 · auto |
+| S-08.5 | edge | Given C's direct edit on a date where H has a pending request, then the request follows S-17.2 and S-17.3 | `RequestOtherKindsTest::test_s_08_5_direct_edit_beside_a_pending_request` | Passed · 2026-10-14 · auto |
+
+### S-09 The calendar and the old Attendance page show pending (P1)
+As an HR staff member or admin, I want to see that a day is waiting, so that I don't enter it twice or think it was lost.
+Independent test: after S-05.1, the E1/Dn cell says pending, not absent.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-09.1 | happy | Given S-05.1, when H opens the calendar, then the E1/Dn cell is marked "pending" and its modal shows the requested times, reason, requester and when asked. Totals show nothing worked | `ApprovalsPageTest::test_s_09_1_cell_is_marked_pending` | Passed · 2026-10-14 · auto |
+| S-09.2 | happy | Given a pending change on Dr, then the cell shows the official values with a "pending" marker, and the modal shows requested next to official. Totals are those of the day row | `ApprovalsPageTest::test_s_09_2_official_values_with_a_marker` | Passed · 2026-10-14 · auto |
+| S-09.3 | negative | Given the pending day, then calendar summaries (present and absent counts, per-employee and per-day totals) and any calendar print or export count Dn as absent as before, and Dr with its official values | `ApprovalsPageTest::test_s_09_3_summaries_count_official_days_only` | Passed · 2026-10-14 · auto |
+| S-09.4 | negative | Given E1 has a pending request, then E2's cells and E1's other dates are unmarked | `ApprovalsPageTest::test_s_09_4_only_the_requested_day_is_marked` | Passed · 2026-10-14 · auto |
+| S-09.5 | happy | Given the same pending day, when H opens the old Attendance page (`/attendance`), then the row for E1/Dn or Dr is marked pending and keeps its official values. Its CSV export and print view contain official values only | `OldAttendancePageTest::test_s_09_5_old_page_marks_pending_rows` | Passed · 2026-10-14 · auto |
+| S-09.6 | edge | Given the page is reloaded, then the pending state comes from the server and not from the page's script | `ApprovalsPageTest::test_s_09_6_pending_state_comes_from_the_server` | Passed · 2026-10-14 · auto |
+| S-09.7 | edge | Given a request is approved, withdrawn or rejected, then after a reload the pending marker is gone; approved shows the real times, rejected shows "Rejected: <reason>" (S-13.2) | `ApprovalsPageTest::test_s_09_7_marker_goes_after_a_decision` | Passed · 2026-10-14 · auto |
+| S-09.8 | edge | Given a request made at 23:30 Manila time, then it is on the work date asked for (not the `created_at` date), and "asked at" shows Manila time | `ApprovalsPageTest::test_s_09_8_late_evening_request` | Passed · 2026-10-14 · auto |
+| S-09.9 | edge | Given a phone width (390 × 844), then the pending marker is visible on the cell and in the modal, and the calendar is still usable | `ApprovalsPageTest::test_s_09_9_marker_for_a_phone` | Passed · 2026-10-14 · auto |
+| S-09.10 | edge | Given a pending rest-day request on Dr, then the cell is marked pending, still shows the worked day with its official times, and is still counted as worked | `RequestOtherKindsTest::test_s_09_10_pending_rest_day_keeps_the_worked_day` | Passed · 2026-10-14 · auto |
+
+### S-10 The CEO sees what is waiting (P1)
+As the CEO, I want an "Approvals" link with a count and a list, so that I can see at a glance what needs me.
+Independent test: with 3 entries pending, C sees "Approvals 3" and a list of 3 rows.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-10.1 | happy | Given 3 pending entries (3 employee-and-date pairs, one of them holding 2 fields), when C loads any page, then the nav shows "Approvals" with 3. The list shows, per entry, employee, date, the kind of change, the values put in with the official value next to them, the reason, who asked and when | `ApprovalsPageTest::test_s_10_1_nav_count_and_list` | Passed · 2026-10-14 · auto |
+| S-10.2 | happy | Given C approves or rejects one entry, then on the next load the count is 2 and the row is gone from the pending list | `ApprovalsPageTest::test_s_10_2_count_follows_decisions` | Passed · 2026-10-14 · auto |
+| S-10.3 | negative | Given H, H2 or M, then there is no Approvals link, and GET of the Approvals address returns 403. The nav does not leak the count | `ApprovalsPageTest::test_s_10_3_other_roles_see_nothing` | Passed · 2026-10-14 · auto |
+| S-10.4 | negative | Given nothing pending, then the page says nothing is waiting and the nav shows no badge | `ApprovalsPageTest::test_s_10_4_nothing_waiting` | Passed · 2026-10-14 · auto |
+| S-10.5 | edge | Given a feature permission is granted to hr_staff or admin for any nav link, then the Approvals link and address still stay CEO-only | `ApprovalsPageTest::test_s_10_5_feature_permissions_do_not_open_approvals` | Passed · 2026-10-14 · auto |
+| S-10.6 | edge | Given enough entries to page, then the count is the total pending entries and not the page size. Withdrawn, approved and rejected are not counted. Entries on locked dates or deactivated employees are counted and flagged | `ApprovalsPageTest::test_s_10_6_count_is_the_total` | Passed · 2026-10-14 · auto |
+| S-10.7 | edge | Given the filters (P2), then the list can be filtered by status (pending, approved, rejected, withdrawn), employee, requester, work-date range and kind of change. The default is pending, oldest first. A "decided" view shows who approved or rejected, when, and the CEO's reason | `ApprovalsPageTest::test_s_10_7_filters` | Passed · 2026-10-14 · auto |
+| S-10.8 | edge | Given an employee name with Ñ or ñ, and a reason with `<script>` or a long unbroken word, then both show as plain text and the layout holds | `ApprovalsPageTest::test_s_10_8_text_is_escaped` | Passed · 2026-10-14 · auto |
+| S-10.9 | edge | Given a phone width (390 × 844), then every row is readable and the approve and reject controls are reachable | `ApprovalsPageTest::test_s_10_9_entries_are_cards_with_controls` | Passed · 2026-10-14 · auto |
+| S-10.10 | edge | Given a CEO who opens the page in a stale tab, then loading again shows current data, and a stale click is handled by S-16 | `ApprovalsPageTest::test_s_10_10_reload_shows_current_data` | Passed · 2026-10-14 · auto |
+| S-10.11 | edge | Given an entry holding fields asked by H and H2, then the row shows each field with its own requester | `ApprovalsPageTest::test_s_10_11_each_field_with_its_requester` | Passed · 2026-10-14 · auto |
+
+### S-11 The CEO approves a request (P1)
+As the CEO, I want approval to make the change real exactly as if I had entered it, so that payroll and reports treat it like any other attendance.
+Independent test: approve the S-05.1 request; E1/Dn has the same day row as if C had saved those times.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-11.1 | happy | Given the S-05.1 request, when C approves, then the day row exists with the four times, one override row per field with the requester's reason, and the totals (work, late, early, overtime minutes) equal those of a control employee and date where C entered the same times. The request is approved with approver C and the decision time, and H is still recorded as the requester. The calendar is no longer pending and payroll counts the day | `ApprovalFlowTest::test_s_11_1_approval_equals_a_direct_entry` | Passed · 2026-10-14 · auto |
+| S-11.2 | happy | Given a time_in request on Dr, when approved, then only time_in changes, the override row has old and new value, and the other fields are untouched | `ApprovalFlowTest::test_s_11_2_only_the_requested_field_changes` | Passed · 2026-10-14 · auto |
+| S-11.3 | happy | Given an overtime, SIL apply, SIL removal or shift request, when approved, then the same official data exists as the direct path creates, and the SIL balance moves by exactly one day | `RequestOtherKindsTest::test_s_11_3_other_kinds_equal_the_direct_path` | Passed · 2026-10-14 · auto |
+| S-11.4 | happy | Given an approved request, then the day's history (modal and logs) shows who asked and who approved, with the reason | `ApprovalFlowTest::test_s_11_4_history_names_requester_and_approver` | Passed · 2026-10-14 · auto |
+| S-11.5 | negative | Given the date is locked at approval time, then the approval is refused with the lock message, the request stays pending and nothing is written | `ApprovalFlowTest::test_s_11_5_locked_at_approval_time` | Passed · 2026-10-14 · auto |
+| S-11.6 | negative | Given the approval fails halfway (the recompute throws), then nothing is half-written: no new day row, no override row, and the request is still pending with an error shown | `ApprovalFlowTest::test_s_11_6_failed_approval_writes_nothing` | Passed · 2026-10-14 · auto |
+| S-11.7 | edge | Given an approved clear-time request, then the field becomes empty and the old value is in the log | `ApprovalFlowTest::test_s_11_7_approved_clear` | Passed · 2026-10-14 · auto |
+| S-11.8 | edge | Given an approved day, when an import later brings punches for it, then the approved fields are kept as overrides (the same as a CEO-entered edit; S-02.1) | `ApprovalFlowTest::test_s_11_8_later_import_keeps_approved_fields` | Passed · 2026-10-14 · auto |
+| S-11.9 | edge | Given a request that is already approved, rejected or withdrawn, when approval is attempted, then it is refused and nothing changes | `ApprovalFlowTest::test_s_11_9_decided_request_cannot_be_approved` | Passed · 2026-10-14 · auto |
+| S-11.10 | edge | Given an entry with 3 pending fields, when C approves, then all 3 are applied together; none is applied alone | `ApprovalFlowTest::test_s_11_10_entry_is_applied_together` | Passed · 2026-10-14 · auto |
+| S-11.11 | edge | Given an entry with a field asked by H and a field asked by H2, when C approves, then each override row and the history name the right requester for that field and C as approver | `ApprovalFlowTest::test_s_11_11_shared_entry_names_each_requester` | Passed · 2026-10-14 · auto |
+
+### S-12 The CEO approves several at once (P2)
+As the CEO, I want to approve many entries in one go, so that a pay period's batch doesn't take 40 clicks.
+Independent test: select 3 pending entries and approve; all 3 are approved.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-12.1 | happy | Given 3 entries selected, when C approves, then all 3 are applied and approved and the reply says "3 approved" | `BulkAndBatchTest::test_s_12_1_approve_three_selected` | Passed · 2026-10-14 · auto |
+| S-12.2 | negative | Given 1 of the 3 is on a locked date, then it stays pending with the reason named, the other 2 are applied, and the reply says "2 approved, 1 not approved: date locked" | `BulkAndBatchTest::test_s_12_2_one_of_three_is_locked` | Passed · 2026-10-14 · auto |
+| S-12.3 | edge | Given one entry was withdrawn after the list loaded, then it is skipped with a message and the rest are applied | `BulkAndBatchTest::test_s_12_3_one_was_withdrawn_meanwhile` | Passed · 2026-10-14 · auto |
+| S-12.4 | edge | Given a filter is on, then "approve all" affects only the filtered rows | `BulkAndBatchTest::test_s_12_4_selection_follows_the_filter` | Passed · 2026-10-14 · auto |
+| S-12.5 | edge | Given 50 selected with one failing (a SIL request whose balance is gone), then each is isolated: one failure does not undo the others, and the page does not time out | `BulkAndBatchTest::test_s_12_5_fifty_with_one_failing` | Passed · 2026-10-14 · auto |
+| S-12.6 | edge | Given reject selected, then one reason is required and is stored on each rejected entry | `BulkAndBatchTest::test_s_12_6_reject_selected` | Passed · 2026-10-14 · auto |
+| S-12.7 | edge | Given a batch made by a bulk action (S-22), when C approves the batch in one action, then each of its requests is applied or, if blocked (lock, rest day, SIL), stays pending with its reason named, and the others are applied | `BulkAndBatchTest::test_s_12_7_batch_with_blocked_requests` | Passed · 2026-10-14 · auto |
+
+### S-13 The CEO rejects with a reason (P1)
+As the CEO, I want to reject with a reason the requester can read, so that they know what to fix.
+Independent test: reject a request with "Walang katibayan"; the day is as before and H sees the reason.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-13.1 | happy | Given a pending entry, when C rejects with a reason, then the status is rejected with the reason, rejecter C and time, and the day (day row, values, `updated_at`, overrides, rest day, SIL, shift) and payroll are unchanged | `ApprovalFlowTest::test_s_13_1_rejection_changes_nothing_official` | Passed · 2026-10-14 · auto |
+| S-13.2 | happy | Given S-13.1, when H opens the day in the calendar, then the modal shows "Rejected: Walang katibayan" with the values H asked for. Nothing is sent by email or chat | `ApprovalFlowTest::test_s_13_2_requester_sees_the_rejection` | Passed · 2026-10-14 · auto |
+| S-13.3 | negative | Given the reason is empty or fewer than 3 characters, then the rejection is refused and the request stays pending | `ApprovalFlowTest::test_s_13_3_rejection_needs_a_reason` | Passed · 2026-10-14 · auto |
+| S-13.4 | negative | Given a request already decided or withdrawn, then reject is refused with no change | `ApprovalFlowTest::test_s_13_4_decided_request_cannot_be_rejected` | Passed · 2026-10-14 · auto |
+| S-13.5 | edge | Given an entry on a locked date, then C can still reject it | `ApprovalFlowTest::test_s_13_5_reject_on_a_locked_date` | Passed · 2026-10-14 · auto |
+| S-13.6 | edge | Given a rejected request, then H can ask again on the same employee, date and field. The rejected one stays in history, the new one replaces the "Rejected" notice in the modal, and the count has only the new one | `ApprovalFlowTest::test_s_13_6_ask_again_after_a_rejection` | Passed · 2026-10-14 · auto |
+| S-13.7 | edge | Given a 501-character reason, then it is refused. Given a Filipino and non-ASCII reason, then it is shown intact to H | `ApprovalFlowTest::test_s_13_7_rejection_reason_length_and_characters` | Passed · 2026-10-14 · auto |
+| S-13.8 | edge | Given C rejects an entry with 2 fields, then both fields are rejected with the same reason | `ApprovalFlowTest::test_s_13_8_reject_covers_every_field` | Passed · 2026-10-14 · auto |
+| S-13.9 | edge | Given the requester's rejected items badge (P2), when H has 2 rejected entries not yet replaced, then the calendar page shows a small list of them with date, employee and reason, and an item leaves the list once a new request replaces it | `ApprovalsPageTest::test_s_13_9_rejected_list_of_the_requester` | Passed · 2026-10-14 · auto |
+
+### S-14 The requester changes or withdraws a pending request (P1)
+As the person who asked, I want to correct or take back my request while it waits, so that a typo doesn't need the CEO to reject it.
+Independent test: H withdraws; the request leaves the list and the count.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-14.1 | happy | Given H's pending request, when H changes the times and reason, then the same request holds the new values (same id), "changed at" is set, and the CEO's list shows the new values | `ApprovalFlowTest::test_s_14_1_requester_changes_the_request` | Passed · 2026-10-14 · auto |
+| S-14.2 | happy | Given H's pending request, when H withdraws, then the status is withdrawn, the request is out of the list and the count, and the cell returns to absent or to Dr's official values. No day row exists | `ApprovalFlowTest::test_s_14_2_requester_withdraws` | Passed · 2026-10-14 · auto |
+| S-14.3 | negative | Given H's request, when H2 or M tries to change or withdraw it (including by posting the id directly), then 403 and no change. In an entry holding fields of H and H2, each can change or withdraw only their own fields | `ApprovalFlowTest::test_s_14_3_other_users_cannot_change_or_withdraw` | Passed · 2026-10-14 · auto |
+| S-14.4 | negative | Given the request is approved or rejected, when H changes or withdraws it, then it is refused ("already decided") | `ApprovalFlowTest::test_s_14_4_decided_request_cannot_be_changed` | Passed · 2026-10-14 · auto |
+| S-14.5 | negative | Given the date got locked, when H changes the request, then it is refused (423); when H withdraws it, then it is withdrawn | `ApprovalFlowTest::test_s_14_5_locked_date_allows_withdraw_only` | Passed · 2026-10-14 · auto |
+| S-14.6 | negative | Given an edit with the reason missing or a bad time, then 422 and the request is unchanged | `ApprovalFlowTest::test_s_14_6_bad_change_is_refused` | Passed · 2026-10-14 · auto |
+| S-14.7 | edge | Given an edit whose values equal the official ones, then it is refused as "No changes" and the request is kept as it was | `ApprovalFlowTest::test_s_14_7_change_to_the_official_value` | Passed · 2026-10-14 · auto |
+| S-14.8 | edge | Given withdraw sent twice, then no error 500, and the final state is withdrawn | `ApprovalFlowTest::test_s_14_8_double_withdraw` | Passed · 2026-10-14 · auto |
+| S-14.9 | edge | Given a withdrawn request, then H can ask again later as a new request | `ApprovalFlowTest::test_s_14_9_ask_again_after_a_withdrawal` | Passed · 2026-10-14 · auto |
+| S-14.10 | edge | Given C wants a pending request gone, then C cannot withdraw it (only reject it) | `ApprovalFlowTest::test_s_14_10_ceo_cannot_withdraw` | Passed · 2026-10-14 · auto |
+
+### S-15 A second request for the same employee, date and field (P1)
+As the CEO, I want only one pending request per employee, date and field, so that I never approve two conflicting values.
+Independent test: H asks twice for E1/Dn time_in; one pending request remains.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-15.1 | happy | Given H has a pending time_in for E1/Dn, when H asks again with a new value, then that request is updated (not duplicated), one remains pending, and the count is 1 | `RequestTimesTest::test_s_15_1_same_requester_updates_the_request` | Passed · 2026-10-14 · auto |
+| S-15.2 | negative | Given H has a pending time_in for E1/Dn, when H2 or M asks for the same employee, date and field, then it is refused with a message naming H as the one who asked, and the one request remains unchanged | `RequestTimesTest::test_s_15_2_another_requester_is_refused` | Passed · 2026-10-14 · auto |
+| S-15.3 | edge | Given a pending time_in for E1/Dn, when H2 asks for time_out, SIL, overtime or a rest day on the same day, then it is accepted as a request of its own and the Approvals page shows ONE entry for E1/Dn holding both fields, each with its requester | `RequestTimesTest::test_s_15_3_other_field_same_day_is_accepted` | Passed · 2026-10-14 · auto |
+| S-15.4 | edge | Given the same field on another date, or another employee, then it is independent and a separate entry | `RequestTimesTest::test_s_15_4_other_date_or_employee_is_independent` | Passed · 2026-10-14 · auto |
+| S-15.5 | edge | Given the first one was approved, rejected or withdrawn, then a new request for the same field is allowed and is compared with the new official value | `RequestTimesTest::test_s_15_5_new_request_after_a_decision` | Passed · 2026-10-14 · auto |
+| S-15.6 | edge | Given two identical requests arrive at the same instant, then one row exists (a database-level guard) and the other gets the "already pending" reply | `RequestTimesTest::test_s_15_6_database_refuses_a_second_pending_row` | Passed · 2026-10-14 · auto |
+
+### S-16 Two people acting at once (P1)
+As the CEO, I want a double click or two tabs never to apply a change twice or halfway, so that the records stay right.
+Independent test: approve the same entry twice at the same instant; the data is applied once.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-16.1 | negative | Given two approvals of the same entry at once (double click, two tabs), then one set of rows exists (one day row, one override per field, one SIL application), and the second gets "already approved", not an error 500 | `ApprovalFlowTest::test_s_16_1_double_approval_applies_once`, `ApprovalFlowTest::test_s_16_1_approval_locks_its_rows` | Passed · 2026-10-14 · auto |
+| S-16.2 | edge | Given approve and reject at once, then exactly one wins, and the final data matches the status: approved means data written; rejected means none | `ApprovalFlowTest::test_s_16_2_approve_and_reject_at_once` | Passed · 2026-10-14 · auto |
+| S-16.3 | edge | Given C opened values V1 and H changes the request to V2 before C approves, then the approval is refused with "request changed, review again". V2 is never applied unseen | `ApprovalFlowTest::test_s_16_3_changed_request_needs_a_new_look` | Passed · 2026-10-14 · auto |
+| S-16.4 | edge | Given H withdraws while C approves, then one wins, and no data is written if withdrawn won | `ApprovalFlowTest::test_s_16_4_withdraw_while_approving` | Passed · 2026-10-14 · auto |
+| S-16.5 | edge | Given C is approving an entry holding time_in and H2 adds time_out to it at the same moment, then the approval is refused with "request changed, review again", nothing is written, and the entry then holds both fields | `ApprovalFlowTest::test_s_16_5_field_added_while_approving` | Passed · 2026-10-14 · auto |
+| S-16.6 | edge | Given an approval and C's direct creation of the same E1/Dn day row at once, then one day row only exists, both actions are logged, and no duplicate-key error is shown | `ApprovalFlowTest::test_s_16_6_approval_meets_a_fresh_day_row` | Passed · 2026-10-14 · auto |
+
+### S-17 The day changes between request and approval (P1)
+As the CEO, I want a stale request to be flagged or blocked, so that I never approve something that no longer fits the day.
+Independent test: a request on E1/Dn; the date becomes a rest day; Approve is blocked and Reject works.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-17.1 | happy | Given a pending four-times request on Dn, when an import brings punches for Dn (a day row appears with times), then the request stays pending and the entry shows "was X, now Y" for each requested field that now differs. Approve needs the CEO's confirmation, and then the requested fields are applied to the existing day row (still one day row) | `ApprovalFlowTest::test_s_17_1_import_after_the_request` | Passed · 2026-10-14 · auto |
+| S-17.2 | edge | Given C changed the same field directly after the request, then the entry shows "was X, now Y" (X is the value the request saw), Approve needs the CEO's confirmation, and the log then shows C's edit first, then the approved change | `ApprovalFlowTest::test_s_17_2_ceo_edit_of_the_same_field` | Passed · 2026-10-14 · auto |
+| S-17.3 | edge | Given C changed a different field than the request holds, or the requested field's official value is still what the request saw, then no confirmation is asked and approval applies the request's own fields only | `ApprovalFlowTest::test_s_17_3_ceo_edit_of_another_field` | Passed · 2026-10-14 · auto |
+| S-17.4 | negative | Given the date became a rest day, then Approve is blocked ("now a rest day"), Reject works, and nothing is written. If the rest day is undone, Approve works again | `RequestOtherKindsTest::test_s_17_4_became_a_rest_day` | Passed · 2026-10-14 · auto |
+| S-17.5 | negative | Given SIL was applied for that date, then Approve of a times request is blocked, Reject works, and nothing is written. If the SIL is removed, Approve works again | `RequestOtherKindsTest::test_s_17_5_sil_applied_meanwhile` | Passed · 2026-10-14 · auto |
+| S-17.6 | negative | Given E1 was deactivated, then the request stays visible with the flag "Inactive employee", and both Approve and Reject work, as the CEO can also correct the day of an inactive employee directly (the last days of someone who left are corrected for final pay). There is no payroll effect: payroll leaves inactive employees out | `ApprovalFlowTest::test_s_17_6_deactivated_employee_is_flagged` | Passed · 2026-10-14 · auto |
+| S-17.7 | edge | Given E1's shift for the date changed meanwhile, then approval writes the requested times and recomputes with the current shift | `ApprovalFlowTest::test_s_17_7_shift_changed_meanwhile` | Passed · 2026-10-14 · auto |
+| S-17.8 | edge | Given a CEO force-recompute of the range, then pending requests are neither applied nor deleted | `ApprovalFlowTest::test_s_17_8_force_recompute_leaves_requests_alone` | Passed · 2026-10-14 · auto |
+| S-17.9 | edge | Given a SIL request and E1's balance reached 0 or the date became SIL, then Approve is refused with the reason and nothing is written | `RequestOtherKindsTest::test_s_17_9_sil_request_after_the_balance_changed` | Passed · 2026-10-14 · auto |
+| S-17.10 | edge | Given a pending rest-day request on Dr and the day row is then removed or changed, then approval still applies the rest-day change as the request saw it, and is refused only by the blocks above | `RequestOtherKindsTest::test_s_17_10_rest_day_request_after_the_day_row_changed` | Passed · 2026-10-14 · auto |
+
+### S-18 Locked dates (P1)
+As the CEO, I want a locked date to take no request and no approval, so that closed pay periods stay closed.
+Independent test: a locked date takes no request, and a request pending when the date gets locked cannot be approved.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-18.1 | negative | Given Dl, when H or M uses any entry point (`saveAll`, `overrideTime`, `createDay`, `fillFromShift`, `assignShiftForDate`, `applySil`, `removeSil`, `toggleDayOff`, bulk, and the old Attendance page; S-20), then 423 and no request, no day row, no log | `LocksTest::test_s_18_1_every_entry_point_refuses_a_locked_date` | Passed · 2026-10-14 · auto |
+| S-18.2 | negative | Given a request pending and the date is then locked (single lock or range lock), when C approves, then it is refused with the lock message, nothing is written, and the request stays pending and is flagged "date locked" in the list and on the cell | `LocksTest::test_s_18_2_locked_after_the_request` | Passed · 2026-10-14 · auto |
+| S-18.3 | negative | Given the same, then Reject still works, H can withdraw it, and H cannot change it (423) | `LocksTest::test_s_18_3_reject_and_withdraw_on_a_locked_date` | Passed · 2026-10-14 · auto |
+| S-18.4 | edge | Given the date is unlocked again, then the request is approvable again | `LocksTest::test_s_18_4_unlock_makes_it_approvable` | Passed · 2026-10-14 · auto |
+| S-18.5 | negative | Given a payroll run is finalized while the request is pending (finalizing auto-locks its dates), then it behaves as S-18.2, the finalized payroll has the day as it was, and the request is still counted | `LocksTest::test_s_18_5_finalized_run_locks_the_request` | Passed · 2026-10-14 · auto |
+| S-18.6 | edge | Given a pending request inside the period of the run being finalized, when C opens the finalize screen, then it shows a warning with the count of pending requests in the period, and finalizing is not blocked | `LocksTest::test_s_18_6_finalize_warns_and_does_not_block` | Passed · 2026-10-14 · auto |
+| S-18.7 | edge | Given a lock on another date or another period, then it does not block this one. The lock check uses the work date, not today | `LocksTest::test_s_18_7_only_the_work_date_counts` | Passed · 2026-10-14 · auto |
+
+### S-19 Only the CEO approves, on the server (P1)
+As the owner, I want approval to be impossible for anyone but the CEO, even by calling the address directly, so that the control cannot be bypassed.
+Independent test: H posts an approval for a real request id; it is refused and nothing changes.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-19.1 | negative | Given a real pending id, when H posts to approve, reject or approve-several, then 403, the request stays pending and nothing is written | `ApprovalSecurityTest::test_s_19_1_hr_staff_cannot_approve` | Passed · 2026-10-14 · auto |
+| S-19.2 | negative | Given the same with admin M, then 403 with no change | `ApprovalSecurityTest::test_s_19_2_admin_cannot_approve` | Passed · 2026-10-14 · auto |
+| S-19.3 | negative | Given a signed-out caller, then redirect to sign-in (or 401) with no change | `ApprovalSecurityTest::test_s_19_3_signed_out_caller` | Passed · 2026-10-14 · auto |
+| S-19.4 | negative | Given H posts a save with extra fields such as `status=approved`, `approved_by` or `requested_by`, then they are ignored: the request is pending and its requester is the signed-in user | `RequestTimesTest::test_s_19_4_extra_fields_are_ignored` | Passed · 2026-10-14 · auto |
+| S-19.5 | negative | Given the user who made a request (or one field of an entry) is now a CEO (role changed), when they approve an entry containing it, then it is refused ("cannot approve your own request"), and another CEO can approve it | `ApprovalSecurityTest::test_s_19_5_own_request_cannot_be_approved` | Passed · 2026-10-14 · auto |
+| S-19.6 | negative | Given H posts approve or reject with an id that does not exist, then 403, the same answer as for an id that exists (the address does not tell which ids exist), and no error 500. Given C does, then 404 | `ApprovalSecurityTest::test_s_19_6_unknown_id` | Passed · 2026-10-14 · auto |
+| S-19.7 | edge | Given a user deactivated or demoted after their page loaded, when they click, then the role is checked at that call and the action is refused | `ApprovalSecurityTest::test_s_19_7_role_is_read_at_each_call` | Passed · 2026-10-14 · auto |
+| S-19.8 | edge | Given a request without the CSRF token, then 419 and no change | `ApprovalSecurityTest::test_s_19_8_missing_csrf_token` | Passed · 2026-10-14 · auto |
+
+### S-20 The old Attendance page follows the same rule (P1)
+As the owner, I want every way to change a day to follow one rule, so that no old screen is a back door.
+Independent test: H posts `/attendance/override` on Dr; a pending request exists and the day row is unchanged.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-20.1 | happy | Given Dr, when H or M posts a time field to `/attendance/override`, then a pending request is created, and the day row, its totals and the override table are unchanged (today it saves directly with no role check) | `OldAttendancePageTest::test_s_20_1_old_page_time_edit_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-20.2 | happy | Given H posts `shift_id` there, then it is a pending request and the day's shift is unchanged | `OldAttendancePageTest::test_s_20_2_old_page_shift_becomes_a_request` | Passed · 2026-10-14 · auto |
+| S-20.3 | happy | Given C posts there, then a time is saved and recomputed as today, with an override row, and a shift is saved as a single-day shift assignment and the day is recomputed with it | `OldAttendancePageTest::test_s_20_3_old_page_ceo_is_direct` | Passed · 2026-10-14 · auto |
+| S-20.4 | negative | Given Dl, when anyone including C posts `/attendance/override` or `/attendance/create-day`, then 423 and nothing is written (today neither route checks the lock) | `OldAttendancePageTest::test_s_20_4_old_page_checks_the_lock` | Passed · 2026-10-14 · auto |
+| S-20.5 | negative | Given H posts the old `createDay`, then no day row and no blank request is created | `OldAttendancePageTest::test_s_20_5_old_create_day_by_hr_staff` | Passed · 2026-10-14 · auto |
+| S-20.6 | edge | Given a clear (empty `new_value`) by H there, then the request is "clear", the same as S-05.12 | `OldAttendancePageTest::test_s_20_6_old_page_clear` | Passed · 2026-10-14 · auto |
+| S-20.7 | edge | Given the same change by H through the calendar and through the old page, then the requests are the same in kind and fields, so the Approvals page shows no difference | `OldAttendancePageTest::test_s_20_7_same_request_from_both_pages` | Passed · 2026-10-14 · auto |
+| S-20.8 | edge | Given H runs "Compute" on a range with pending requests, then they are neither applied nor deleted, and existing overrides are still kept | `OldAttendancePageTest::test_s_20_8_compute_leaves_requests_and_overrides` | Passed · 2026-10-14 · auto |
+
+### S-21 Nothing pending reaches payroll or totals (P1)
+As the owner, I want unapproved changes to have no effect on pay, so that a request can never pay or dock anyone.
+Independent test: with a pending request on E1/Dn, E1's payroll equals the baseline to the centavo.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-21.1 | happy | Given a pending times request on Dn, when payroll is computed for the period, then E1's days, gross and deductions equal the baseline, and Dn counts as absent as before | `RequestTimesTest::test_s_21_1_pending_request_does_not_reach_payroll` | Passed · 2026-10-14 · auto |
+| S-21.2 | happy | Given a pending change on Dr, then payroll uses Dr's official times | `RequestTimesTest::test_s_21_2_pending_change_keeps_official_times_in_payroll` | Passed · 2026-10-14 · auto |
+| S-21.3 | happy | Given a pending overtime, SIL, shift or rest-day request, then OT pay, SIL pay, late and OT minutes and the worked days equal the baseline, and the SIL balance is unchanged | `PayrollUntouchedTest::test_s_21_3_other_kinds_pending_do_not_reach_payroll` | Passed · 2026-10-14 · auto |
+| S-21.4 | negative | Given the request is rejected or withdrawn, then payroll equals the baseline | `PayrollUntouchedTest::test_s_21_4_rejected_or_withdrawn_does_not_reach_payroll` | Passed · 2026-10-14 · auto |
+| S-21.5 | happy | Given the request is approved, then payroll equals what it would be if C had entered the same values directly (same amounts to the centavo) | `PayrollUntouchedTest::test_s_21_5_approved_equals_direct_in_payroll` | Passed · 2026-10-14 · auto |
+| S-21.6 | negative | Given any number of pending requests, then E1's `attendance_days` row count for the period is unchanged, and so are the dashboard and report counts and every CSV and PDF export | `PayrollUntouchedTest::test_s_21_6_counts_and_exports_are_unchanged` | Passed · 2026-10-14 · auto |
+| S-21.7 | edge | Given an approved overtime of 0.333 and of 1.25 hours, then the minutes are 20 and 75 (the same rounding as the direct path), and payroll matches the direct path | `PayrollUntouchedTest::test_s_21_7_overtime_rounding` | Passed · 2026-10-14 · auto |
+| S-21.8 | edge | Given a draft payroll run exists, when a request is approved afterwards, then the run changes only when it is recalculated, as after a CEO edit today | `PayrollUntouchedTest::test_s_21_8_draft_run_changes_on_recalculation_only` | Passed · 2026-10-14 · auto |
+
+### S-22 Bulk actions by HR or admin (P1)
+As an HR staff member, I want a bulk action to send requests rather than change the days, so that many employees can be fixed without bypassing the CEO.
+Independent test: H runs bulk set times on 3 employees on Dn; 3 pending requests exist and no day rows.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-22.1 | happy | Given 3 employees on Dn, when H runs "set times" with a reason, then 3 pending requests exist (one per employee and date), grouped as one batch, the reply says "3 requests sent for approval", and there are no day rows | `BulkAndBatchTest::test_s_22_1_bulk_set_times_sends_requests` | Passed · 2026-10-14 · auto |
+| S-22.2 | happy | Given H runs "fill from shift", then it is the same, with the shift times as at the request. An employee with no shift is listed as a failure as today | `BulkAndBatchTest::test_s_22_2_bulk_fill_from_shift` | Passed · 2026-10-14 · auto |
+| S-22.3 | happy | Given H runs a bulk add day off, cancel day off or remove override, then each employee-day follows the rest day rule: direct when that employee has no day row on the date, a pending request in the batch when there is one (S-07.9) | `BulkAndBatchTest::test_s_22_3_bulk_rest_day_follows_the_rule` | Passed · 2026-10-14 · auto |
+| S-22.4 | negative | Given Dl, then the whole action is refused (423) and no request is created | `BulkAndBatchTest::test_s_22_4_bulk_on_a_locked_date` | Passed · 2026-10-14 · auto |
+| S-22.5 | negative | Given H runs a bulk set times on days that already have day rows, then no day row changes (today `bulkApplySetTimes` writes directly on existing rows) and requests are created | `BulkAndBatchTest::test_s_22_5_bulk_set_times_on_existing_rows` | Passed · 2026-10-14 · auto |
+| S-22.6 | edge | Given one employee already has a pending request for that field from the same person, then it is updated (S-15.1); if it is from another person, that employee is reported as a failure naming who asked; the others get requests. The reply lists both counts | `BulkAndBatchTest::test_s_22_6_bulk_meets_existing_requests` | Passed · 2026-10-14 · auto |
+| S-22.7 | edge | Given C runs the bulk action, then it is direct as today and no requests exist | `BulkAndBatchTest::test_s_22_7_ceo_bulk_is_direct` | Passed · 2026-10-14 · auto |
+| S-22.8 | edge | Given an empty employee list, or `set_times` with no times, then nothing is created (422 or no change) | `BulkAndBatchTest::test_s_22_8_empty_bulk` | Passed · 2026-10-14 · auto |
+| S-22.9 | edge | Given 100 employees, then it completes without timing out, and a failure on one does not drop the rest | `BulkAndBatchTest::test_s_22_9_hundred_employees` | Passed · 2026-10-14 · auto |
+| S-22.10 | edge | Given a batch from H, then C can approve the whole batch with one action or each request separately (S-12.7) | `BulkAndBatchTest::test_s_22_10_batch_is_approved_in_one_action` | Passed · 2026-10-14 · auto |
+| S-22.11 | edge | Given a batch from H, when C rejects the whole batch with one reason, then every request in it is rejected with that reason and no day changes | `BulkAndBatchTest::test_s_22_11_batch_is_rejected_with_one_reason` | Passed · 2026-10-14 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)
+- [ ] S-11.1 CEO approves a request on a real phone and sees the day become real attendance (staging)
+- [ ] S-10.1 The Approvals link and the count look right in the nav on the CEO's account (staging)
+- [ ] S-13.2 The requester sees the CEO's rejection reason on the calendar, on HR's account (staging)

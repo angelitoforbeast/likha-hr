@@ -6,6 +6,7 @@ use App\Models\DayOff;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\RestDayPattern;
+use App\Services\AttendanceChangeService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -119,7 +120,14 @@ class DayOffCalendarController extends Controller
         ]);
 
         $employee = Employee::findOrFail($validated['employee_id']);
-        $date = $validated['date'];
+        $date = Carbon::parse($validated['date'])->toDateString();
+
+        // A locked date takes no change, and a day with attendance is changed on the
+        // Attendance Calendar, where the change waits for the CEO.
+        $refusal = app(AttendanceChangeService::class)->restDayGuard($request->user(), $employee->id, $date);
+        if ($refusal) {
+            return response()->json(['success' => false, 'message' => $refusal], 422);
+        }
 
         $existing = DayOff::where('employee_id', $employee->id)
             ->where('off_date', $date)

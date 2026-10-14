@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AnswersAttendanceChanges;
+use App\Models\AttendanceChangeRequest;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceLog;
 use App\Models\AttendanceOverride;
@@ -9,6 +11,9 @@ use App\Models\CutoffRule;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Shift;
+use App\Services\AttendanceChangeRefused;
+use App\Services\AttendanceChangeRequestService;
+use App\Services\AttendanceChangeService;
 use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -18,6 +23,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
+    use AnswersAttendanceChanges;
+
+    public function __construct(
+        protected AttendanceChangeService $changes,
+        protected AttendanceChangeRequestService $requests
+    ) {
+    }
+
     /**
      * Attendance viewer with filters.
      */
@@ -98,6 +111,17 @@ class AttendanceController extends Controller
             });
         }
         $filteredEmployees = $filteredEmployeeQuery->with('department')->get();
+
+        // Days of these employees with a request waiting for the CEO, in one query. The rows
+        // below keep their official values; a pending day only gets a marker.
+        $pendingDays = AttendanceChangeRequest::where('status', AttendanceChangeRequest::STATUS_PENDING)
+            ->whereBetween('work_date', [$startDate, $endDate])
+            ->whereIn('employee_id', $filteredEmployees->pluck('id'))
+            ->select('employee_id', 'work_date')
+            ->distinct()
+            ->get()
+            ->mapWithKeys(fn ($r) => [$r->employee_id . '_' . substr((string) $r->work_date, 0, 10) => true])
+            ->all();
 
         // Index attendance days by employee_id + date for quick lookup
         $attendanceIndex = [];
@@ -188,7 +212,7 @@ class AttendanceController extends Controller
 
         return view('attendance.index', compact(
             'days', 'employees', 'employeesInRange', 'shifts', 'departments', 'departmentsInRange',
-            'startDate', 'endDate', 'overrides'
+            'startDate', 'endDate', 'overrides', 'pendingDays'
         ));
     }
 
@@ -322,79 +346,108 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Save an override for a time field or shift.
+     * Save a time field or the shift of one day. The same rule as on the Attendance
+     * Calendar: never on a locked date; written at once for the CEO; stored as a request
+     * for HR staff and admins. The day is named by its attendance_day_id or, when it has
+     * no row, by employee and date.
      */
     public function override(Request $request)
     {
-        $request->validate([
-            'attendance_day_id' => 'required|exists:attendance_days,id',
+        $validated = $request->validate([
+            'attendance_day_id' => 'nullable|exists:attendance_days,id',
+            'employee_id'       => 'required_without:attendance_day_id|nullable|exists:employees,id',
+            'work_date'         => 'required_without:attendance_day_id|nullable|date',
             'field'             => 'required|in:time_in,lunch_out,lunch_in,time_out,shift_id',
             'new_value'         => 'nullable|string',
             'reason'            => 'required|string|min:3|max:500',
         ]);
+        $field = $validated['field'];
+        $request->validate([
+            'new_value' => $field === 'shift_id'
+                ? 'required|integer|exists:shifts,id'
+                : ['nullable', 'string', $this->timeRule()],
+        ]);
 
-        $day = AttendanceDay::findOrFail($request->attendance_day_id);
-        $field = $request->field;
-        $oldValue = null;
-        $newValue = $request->new_value;
+        if (!empty($validated['attendance_day_id'])) {
+            $day      = AttendanceDay::findOrFail($validated['attendance_day_id']);
+            $employee = Employee::findOrFail($day->employee_id);
+            $dateStr  = $day->work_date->format('Y-m-d');
+        } else {
+            $employee = Employee::findOrFail($validated['employee_id']);
+            $dateStr  = Carbon::parse($validated['work_date'])->toDateString();
+            $day      = $this->changes->findDay($employee->id, $dateStr);
+        }
+        $this->changes->assertDateNotLocked($dateStr);
+
+        $reason = $validated['reason'];
+        $user   = Auth::user();
 
         if ($field === 'shift_id') {
-            $oldValue = $day->shift_id ? (string) $day->shift_id : null;
-            $day->shift_id = $newValue ?: null;
+            $newValue      = (string) (int) $validated['new_value'];
+            $requestField  = AttendanceChangeRequest::FIELD_SHIFT;
         } else {
-            $oldValue = $day->{$field} ? Carbon::parse($day->{$field})->format('H:i') : null;
+            $newValue      = !empty($validated['new_value']) ? AttendanceChangeService::normalizeTime($validated['new_value']) : null;
+            $requestField  = $field;
+        }
 
-            if ($newValue) {
-                $day->{$field} = Carbon::parse($day->work_date->format('Y-m-d') . ' ' . $newValue);
-            } else {
-                $day->{$field} = null;
+        if (AttendanceChangeRequestService::mustRequest($user)) {
+            if ($this->requests->officialValue($employee, $dateStr, $requestField) === $newValue) {
+                return response()->json(['success' => true, 'message' => 'No changes to save.']);
+            }
+            try {
+                return $this->pendingResponse(
+                    $this->requests->submit($employee, $dateStr, [$requestField => $newValue], $reason, $user, 'attendance_override')
+                );
+            } catch (AttendanceChangeRefused $e) {
+                return $this->refusedResponse($e);
             }
         }
 
-        $day->save();
-
-        AttendanceOverride::create([
-            'attendance_day_id' => $day->id,
-            'employee_id'       => $day->employee_id,
-            'work_date'         => $day->work_date,
-            'field'             => $field,
-            'old_value'         => $oldValue,
-            'new_value'         => $newValue,
-            'reason'            => $request->reason,
-            'updated_by'        => Auth::id(),
-        ]);
-
-        if ($field !== 'shift_id' || $newValue) {
-            $day->load('shift');
-            $service = new AttendanceComputeService();
-            $service->recomputeDay($day);
+        if ($field === 'shift_id') {
+            // The shift of a day is its single-day assignment, as on the calendar: setting
+            // attendance_days.shift_id alone is put back by the next recompute.
+            $this->changes->assignShiftForDate(
+                $employee, $dateStr, (int) $newValue, 'Set via attendance page', AttendanceChangeService::RECOMPUTE_DAY
+            );
+        } elseif (!$day && $newValue === null) {
+            return response()->json(['success' => true, 'message' => 'No changes to save.']);
+        } else {
+            $this->changes->applyTimes(
+                $employee, $dateStr,
+                [$field => ['value' => $newValue, 'reason' => $reason]],
+                $user,
+                'Manually created by CEO from absent row.'
+            );
         }
 
         return response()->json(['success' => true, 'message' => 'Override saved and metrics recomputed.']);
     }
 
     /**
-     * Create an attendance day record for an absent day (CEO only).
+     * Create an attendance day record for an absent day. Never on a locked date. Only the
+     * CEO gets a row: for HR staff and admins nothing is created, because a blank row would
+     * already count as a worked day; the page then sends the time with employee and date.
      */
     public function createDay(Request $request)
     {
-        // Only CEO can create attendance days for absent rows
-        if (Auth::user()->role !== 'ceo') {
-            return response()->json(['success' => false, 'message' => 'Unauthorized. CEO access required.'], 403);
-        }
-
-        $request->validate([
+        $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
             'work_date'   => 'required|date',
         ]);
+        $dateStr = Carbon::parse($validated['work_date'])->toDateString();
+        $this->changes->assertDateNotLocked($dateStr);
 
-        $employee = Employee::findOrFail($request->employee_id);
-        $workDate = Carbon::parse($request->work_date);
+        $employee = Employee::findOrFail($validated['employee_id']);
+        $existing = $this->changes->findDay($employee->id, $dateStr);
 
-        // Check if attendance day already exists
-        $existing = AttendanceDay::where('employee_id', $employee->id)
-            ->whereDate('work_date', $workDate)
-            ->first();
+        if (AttendanceChangeRequestService::mustRequest(Auth::user())) {
+            return response()->json([
+                'success'           => true,
+                'pending'           => true,
+                'attendance_day_id' => $existing?->id,
+                'message'           => 'Enter the time and save. It will be sent for approval.',
+            ]);
+        }
 
         if ($existing) {
             return response()->json([
@@ -404,27 +457,7 @@ class AttendanceController extends Controller
             ]);
         }
 
-        // Find the employee's default shift
-        $shift = $employee->shift;
-
-        // Create a blank attendance day
-        $day = AttendanceDay::create([
-            'employee_id' => $employee->id,
-            'work_date'   => $workDate,
-            'shift_id'    => $shift ? $shift->id : null,
-            'time_in'     => null,
-            'lunch_out'   => null,
-            'lunch_in'    => null,
-            'time_out'    => null,
-            'computed_work_minutes'  => 0,
-            'computed_late_minutes'  => 0,
-            'computed_early_minutes' => 0,
-            'computed_ot_minutes'    => 0,
-            'computed_ut_minutes'    => 0,
-            'payable_minutes'        => 0,
-            'needs_review'           => true,
-            'notes'                  => 'Manually created by CEO from absent row.',
-        ]);
+        $day = $this->changes->createBlankDay($employee, $dateStr, 'Manually created by CEO from absent row.');
 
         return response()->json([
             'success' => true,

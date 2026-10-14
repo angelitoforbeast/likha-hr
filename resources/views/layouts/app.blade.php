@@ -72,6 +72,15 @@
                 <i class="bi bi-calendar2-week"></i> Attendance Calendar
             </a>
             @endif
+            @if($userRole === 'ceo')
+            @php $pendingApprovals = \App\Models\AttendanceChangeRequest::pendingEntryCount(); @endphp
+            <a class="nav-link {{ request()->is('approvals*') ? 'active' : '' }}" href="{{ url('/approvals') }}">
+                <i class="bi bi-check2-square"></i> Approvals
+                @if($pendingApprovals > 0)
+                    <span class="badge bg-danger ms-1" id="navApprovalsCount">{{ $pendingApprovals }}</span>
+                @endif
+            </a>
+            @endif
             @if($canNav('nav_payroll'))
             <a class="nav-link {{ request()->is('payroll*') ? 'active' : '' }}" href="{{ url('/payroll') }}">
                 <i class="bi bi-cash-stack"></i> Payroll

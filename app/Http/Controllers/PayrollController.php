@@ -114,7 +114,14 @@ class PayrollController extends Controller
             'final_pay'              => $items->sum('final_pay'),
         ];
 
-        return view('payroll.show', compact('run', 'items', 'totals', 'departments'));
+        // Attendance requests still waiting for the CEO inside this run's period. Finalizing
+        // locks these dates, after which they can no longer be approved: say so, do not block.
+        $pendingRequests = $run->isFinal() ? 0 : \App\Models\AttendanceChangeRequest::pendingEntryCount(
+            $run->cutoff_start->format('Y-m-d'),
+            $run->cutoff_end->format('Y-m-d')
+        );
+
+        return view('payroll.show', compact('run', 'items', 'totals', 'departments', 'pendingRequests'));
     }
 
     /**

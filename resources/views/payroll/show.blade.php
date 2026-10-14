@@ -4,6 +4,14 @@
 @section('page-title', 'Payroll Run #' . $run->id)
 
 @section('content')
+@if(($pendingRequests ?? 0) > 0)
+<div class="alert alert-warning py-2" id="pendingRequestsWarning">
+    <i class="bi bi-hourglass-split"></i>
+    <strong>{{ $pendingRequests }} pending attendance {{ \Illuminate\Support\Str::plural('request', $pendingRequests) }}</strong>
+    in this period {{ $pendingRequests === 1 ? 'is' : 'are' }} not approved yet. They are not in this payroll, and once the run is finalized
+    its dates are locked and they can no longer be approved.
+</div>
+@endif
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <span class="badge {{ $run->status === 'final' ? 'bg-success' : 'bg-secondary' }} fs-6">
@@ -25,7 +33,7 @@
         @endif
         @if(!$run->isFinal())
         <form method="POST" action="{{ route('payroll.finalize', $run) }}"
-              onsubmit="return confirm('Are you sure you want to finalize this payroll run? This action cannot be undone.')">
+              onsubmit="return confirm('{{ ($pendingRequests ?? 0) > 0 ? ($pendingRequests . ' pending attendance ' . \Illuminate\Support\Str::plural('request', $pendingRequests) . ' in this period will not be in this payroll and cannot be approved after the dates are locked.\n\n') : '' }}Are you sure you want to finalize this payroll run? This action cannot be undone.')">
             @csrf
             <button type="submit" class="btn btn-warning btn-sm">
                 <i class="bi bi-lock"></i> Finalize

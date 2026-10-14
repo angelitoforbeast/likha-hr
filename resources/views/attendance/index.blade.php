@@ -155,7 +155,9 @@
                             @endif
                         </td>
                         <td>{{ $row->work_date->format('M d, Y') }}</td>
-                        <td><span class="badge bg-success" style="font-size:0.7rem;">Present</span></td>
+                        <td><span class="badge bg-success" style="font-size:0.7rem;">Present</span>
+                            @if(isset($pendingDays[$row->employee->id . '_' . $row->date_str]))<span class="badge bg-warning text-dark pending-badge" style="font-size:0.7rem;">Pending approval</span>@endif
+                        </td>
                         <td>
                             <select class="form-select form-select-sm shift-select"
                                     data-day-id="{{ $day->id }}"
@@ -236,7 +238,9 @@
                             @endif
                         </td>
                         <td>{{ $row->work_date->format('M d, Y') }}</td>
-                        <td><span class="badge bg-primary" style="font-size:0.7rem;">Day Off</span></td>
+                        <td><span class="badge bg-primary" style="font-size:0.7rem;">Day Off</span>
+                            @if(isset($pendingDays[$row->employee->id . '_' . $row->date_str]))<span class="badge bg-warning text-dark pending-badge" style="font-size:0.7rem;">Pending approval</span>@endif
+                        </td>
                         <td class="text-muted">—</td>
                         <td class="text-center text-muted">—</td>
                         <td class="text-center text-muted">—</td>
@@ -270,7 +274,9 @@
                             @endif
                         </td>
                         <td>{{ $row->work_date->format('M d, Y') }}</td>
-                        <td><span class="badge bg-danger" style="font-size:0.7rem;">Absent</span></td>
+                        <td><span class="badge bg-danger" style="font-size:0.7rem;">Absent</span>
+                            @if(isset($pendingDays[$row->employee->id . '_' . $row->date_str]))<span class="badge bg-warning text-dark pending-badge" style="font-size:0.7rem;">Pending approval</span>@endif
+                        </td>
                         @if(auth()->user()->role === 'ceo')
                         <td>
                             <select class="form-select form-select-sm absent-shift-select"
@@ -677,6 +683,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // A change stored as a request (or nothing to change) is said in the page, at the top,
+    // before the reload that marks the row; a direct save reloads at once, as before.
+    function afterOverrideReply(data) {
+        if (!data.pending && /saved/i.test(data.message || '')) { location.reload(); return; }
+        let notice = document.getElementById('requestNotice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'requestNotice';
+            notice.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3 shadow';
+            notice.style.zIndex = '2000';
+            notice.setAttribute('role', 'status');
+            document.body.appendChild(notice);
+        }
+        notice.textContent = data.message || 'Sent for approval.';
+        setTimeout(() => location.reload(), 1800);
+    }
+
     function saveOverride(dayId, field, newValue, reason) {
         fetch('{{ route("attendance.override") }}', {
             method: 'POST',
@@ -696,7 +719,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
-                location.reload();
+                // Stored as a request: say so, the reload then marks the row as pending.
+                afterOverrideReply(data);
             } else {
                 document.getElementById('override-error').textContent = data.message || 'Error saving override.';
                 document.getElementById('override-error').classList.remove('d-none');
@@ -756,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('shiftReasonModal')).hide();
-                location.reload();
+                afterOverrideReply(data);
             } else {
                 document.getElementById('shift-error').textContent = data.message || 'Error saving shift change.';
                 document.getElementById('shift-error').classList.remove('d-none');

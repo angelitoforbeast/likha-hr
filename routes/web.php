@@ -18,6 +18,7 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\ManusEditLogController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\AttendanceApprovalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -220,6 +221,19 @@ Route::middleware('auth')->group(function () {
     // Audit Logs (CEO only — enforced inside the controller)
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+
+    // Approvals (CEO only — enforced inside the controller on the role, not a feature permission)
+    Route::get('/approvals', [AttendanceApprovalController::class, 'index'])->name('approvals.index');
+    Route::post('/approvals/approve-several', [AttendanceApprovalController::class, 'approveSeveral'])->name('approvals.approve-several');
+    Route::post('/approvals/reject-several', [AttendanceApprovalController::class, 'rejectSeveral'])->name('approvals.reject-several');
+    Route::post('/approvals/batch/{batch}/approve', [AttendanceApprovalController::class, 'approveBatch'])->whereUuid('batch')->name('approvals.batch.approve');
+    Route::post('/approvals/batch/{batch}/reject', [AttendanceApprovalController::class, 'rejectBatch'])->whereUuid('batch')->name('approvals.batch.reject');
+    Route::post('/approvals/{changeRequest}/approve', [AttendanceApprovalController::class, 'approve'])->whereNumber('changeRequest')->name('approvals.approve');
+    Route::post('/approvals/{changeRequest}/reject', [AttendanceApprovalController::class, 'reject'])->whereNumber('changeRequest')->name('approvals.reject');
+
+    // A pending attendance request, for the person who asked (checked inside the controller)
+    Route::post('/attendance-requests/{changeRequest}/change', [AttendanceApprovalController::class, 'change'])->whereNumber('changeRequest')->name('attendance-requests.change');
+    Route::post('/attendance-requests/{changeRequest}/withdraw', [AttendanceApprovalController::class, 'withdraw'])->whereNumber('changeRequest')->name('attendance-requests.withdraw');
 
     // User Management
     Route::middleware('feature:nav_users')->group(function () {

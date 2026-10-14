@@ -327,6 +327,10 @@ class EmployeeController extends Controller
             'remarks'  => 'nullable|string|max:500',
         ]);
 
+        if ($refusal = $this->dayOffRefusal($employee, $validated['off_date'])) {
+            return redirect()->route('employees.edit', $employee)->with('error', $refusal);
+        }
+
         // Check for existing override on same date
         $existing = DayOff::where('employee_id', $employee->id)
             ->where('off_date', $validated['off_date'])
@@ -343,10 +347,24 @@ class EmployeeController extends Controller
         return redirect()->route('employees.edit', $employee)->with('success', $message);
     }
 
+    /**
+     * Why a day-off override of this date may not be changed here by the signed-in user,
+     * or null. A locked date aborts with 423. A day with attendance is changed on the
+     * Attendance Calendar, where the change waits for the CEO.
+     */
+    protected function dayOffRefusal(Employee $employee, string $date): ?string
+    {
+        return app(\App\Services\AttendanceChangeService::class)
+            ->restDayGuard(Auth::user(), $employee->id, Carbon::parse($date)->toDateString());
+    }
+
     public function deleteDayOff(Employee $employee, DayOff $dayoff)
     {
         $this->guardFeature('day_off_overrides');
         if ($dayoff->employee_id !== $employee->id) abort(403);
+        if ($refusal = $this->dayOffRefusal($employee, $dayoff->off_date->format('Y-m-d'))) {
+            return redirect()->route('employees.edit', $employee)->with('error', $refusal);
+        }
         $dayoff->delete();
         return redirect()->route('employees.edit', $employee)->with('success', 'Day off override removed.');
     }
@@ -655,6 +673,13 @@ class EmployeeController extends Controller
             'type'     => 'required|in:day_off,cancel_day_off',
             'remarks'  => 'nullable|string|max:500',
         ]);
+
+        // Both the date the override would move to and the date it is on.
+        $refusal = $this->dayOffRefusal($employee, $validated['off_date'])
+            ?? $this->dayOffRefusal($employee, $dayoff->off_date->format('Y-m-d'));
+        if ($refusal) {
+            return redirect()->route('employees.edit', $employee)->with('error', $refusal);
+        }
 
         $dayoff->update($validated);
 

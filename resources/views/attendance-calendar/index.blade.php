@@ -47,6 +47,12 @@
     .date-col-header:hover i { opacity: 1 !important; }
     .date-col-header.locked { background: #fde2e2 !important; color: #842029 !important; }
     .cal-cell-locked { position: relative; }
+    /* A day with a request waiting for the CEO: the colour stays that of the official status. */
+    .cal-cell-pending { box-shadow: inset 0 0 0 2px #fd7e14; }
+    .cal-pending-mark { display: block; font-size: .55rem; font-weight: 700; color: #b45309; line-height: 1; }
+    #dPendingPanel { overflow-wrap: anywhere; }
+    #dPendingPanel .req-entry { border-bottom: 1px solid #f0e2b6; padding: 4px 0; }
+    #dPendingPanel .req-entry:last-child { border-bottom: none; }
     .cal-cell-locked::before { content: '\F47C'; font-family: 'bootstrap-icons'; position: absolute; top: 1px; right: 2px; color: #842029; opacity: .6; font-size: .55rem; }
 </style>
 
@@ -156,6 +162,19 @@
         </form>
     </div>
 </div>
+
+{{-- What this user asked for and the CEO rejected, until asked again --}}
+@if(isset($myRejected) && $myRejected->isNotEmpty())
+<div class="alert alert-danger py-2 small" id="myRejectedList" style="overflow-wrap: anywhere;">
+    <div class="fw-semibold mb-1">Your requests that were not approved</div>
+    <ul class="mb-0 ps-3">
+        @foreach($myRejected as $item)
+            <li>{{ $item['date'] }} &middot; {{ $item['employee'] }} ({{ $item['fields'] }}) &mdash; Rejected: {{ $item['reason'] }}</li>
+        @endforeach
+    </ul>
+</div>
+<span id="myRejectedListEnd"></span>
+@endif
 
 {{-- Legend --}}
 <div class="mb-2">
@@ -320,6 +339,18 @@
                                 . ' data-override-details="' . e($ovDetailsJson) . '"'
                                 . ' data-edited-fields="' . e(implode(',', $editedFields)) . '"';
 
+                            // Requests waiting for the CEO, and rejected ones not yet replaced. The
+                            // cell keeps its official status and values; these only add a marker.
+                            $cellRequests = array_merge($dayInfo['pending'] ?? [], $dayInfo['notices'] ?? []);
+                            $pendingCount = count($dayInfo['pending'] ?? []);
+                            if ($pendingCount > 0) {
+                                $cellClass .= ' cal-cell-pending';
+                                $dataAttrs .= ' data-pending-count="' . $pendingCount . '"';
+                            }
+                            if (!empty($cellRequests)) {
+                                $dataAttrs .= ' data-requests="' . e(json_encode($cellRequests, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"';
+                            }
+
                             if ($att) {
                                 $dataAttrs .= ' data-att-id="' . $att->id . '"'
                                     . ' data-shift="' . e($att->shift->name ?? 'N/A') . '"'
@@ -347,6 +378,7 @@
                             onclick="openDetail(this)"
                             title="{{ $empCal['employee']->display_name }} — {{ $dayInfo['date'] }}@if($shiftForCell) — {{ $shiftForCell['name'] }} ({{ $shiftForCell['start'] }} to {{ $shiftForCell['end'] }})@endif">
                             {{ $cellText }}
+                            @if($pendingCount > 0)<span class="cal-pending-mark" title="Pending approval">Pending{{ $cellIsLocked ? ' (date locked)' : '' }}</span>@endif
                             @if(!empty($showShift) && $shiftForCell)
                                 <span class="cal-shift-line">
                                     <span class="cal-shift-name">{{ $shiftForCell['name'] }}</span><br>
@@ -382,6 +414,12 @@
             <div class="modal-body py-2">
                 {{-- Present/Undertime detail --}}
                 <div id="detailBody">
+                    {{-- Requests for this day that wait for the CEO, and rejected ones not yet replaced --}}
+                    <div id="dPendingPanel" class="alert alert-warning py-2 mb-2" style="display:none">
+                        <div class="fw-semibold small mb-1"><i class="bi bi-hourglass-split"></i> <span id="dPendingTitle">Pending approval</span></div>
+                        <div id="dPendingList" class="small"></div>
+                        <div id="dPendingMsg" class="small mt-1" style="display:none"></div>
+                    </div>
                     {{-- Lock banner (visible when the date is locked; hides all edit intent) --}}
                     <div id="dLockBanner" class="alert alert-danger py-2 mb-2" style="display:none">
                         <div class="d-flex justify-content-between align-items-center">
@@ -1015,14 +1053,21 @@
         })
         .then(r => r.json())
         .then(data => {
-            const s = (data.successes || []).length;
+            if (!data.success) {
+                // Refused as a whole (a locked date, nothing to set): nothing was written.
+                result.textContent = data.message || 'Error.';
+                result.className = 'small text-danger';
+                result.style.display = '';
+                return;
+            }
             const f = (data.failures || []).length;
+            // The server words the outcome: done at once, sent for approval, failed.
             let html = '<div class="alert alert-' + (f === 0 ? 'success' : 'warning') + ' py-2 mb-0">'
-                + '<strong>' + s + ' succeeded</strong>, <strong>' + f + ' failed</strong>. Page will reload…';
+                + '<strong>' + escHtml(data.message || '') + '</strong> Page will reload…';
             if (f > 0) {
                 html += '<ul class="mb-0 mt-1 small">';
                 (data.failures || []).forEach(fl => {
-                    html += '<li>' + fl.name + ' — ' + (fl.error || 'error') + '</li>';
+                    html += '<li>' + escHtml(fl.name) + ' — ' + escHtml(fl.error || 'error') + '</li>';
                 });
                 html += '</ul>';
             }
@@ -1161,6 +1206,14 @@
         .then(data => {
             if (btn) btn.disabled = false;
             if (!data.success) { otShowMessage(data.message || 'Error.', false); return; }
+            if (data.pending) {
+                // Stored as a request: the overtime on screen stays the official one.
+                document.getElementById('dOtReason').value = '';
+                otShowMessage(data.message || 'Sent for approval.', true);
+                modalHasChanges = true;
+                showRequestSaved(data);
+                return;
+            }
             // Reflect updated OT + metrics
             if (data.metrics) {
                 document.getElementById('dOT').textContent = fmtMin(data.metrics.overtime_minutes);
@@ -1377,7 +1430,11 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ employee_id: empId, date: date, shift_id: shiftId }),
+            // The reason matters when the change has to wait for approval; the server decides that.
+            body: JSON.stringify({
+                employee_id: empId, date: date, shift_id: shiftId,
+                reason: (document.getElementById('dSaveAllReason')?.value || '').trim() || null,
+            }),
         })
         .then(r => r.json())
         .then(data => {
@@ -1420,6 +1477,206 @@
         }
     }
 
+    // ===== requests: pure part =====
+    // No page element and no server address in these three functions: they turn the list of a
+    // day's requests, as the server sends it, into what the cell and the modal show.
+
+    // Text typed by people (names, reasons) goes into the page as text, never as markup.
+    function escHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // What the cell shows: how many requests wait, and the text of its marker.
+    function summarizeDayRequests(items, locked) {
+        const pendingCount = (items || []).filter(r => r.status === 'pending').length;
+        return {
+            pendingCount: pendingCount,
+            markText: pendingCount > 0 ? 'Pending' + (locked ? ' (date locked)' : '') : '',
+        };
+    }
+
+    // What the modal's panel shows. confirmingId is the request whose "Withdraw" was pressed:
+    // it gets "Yes, withdraw" and "Cancel" in place of its buttons.
+    function requestsPanel(items, locked, confirmingId) {
+        let html = '';
+        let anyPending = false;
+        (items || []).forEach(function (r) {
+            if (r.status === 'rejected') {
+                html += '<div class="req-entry"><strong>' + escHtml(r.label) + '</strong>: asked ' + escHtml(r.requested)
+                    + '<br><span class="text-danger fw-semibold">' + escHtml('Rejected: ' + r.reason) + '</span>'
+                    + '<br><small class="text-muted">asked by ' + escHtml(r.requester) + ', rejected by ' + escHtml(r.by) + '</small></div>';
+                return;
+            }
+            anyPending = true;
+            const id = parseInt(r.id, 10);
+            html += '<div class="req-entry" data-request-id="' + id + '"><strong>' + escHtml(r.label) + '</strong>: asked <strong>' + escHtml(r.requested) + '</strong>'
+                + ' <span class="text-muted">(official: ' + escHtml(r.official) + ')</span>'
+                + '<br><span class="fst-italic">"' + escHtml(r.reason) + '"</span>'
+                + '<br><small class="text-muted">asked by ' + escHtml(r.requester) + ' on ' + escHtml(r.asked_at) + '</small>';
+            if (r.mine && confirmingId === id) {
+                html += '<div class="mt-1 req-confirm"><span class="me-2 fw-semibold">Withdraw this request?</span>'
+                    + '<button type="button" class="btn btn-sm btn-danger py-0 me-1" onclick="withdrawRequest(' + id + ')">Yes, withdraw</button>'
+                    + '<button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="cancelWithdrawRequest()">Cancel</button></div>';
+            } else if (r.mine) {
+                html += '<div class="mt-1">';
+                if (r.changeable && !locked) {
+                    html += '<button type="button" class="btn btn-sm btn-outline-secondary py-0 me-1" onclick="changeRequest(' + id + ', \'' + escHtml(r.field) + '\')">Change</button>';
+                }
+                html += '<button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="askWithdrawRequest(' + id + ')">Withdraw</button></div>';
+            }
+            html += '</div>';
+        });
+        return {
+            html: html,
+            title: anyPending ? (locked ? 'Pending approval (date locked)' : 'Pending approval') : 'Request not approved',
+        };
+    }
+    // ===== /requests: pure part =====
+
+    // ===== requests: page part =====
+    let withdrawConfirmId = null;
+
+    function cellRequests(td) {
+        try { return JSON.parse(td.dataset.requests || '[]'); } catch (e) { return []; }
+    }
+
+    // The requests of the opened day in the modal's panel. What a day's requests are always
+    // comes from the server, with the page or with the reply to a save.
+    function renderRequests(td) {
+        const panel = document.getElementById('dPendingPanel');
+        const list  = document.getElementById('dPendingList');
+        const title = document.getElementById('dPendingTitle');
+        if (!panel || !list) return;
+
+        const items = cellRequests(td);
+        if (!items.length) { panel.style.display = 'none'; list.innerHTML = ''; return; }
+
+        const view = requestsPanel(items, td.dataset.locked === '1', withdrawConfirmId);
+        if (title) title.textContent = view.title;
+        list.innerHTML = view.html;
+        panel.style.display = '';
+    }
+
+    // Put the day's requests, as a reply from the server lists them, on the cell (marker and
+    // data) and, when that day is open, in the modal: the page shows what was saved at once.
+    function applyDayRequests(td, items) {
+        if (!td) return;
+        items = items || [];
+        td.dataset.requests = JSON.stringify(items);
+
+        const summary = summarizeDayRequests(items, td.dataset.locked === '1');
+        let mark = td.querySelector('.cal-pending-mark');
+        if (summary.pendingCount > 0) {
+            td.dataset.pendingCount = String(summary.pendingCount);
+            td.classList.add('cal-cell-pending');
+            if (!mark) {
+                mark = document.createElement('span');
+                mark.className = 'cal-pending-mark';
+                mark.title = 'Pending approval';
+                td.appendChild(mark);
+            }
+            mark.textContent = summary.markText;
+        } else {
+            delete td.dataset.pendingCount;
+            td.classList.remove('cal-cell-pending');
+            if (mark) mark.remove();
+        }
+        if (td === currentTd) renderRequests(td);
+    }
+
+    // The message of the pending panel, at the top of the modal. It stays until the next action.
+    function requestMessage(text, isSuccess) {
+        const msg = document.getElementById('dPendingMsg');
+        if (!msg) return;
+        msg.textContent = text;
+        msg.className = 'small mt-1 fw-semibold ' + (isSuccess ? 'text-success' : 'text-danger');
+        msg.style.display = text ? '' : 'none';
+    }
+
+    // After a save that was stored as a request: the cell gets its marker, the panel at the top
+    // of the modal lists the request with the server's message, and the modal stays open, as it
+    // does after a direct save.
+    function showRequestSaved(data) {
+        if (!currentTd || !data || !data.day_requests) return;
+        withdrawConfirmId = null;
+        applyDayRequests(currentTd, data.day_requests);
+        requestMessage(data.message || 'Sent for approval.', true);
+        const panel = document.getElementById('dPendingPanel');
+        if (panel && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function requestPost(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(body || {}),
+        }).then(r => r.json());
+    }
+
+    // "Withdraw" asks in the page, in the row of the request itself.
+    function askWithdrawRequest(id) {
+        withdrawConfirmId = id;
+        requestMessage('', true);
+        if (currentTd) renderRequests(currentTd);
+    }
+    function cancelWithdrawRequest() {
+        withdrawConfirmId = null;
+        if (currentTd) renderRequests(currentTd);
+    }
+
+    // Take a pending request of one's own back. The server checks whose it is.
+    function withdrawRequest(id) {
+        const td = currentTd;
+        withdrawConfirmId = null;
+        requestPost('{{ url("/attendance-requests") }}/' + id + '/withdraw')
+            .then(data => {
+                if (data.success) {
+                    modalHasChanges = true;
+                    applyDayRequests(td, data.day_requests || []);
+                    requestMessage(data.message || 'Request withdrawn.', true);
+                    // With nothing left to show the panel is gone: say it where the save messages are.
+                    if (!(data.day_requests || []).length) {
+                        flashMessage(document.getElementById('dSaveAllMsg'), data.message || 'Request withdrawn.', true);
+                    }
+                } else {
+                    if (td) renderRequests(td);
+                    requestMessage(data.message || 'Error.', false);
+                }
+            })
+            .catch(() => { if (td) renderRequests(td); requestMessage('Network error.', false); });
+    }
+
+    // Correct a pending time request of one's own with the time and the reason typed in the
+    // form of this modal: the same form as for a new entry, nothing else to learn.
+    function changeRequest(id, field) {
+        const td     = currentTd;
+        const input  = document.getElementById('dInput_' + field);
+        const reason = (document.getElementById('dSaveAllReason').value || '').trim();
+        if (!input || !input.value || reason.length < 3) {
+            requestMessage('Type the new time and a reason in the form below, then press Change again.', false);
+            if (input) input.focus();
+            return;
+        }
+        requestPost('{{ url("/attendance-requests") }}/' + id + '/change', { new_value: input.value, reason: reason })
+            .then(data => {
+                if (data.success) {
+                    modalHasChanges = true;
+                    document.getElementById('dSaveAllReason').value = '';
+                    if (data.day_requests) applyDayRequests(td, data.day_requests);
+                    requestMessage(data.message || 'Request changed.', true);
+                } else {
+                    requestMessage(data.message || 'Error.', false);
+                }
+            })
+            .catch(() => requestMessage('Network error.', false));
+    }
+    // ===== /requests: page part =====
+
     function openDetail(td) {
         currentTd = td;
         modalHasChanges = false; // fresh session — reload only if edits happen this time around
@@ -1430,6 +1687,9 @@
         // Lock banner + edit disable: if the date is locked, show a red banner and disable every
         // input/button in the detail body so the user cannot even attempt edits.
         applyLockStateToDetailModal(td.dataset.locked === '1', td);
+        withdrawConfirmId = null;
+        requestMessage('', true);
+        renderRequests(td);
 
         // Clear any lingering day-off status messages + reason from a previous modal open
         const presentMsg = document.getElementById('dayOffMsgPresent');
@@ -1578,16 +1838,20 @@
                              + ' &rarr; <span class="text-success fw-semibold">' + newT + '</span>';
                     } else {
                         label = fieldLabels[ov.field] || ov.field;
-                        const oldVal = ov.old_value || '(empty)';
-                        const newVal = ov.new_value || '(empty)';
+                        const oldVal = escHtml(ov.old_value || '(empty)');
+                        const newVal = escHtml(ov.new_value || '(empty)');
                         body = '<span class="text-danger text-decoration-line-through">' + oldVal + '</span>'
                              + ' &rarr; <span class="text-success fw-semibold">' + newVal + '</span>';
                     }
                     html += '<div class="ov-entry">'
                         + '<strong>' + label + '</strong>: '
                         + body
-                        + '<br><small class="text-muted">by ' + ov.updater + ' on ' + ov.date + '</small>'
-                        + (ov.reason ? '<br><small class="fst-italic text-muted">"' + ov.reason + '"</small>' : '')
+                        + '<br><small class="text-muted">'
+                        + (ov.requested_by
+                            ? 'asked by ' + escHtml(ov.requested_by) + ', approved by ' + escHtml(ov.approved_by || ov.updater)
+                            : 'by ' + escHtml(ov.updater))
+                        + ' on ' + escHtml(ov.date) + '</small>'
+                        + (ov.reason ? '<br><small class="fst-italic text-muted">"' + escHtml(ov.reason) + '"</small>' : '')
                         + '</div>';
                 });
                 overrideListDiv.innerHTML = html;
@@ -1697,7 +1961,12 @@
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
+            if (data.success && data.pending) {
+                hideFillFromShiftForm();
+                flashMessage(msg, data.message || 'Sent for approval.', true);
+                modalHasChanges = true;
+                showRequestSaved(data);
+            } else if (data.success) {
                 // Apply all 4 field values + metrics in one pass so the modal reflects the whole day.
                 ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
                     const v = data.values?.[f];
@@ -1793,6 +2062,7 @@
         if (!body) return;
         body.querySelectorAll('input, select, button, textarea').forEach(el => {
             if (el.closest('#dLockBanner')) return; // keep the unlock button clickable
+            if (el.closest('#dPendingPanel')) return; // a request can still be withdrawn on a locked date
             if (el.getAttribute('onclick') === 'openPunchesModal()') return; // read-only viewer stays open
             el.disabled = isLocked;
         });
@@ -1874,6 +2144,7 @@
         .then(r => r.json())
         .then(data => {
             if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            if (data.pending) { silShowMessage(data.message || 'Sent for approval.', true); modalHasChanges = true; showRequestSaved(data); return; }
             currentTd.dataset.silApplied = '1';
             currentTd.dataset.silReason  = reason;
             currentTd.dataset.silRemaining = String(data.remaining);
@@ -1885,14 +2156,22 @@
     }
     function removeSilForDate() {
         if (!currentTd || !confirm('Remove SIL for this date?')) return;
+        const silReason = (document.getElementById('dSilReason')?.value || '').trim() || null;
         fetch('{{ url("/attendance-calendar/remove-sil") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
-            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date }),
+            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date, reason: silReason }),
         })
         .then(r => r.json())
         .then(data => {
+            if (!data.success && data.needs_reason) {
+                // The removal has to wait for approval and the CEO needs to read why.
+                silShowMessage('Type the reason in the SIL reason box above, then press Remove SIL again.', false);
+                document.getElementById('dSilReason')?.focus();
+                return;
+            }
             if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
+            if (data.pending) { silShowMessage(data.message || 'Sent for approval.', true); modalHasChanges = true; showRequestSaved(data); return; }
             currentTd.dataset.silApplied = '0';
             currentTd.dataset.silRemaining = String(data.remaining);
             refreshSilSectionFromCell();
@@ -2058,6 +2337,15 @@
         .then(data => {
             btn.disabled = false;
             if (!data.success) { flashMessage(msg, data.message || 'Error.', false); return; }
+            if (data.pending) {
+                // Stored as requests for the CEO: nothing official changed, so the values
+                // on screen stay. The page reloads on close and marks the day pending.
+                document.getElementById('dSaveAllReason').value = '';
+                flashMessage(msg, data.message || 'Sent for approval.', true);
+                modalHasChanges = true;
+                showRequestSaved(data);
+                return;
+            }
             // Apply fresh values from server + reset clear-marks
             fieldsToClear.clear();
             ['time_in','lunch_out','lunch_in','time_out'].forEach(f => {
@@ -2182,7 +2470,10 @@
                 .then(r => r.json())
                 .then(data => {
                     delBtn.disabled = false;
-                    if (data.success) {
+                    if (data.success && (data.pending || !data.field)) {
+                        flashMessage(msg, data.message || 'Sent for approval.', true);
+                        if (data.pending) { modalHasChanges = true; showRequestSaved(data); }
+                    } else if (data.success) {
                         applyTimeFieldUpdate(field, data.value_display || '-', '', data.metrics);
                         flashMessage(msg, 'Deleted.', true);
                     } else {
@@ -2221,14 +2512,7 @@
                 this.disabled = true;
                 const saveBtn = this;
 
-                ensureAttendanceDay().then(attId => {
-                    if (!attId) {
-                        saveBtn.disabled = false;
-                        msg.textContent = 'Could not create attendance record. CEO access may be required.';
-                        msg.className = 'small mt-1 text-danger';
-                        msg.style.display = '';
-                        return;
-                    }
+                Promise.resolve(currentTd.dataset.attId || null).then(attId => {
                     fetch('{{ url("/attendance-calendar/override-time") }}', {
                         method: 'POST',
                         headers: {
@@ -2238,6 +2522,8 @@
                         },
                         body: JSON.stringify({
                             attendance_day_id: attId,
+                            employee_id: currentTd.dataset.employeeId,
+                            date: currentTd.dataset.date,
                             field: field,
                             new_value: newVal,
                             reason: reasonVal,
@@ -2246,7 +2532,12 @@
                     .then(r => r.json())
                     .then(data => {
                         saveBtn.disabled = false;
-                        if (data.success) {
+                        if (data.success && (data.pending || !data.field)) {
+                            // Stored as a request, or nothing to change: the official value stays on screen.
+                            flashMessage(msg, data.message || 'Sent for approval.', true);
+                            if (data.pending) { modalHasChanges = true; showRequestSaved(data); }
+                        } else if (data.success) {
+                            if (data.attendance_day_id) currentTd.dataset.attId = data.attendance_day_id;
                             applyTimeFieldUpdate(field, data.value_display, data.value_raw, data.metrics);
                             flashMessage(msg, 'Saved.', true);
                         } else {
@@ -2375,6 +2666,7 @@
                     msgDiv.style.display = '';
                 }
                 if (reasonEl) reasonEl.value = '';
+                if (data.pending) showRequestSaved(data);
                 // Rest-day change alters cell status/color — defer the reload to modal close
                 // (consistent with time save/delete behavior).
                 modalHasChanges = true;

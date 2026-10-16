@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StaffScheduleFeedController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,3 +18,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Read-only staff schedule for the owner's office: the key first, so only a valid key
+// is counted against its hourly limit.
+Route::middleware(['schedule-feed.key', 'throttle:schedule-feed'])
+    ->get('/staff-schedule', StaffScheduleFeedController::class)
+    ->name('api.staff-schedule');

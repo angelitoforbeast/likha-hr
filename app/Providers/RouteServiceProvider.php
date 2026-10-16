@@ -28,6 +28,12 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // The staff schedule feed polled by the owner's office: 60 calls an hour per key.
+        // It runs after the key check, so only a valid key reaches this bucket.
+        RateLimiter::for('schedule-feed', function (Request $request) {
+            return Limit::perHour(60)->by('schedule-feed:' . hash('sha256', (string) $request->header('X-SCHEDULE-FEED-KEY')));
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

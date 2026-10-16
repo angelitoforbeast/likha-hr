@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ScheduleResolver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
@@ -33,19 +34,8 @@ class Holiday extends Model
      */
     public static function getHolidayForDate(string $date): ?self
     {
-        $carbonDate = Carbon::parse($date);
-
-        // Check exact date match
-        $holiday = self::whereDate('date', $carbonDate->toDateString())->first();
-        if ($holiday) {
-            return $holiday;
-        }
-
-        // Check recurring holidays (same month-day, any year)
-        return self::where('recurring', true)
-            ->whereMonth('date', $carbonDate->month)
-            ->whereDay('date', $carbonDate->day)
-            ->first();
+        // The rule lives in ScheduleResolver, shared with the schedule feed.
+        return (new ScheduleResolver([], $date, $date))->holidayFor($date);
     }
 
     /**

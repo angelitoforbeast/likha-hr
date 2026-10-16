@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\ScheduleResolver;
 use App\Traits\Auditable;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -135,11 +135,10 @@ class Employee extends Model
 
     /* ── Shift Helpers ── */
 
+    /** The rule lives in ScheduleResolver, shared with the calendar and the schedule feed. */
     public function getShiftForDate(string $date): ?Shift
     {
-        $shift = EmployeeShiftAssignment::getActiveShift($this->id, $date);
-        if ($shift) return $shift;
-        return $this->defaultShift;
+        return ScheduleResolver::forEmployee($this, $date)->shiftFor($this, $date);
     }
 
     public function getRateForDate(string $date): ?float
@@ -184,42 +183,12 @@ class Employee extends Model
     /* ── Rest Day Helpers ── */
 
     /**
-     * Get active rest day patterns for a given date.
-     */
-    public function getRestDayPatternsForDate(string $date): array
-    {
-        return $this->restDayPatterns()
-            ->where('effective_from', '<=', $date)
-            ->where(function ($q) use ($date) {
-                $q->whereNull('effective_until')
-                  ->orWhere('effective_until', '>=', $date);
-            })
-            ->pluck('day_of_week')
-            ->toArray();
-    }
-
-    /**
-     * Check if a given date is a day off for this employee.
-     * Logic: check pattern first, then check overrides.
+     * Check if a given date is a day off for this employee: a day_off row, or a rest-day
+     * pattern not cancelled by a cancel_day_off row. The rule lives in ScheduleResolver.
      */
     public function isDayOff(string $date): bool
     {
-        $carbonDate = Carbon::parse($date);
-        $dayOfWeek = $carbonDate->dayOfWeek; // 0=Sunday, 6=Saturday
-
-        // Check if there's an explicit override for this date
-        $override = $this->dayOffs()->where('off_date', $date)->first();
-
-        if ($override) {
-            // Explicit day_off override = definitely off
-            if ($override->type === DayOff::TYPE_DAY_OFF) return true;
-            // Explicit cancel_day_off = definitely NOT off (even if pattern says so)
-            if ($override->type === DayOff::TYPE_CANCEL_DAY_OFF) return false;
-        }
-
-        // Check rest day patterns
-        $activePatterns = $this->getRestDayPatternsForDate($date);
-        return in_array($dayOfWeek, $activePatterns);
+        return ScheduleResolver::forEmployee($this, $date)->isDayOff($this, $date);
     }
 
     /* ── Benefits Helpers ── */
@@ -349,8 +318,7 @@ class Employee extends Model
      */
     public function isHolidayEligibleForDate(string $date): bool
     {
-        $status = $this->getStatusForDate($date);
-        return $status ? (bool) $status->holiday_eligible : true;
+        return ScheduleResolver::forEmployee($this, $date)->isHolidayEligible($this, $date);
     }
 
     /* ── SIL (Service Incentive Leave) Helpers ── */

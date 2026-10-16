@@ -16,6 +16,7 @@ use App\Services\AttendanceChangeRefused;
 use App\Services\AttendanceChangeRequestService;
 use App\Services\AttendanceChangeService;
 use App\Services\AttendanceComputeService;
+use App\Services\ScheduleResolver;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -195,6 +196,11 @@ class AttendanceCalendarController extends Controller
         };
         $viewerId = Auth::id();
 
+        // Rest days and shifts of every visible employee and date, loaded once (the same
+        // rules the Employee model and the schedule feed use).
+        $filteredEmployees->load('defaultShift');
+        $schedule = new ScheduleResolver($filteredEmployees, $startDate->format('Y-m-d'), $endDate->format('Y-m-d'));
+
         // Build calendar data
         $calendarData = [];
 
@@ -211,11 +217,11 @@ class AttendanceCalendarController extends Controller
                 $attDay = $attendanceIndex[$key] ?? null;
 
                 // Check if this date is a day off for this employee
-                $isDayOff = $emp->isDayOff($dateStr);
+                $isDayOff = $schedule->isDayOff($emp, $dateStr);
 
                 // Resolve shift for this employee on this date (falls back to default_shift).
                 // Used both for the modal (schedule/lunch display) and the cell overlay (when show_shift toggle is on).
-                $shiftForDay = $emp->getShiftForDate($dateStr);
+                $shiftForDay = $schedule->shiftFor($emp, $dateStr);
                 $shiftInfo = $shiftForDay ? [
                     'id'          => $shiftForDay->id,
                     'name'        => $shiftForDay->name,
@@ -420,7 +426,7 @@ class AttendanceCalendarController extends Controller
     /**
      * Assign or replace a single-day shift override for one employee/date.
      * Creates an EmployeeShiftAssignment with effective_date == effective_until.
-     * Existing longer-range assignments are left intact — the fixed getActiveShift
+     * Existing longer-range assignments are left intact — the fixed shift rule (ScheduleResolver::shiftFor)
      * gives precedence to this same-day record for that specific date only.
      */
     public function assignShiftForDate(Request $request)

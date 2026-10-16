@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Key the owner's office sends as X-SCHEDULE-FEED-KEY to read /api/staff-schedule.
+    // Empty means the feed refuses every call.
+    'schedule_feed' => [
+        'key' => env('SCHEDULE_FEED_KEY'),
+    ],
+
 ];

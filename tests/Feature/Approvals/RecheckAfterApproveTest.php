@@ -133,6 +133,28 @@ class RecheckAfterApproveTest extends ApprovalsTestCase
         $this->assertStringNotContainsString(self::MISSING_LUNCH, $day['notes']);
     }
 
+    #[TestDox('S-004.2 approved times out of order, or a cleared time in, leave the day flagged with that problem')]
+    public function test_s_004_2_anomalies_in_approved_times_stay_flagged(): void
+    {
+        $this->flaggedDay($this->e1);
+        // Back from lunch before going out to it.
+        $this->saveAll($this->h, $this->e1, self::DX, ['lunch_in' => '11:30', 'time_out' => '17:00']);
+        $this->approve($this->c, $this->e1, self::DX)->assertStatus(200);
+
+        $day = $this->day($this->e1, self::DX);
+        $this->assertEquals(1, $day['needs_review']);
+        $this->assertStringContainsString('Lunch Out is after Lunch In (order issue).', $day['notes']);
+        $this->assertStringNotContainsString(self::MISSING_TIME_OUT, $day['notes']);
+
+        // Dr is complete from its punches; clearing its time in leaves it incomplete.
+        $this->saveAll($this->h, $this->e1, self::DR, ['clear_fields' => ['time_in']]);
+        $this->approve($this->c, $this->e1, self::DR)->assertStatus(200);
+        $day = $this->day($this->e1, self::DR);
+        $this->assertNull($day['time_in']);
+        $this->assertEquals(1, $day['needs_review']);
+        $this->assertStringContainsString('No Time In recorded.', $day['notes']);
+    }
+
     #[TestDox('S-004.3 approve several rechecks every affected day once')]
     public function test_s_004_3_approve_several_rechecks_each_day_once(): void
     {

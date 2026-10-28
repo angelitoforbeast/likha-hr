@@ -365,7 +365,7 @@ class AttendanceChangeService
 
     /**
      * Rebuild one employee-day from its punches without touching overridden fields.
-     * Silent:the change that led here stands, and a day that cannot be rebuilt is
+     * Silent: the change that led here stands, and a day that cannot be rebuilt is
      * refreshed by the next "Compute Attendance".
      */
     public function autoComputeSingleDay(Employee $employee, string $date): void

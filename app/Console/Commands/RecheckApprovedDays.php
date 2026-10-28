@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\DB;
 class RecheckApprovedDays extends Command
 {
     protected $signature = 'attendance:recheck-approved
-                            {--apply : Write the changes (without it nothing is written)}';
+                            {--apply : Write the changes (without it nothing is written)}
+                            {--allow-other-changes : Also write days whose recheck changes more than the flag and the note (times, shift, minutes)}';
 
     protected $description = 'Recheck "needs review" and the note of the attendance days that have approved change requests';
 
@@ -33,6 +34,10 @@ class RecheckApprovedDays extends Command
     public function handle(AttendanceChangeService $changes): int
     {
         $apply = (bool) $this->option('apply');
+        // The fix is for the flag and the note. A day whose minutes would move too (its
+        // shift assignment changed after the approval, say) changes pay, so it is only
+        // written when asked for after reading the dry run.
+        $allowOther = (bool) $this->option('allow-other-changes');
 
         $days = AttendanceChangeRequest::where('status', AttendanceChangeRequest::STATUS_APPROVED)
             ->get(['employee_id', 'work_date'])
@@ -41,7 +46,7 @@ class RecheckApprovedDays extends Command
             ->sortBy(fn ($day) => $day['date'] . '_' . str_pad((string) $day['employee_id'], 10, '0', STR_PAD_LEFT))
             ->values();
 
-        $counts = ['changed' => 0, 'unchanged' => 0, 'locked' => 0, 'no_day' => 0, 'errors' => 0];
+        $counts = ['changed' => 0, 'held' => 0, 'unchanged' => 0, 'locked' => 0, 'no_day' => 0, 'errors' => 0];
         $lines = [];
 
         foreach ($days as $entry) {
@@ -87,14 +92,24 @@ class RecheckApprovedDays extends Command
                 $changed = !empty($others)
                     || (string) $before['needs_review'] !== (string) $after['needs_review']
                     || (string) $before['notes'] !== (string) $after['notes'];
+                $held = !empty($others) && !$allowOther;
 
-                if ($changed && $apply) {
+                if ($changed && $apply && !$held) {
                     DB::commit();
                 } else {
                     DB::rollBack();
                 }
 
-                $counts[$changed ? 'changed' : 'unchanged']++;
+                if (!$changed) {
+                    $counts['unchanged']++;
+                    $result = 'unchanged';
+                } elseif ($held) {
+                    $counts['held']++;
+                    $result = 'held: other columns change (--allow-other-changes)';
+                } else {
+                    $counts['changed']++;
+                    $result = $apply ? 'changed' : 'would change';
+                }
                 $lines[] = [
                     $label,
                     $entry['date'],
@@ -102,7 +117,7 @@ class RecheckApprovedDays extends Command
                     $before['notes'] ?? '',
                     $after['notes'] ?? '',
                     implode('; ', $others),
-                    $changed ? ($apply ? 'changed' : 'would change') : 'unchanged',
+                    $result,
                 ];
             } catch (\Throwable $e) {
                 DB::rollBack();
@@ -114,10 +129,11 @@ class RecheckApprovedDays extends Command
         $this->table(['Employee', 'Date', 'Needs review', 'Note before', 'Note after', 'Other changes', 'Result'], $lines);
 
         $summary = sprintf(
-            '%d days checked: %d %s, %d unchanged, %d skipped (date locked), %d without a day row, %d errors.',
+            '%d days checked: %d %s, %d held (other columns change), %d unchanged, %d skipped (date locked), %d without a day row, %d errors.',
             $days->count(),
             $counts['changed'],
             $apply ? 'changed' : 'to change',
+            $counts['held'],
             $counts['unchanged'],
             $counts['locked'],
             $counts['no_day'],

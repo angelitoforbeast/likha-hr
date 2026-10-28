@@ -338,8 +338,8 @@ class AttendanceComputeService
      * Non-overridden fields get fresh values from raw logs.
      * Metrics (work/late/early/OT) are always recomputed based on the final values.
      *
-     * @param bool $keepStoredTimes every time field keeps its stored value: used for a day
-     *                              without punches, where there is nothing to rebuild from
+     * @param bool $keepStoredTimes every time field keeps its stored value, overridden or not:
+     *                              the recheck after an approval (see recheckDay)
      */
     protected function computeDayWithOverrides(
         Employee $employee,
@@ -466,40 +466,34 @@ class AttendanceComputeService
     }
 
     /**
-     * Recheck one existing day row after a change to it was made official: the same
-     * override-aware compute as "Compute Attendance" (force = false), for that day only.
-     * Overridden times keep their values; times nobody edited come from the punches;
-     * "needs review" and the note are then decided from the final times, so a problem
-     * an approval fixed is no longer reported. Approved overtime, SIL, rest days and the
-     * override rows are not touched, and the import run the day came from stays named.
+     * Recheck one existing day row after a change to it was made official: the
+     * override-aware compute of "Compute Attendance" (force = false) for that day, with
+     * every stored time kept. "Needs review" and the note are decided again from the
+     * final times, so a problem an approval fixed is no longer reported, and the minutes
+     * are recomputed from them with the shift of the date, as after any edit.
      *
-     * A day without punches (one created by an edit or an approval) keeps every stored
-     * time, because there is nothing to rebuild them from. Unlike "Compute Attendance",
-     * errors are not swallowed: the caller's transaction must fail with them.
+     * Every time is kept, not only the overridden ones: the others were already built
+     * from the punches, and building them again could move them to other slots (after a
+     * shift change, say) and with them the pay of a day nobody asked to change. Approved
+     * overtime, SIL, rest days and the override rows are not touched, and the import run
+     * the day came from stays named. Unlike "Compute Attendance", errors are not
+     * swallowed: the caller's transaction must fail with them.
      */
     public function recheckDay(AttendanceDay $day): AttendanceDay
     {
         $employee = $day->employee()->firstOrFail();
         $workDate = $day->work_date->format('Y-m-d');
 
-        $punches = AttendanceLog::where('employee_id', $employee->id)
-            ->whereBetween('punched_at', [Carbon::parse($workDate)->startOfDay(), Carbon::parse($workDate)->endOfDay()])
-            ->orderBy('punched_at')
-            ->get();
-        $shift = $employee->getShiftForDate($workDate);
+        // The fallback recomputeDay uses, so the minutes an edit just computed stay.
+        $shift = $employee->getShiftForDate($workDate) ?: $day->shift;
         $overriddenFields = AttendanceOverride::where('attendance_day_id', $day->id)
             ->pluck('field')
             ->unique()
             ->values()
             ->all();
 
-        if ($punches->isNotEmpty() && empty($overriddenFields)) {
-            // As "Compute Attendance" does for a day nobody edited.
-            return $this->computeDay($employee, $workDate, $punches, $shift, $day->source_run_id);
-        }
-
         return $this->computeDayWithOverrides(
-            $employee, $workDate, $punches, $shift, $day->source_run_id, $day, $overriddenFields, $punches->isEmpty()
+            $employee, $workDate, collect(), $shift, $day->source_run_id, $day, $overriddenFields, true
         );
     }
 

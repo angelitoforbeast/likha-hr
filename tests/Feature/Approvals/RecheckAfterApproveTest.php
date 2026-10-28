@@ -61,7 +61,11 @@ class RecheckAfterApproveTest extends ApprovalsTestCase
     private function flaggedDay($employee, string $date = self::DX): array
     {
         $this->punchedDay($employee, $date, ['07:58:00', '12:02:00']);
+        // As an import leaves it: the day names the run it came from.
+        DB::table('attendance_days')->where('employee_id', $employee->id)->whereDate('work_date', $date)
+            ->update(['source_run_id' => $this->importRunId()]);
         $day = $this->day($employee, $date);
+        $this->assertNotNull($day['source_run_id']);
         $this->assertEquals(1, $day['needs_review'], 'the import flags the day');
         $this->assertSame(self::STALE_NOTE, $day['notes']);
 
@@ -276,6 +280,52 @@ class RecheckAfterApproveTest extends ApprovalsTestCase
         $this->assertSame(0, $code);
         $this->assertStringContainsString('0 changed', $output);
         $this->assertSame($afterFirst, $this->official(), 'a second run changes nothing');
+    }
+
+    #[TestDox('S-004.5 the command holds a day whose recheck would also move its times, shift or minutes, unless told to write it')]
+    public function test_s_004_5_command_holds_days_whose_pay_would_change(): void
+    {
+        $this->flaggedDay($this->e1);
+        $this->asCompletedDay($this->e1);
+        $this->approve($this->c, $this->e1, self::DX)->assertStatus(200);
+        DB::table('attendance_days')->where('employee_id', $this->e1->id)->whereDate('work_date', self::DX)
+            ->update(['needs_review' => true, 'notes' => self::STALE_NOTE]);
+        // After the approval, E1 got another shift for that date, so the minutes differ now.
+        DB::table('employee_shift_assignments')->insert([
+            'employee_id' => $this->e1->id, 'shift_id' => $this->otherShift->id,
+            'effective_date' => self::DX, 'effective_until' => self::DX, 'remarks' => 'later change',
+            'created_at' => '2026-10-20 09:00:00', 'updated_at' => '2026-10-20 09:00:00',
+        ]);
+        $officialBefore = $this->official();
+
+        [$code, $output] = $this->recheckCommand(true);
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('held', $output);
+        $this->assertStringContainsString('computed_work_minutes', $output);
+        $this->assertStringContainsString('1 held', $output);
+        $this->assertSame($officialBefore, $this->official(), 'a held day is not written');
+
+        $this->assertSame(0, Artisan::call('attendance:recheck-approved', ['--apply' => true, '--allow-other-changes' => true]));
+        $day = $this->day($this->e1, self::DX);
+        $this->assertEquals(0, $day['needs_review']);
+        $this->assertEquals($this->otherShift->id, $day['shift_id']);
+        $this->assertSame(self::DX . ' 07:58:00', $day['time_in'], 'times are never moved');
+    }
+
+    #[TestDox('S-004.4 a shift approval rechecks the day without moving its punched times to other slots')]
+    public function test_s_004_4_shift_approval_keeps_the_stored_times(): void
+    {
+        $before = $this->day($this->e1, self::DR);
+        $this->saveAll($this->h, $this->e1, self::DR, ['shift_id' => $this->otherShift->id])->assertJson(['pending' => true]);
+
+        $this->approve($this->c, $this->e1, self::DR)->assertStatus(200);
+
+        $day = $this->day($this->e1, self::DR);
+        $this->assertEquals($this->otherShift->id, $day['shift_id']);
+        foreach (['time_in', 'lunch_out', 'lunch_in', 'time_out'] as $field) {
+            $this->assertSame($before[$field], $day[$field], $field);
+        }
+        $this->assertSame(1, $this->rechecks);
     }
 
     #[TestDox('S-004.5 the command leaves a locked date as it is and says so')]

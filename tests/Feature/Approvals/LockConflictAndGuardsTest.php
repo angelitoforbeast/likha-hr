@@ -355,8 +355,10 @@ class LockConflictAndGuardsTest extends ApprovalsTestCase
         $this->assertSame($officialBefore, $this->official());
     }
 
-    #[TestDox('an approved request from the older page creates the day with the note the CEO\'s own edit there writes')]
-    public function test_old_page_request_carries_the_old_page_note(): void
+    // Before slice 004 the approved day kept the creation note of the CEO's own edit.
+    // An approval now rechecks the day, so its note names what the day still lacks.
+    #[TestDox('an approved request from the older page creates the day, and the recheck notes what it still lacks')]
+    public function test_old_page_request_is_rechecked_after_approval(): void
     {
         $post = fn (User $user, Employee $employee) => $this->actingAs($user)->postJson('/attendance/override', [
             'employee_id' => $employee->id, 'work_date' => self::DN, 'field' => 'time_in', 'new_value' => '08:00', 'reason' => self::REASON,
@@ -368,6 +370,11 @@ class LockConflictAndGuardsTest extends ApprovalsTestCase
         $this->approve($this->c, $this->e1, self::DN)->assertStatus(200);
 
         $this->assertSame('Manually created by CEO from absent row.', $this->day($this->e2, self::DN)['notes']);
-        $this->assertSame($this->day($this->e2, self::DN)['notes'], $this->day($this->e1, self::DN)['notes']);
+        $approved = $this->day($this->e1, self::DN);
+        $this->assertSame(
+            'Lunch punches could not be inferred. No Time Out recorded (missed timeout). Preserved overrides: time_in.',
+            $approved['notes']
+        );
+        $this->assertEquals(1, $approved['needs_review']);
     }
 }

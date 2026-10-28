@@ -347,8 +347,25 @@ class AttendanceChangeService
     }
 
     /**
+     * Recheck the day row of an employee and date after changes to it were made
+     * official, so "needs review" and the note describe the day as it is now. Null
+     * when the date has no day row (a SIL or rest-day change on a day nobody worked).
+     * Errors are not swallowed: inside an approval they roll the approval back.
+     */
+    public function recheckDay(Employee $employee, string $date): ?AttendanceDay
+    {
+        return DB::transaction(function () use ($employee, $date) {
+            $this->lockEmployee($employee);
+
+            $day = $this->findDay($employee->id, $date);
+
+            return $day ? $this->compute->recheckDay($day) : null;
+        });
+    }
+
+    /**
      * Rebuild one employee-day from its punches without touching overridden fields.
-     * Silent: the change that led here stands, and a day that cannot be rebuilt is
+     * Silent:the change that led here stands, and a day that cannot be rebuilt is
      * refreshed by the next "Compute Attendance".
      */
     public function autoComputeSingleDay(Employee $employee, string $date): void

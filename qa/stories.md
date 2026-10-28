@@ -366,6 +366,25 @@ Independent test: H runs bulk set times on 3 employees on Dn; 3 pending requests
 | S-22.10 | edge | Given a batch from H, then C can approve the whole batch with one action or each request separately (S-12.7) | `BulkAndBatchTest::test_s_22_10_batch_is_approved_in_one_action` | Passed · 2026-10-14 · auto |
 | S-22.11 | edge | Given a batch from H, when C rejects the whole batch with one reason, then every request in it is rejected with that reason and no day changes | `BulkAndBatchTest::test_s_22_11_batch_is_rejected_with_one_reason` | Passed · 2026-10-14 · auto |
 
+## Slice 004 – Approving a change rechecks the day
+
+Slice 004: 7 passed, 0 failed, 0 blocked, 0 skipped, 0 not run
+
+Tests live in `tests/Feature/Approvals/RecheckAfterApproveTest.php`, with the fixtures of Slice 002. Dx is an unlocked weekday on which the import made E1's (or E2's) day from two punches, 07:58 and 12:02: needs review, note "Lunch punches could not be inferred. No Time Out recorded (missed timeout)."
+
+### S-004 Approving a change rechecks the day (P1)
+As the CEO, I want a day I approved complete to stop showing as a problem, so that the Attendance Viewer and the Calendar show only real problems.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-004.1 | happy | Given Dx flagged "No Time Out", when C approves H's time out and lunch pair, then needs review is 0 and the note no longer names the fixed problems; a day the approval creates from nothing is checked the same way | `RecheckAfterApproveTest::test_s_004_1_completed_day_is_no_longer_flagged`, `test_s_004_1_day_created_by_the_approval_is_checked` | Passed · 2026-10-29 · auto |
+| S-004.2 | edge | Given Dx, when C approves only a lunch in, then needs review stays 1 and the note names only the missing time out | `RecheckAfterApproveTest::test_s_004_2_still_incomplete_day_names_only_what_is_left` | Passed · 2026-10-29 · auto |
+| S-004.3 | happy | Given two flagged days, when C approves them with "approve selected" or as a batch, then each day is rechecked once | `RecheckAfterApproveTest::test_s_004_3_approve_several_rechecks_each_day_once`, `test_s_004_3_batch_approve_rechecks_each_day_once` | Passed · 2026-10-29 · auto |
+| S-004.4 | edge | Given approved overtime, a CEO override, a rest day on the date and SIL on another date, when an approval rechecks the day, then all of them are as before | `RecheckAfterApproveTest::test_s_004_4_recheck_keeps_what_was_decided_before` | Passed · 2026-10-29 · auto |
+| S-004.5 | happy | Given a day approved before this change (complete, still flagged), then `attendance:recheck-approved` lists it with before → after and writes nothing; `--apply` writes; a second `--apply` changes nothing; a locked date is skipped | `RecheckAfterApproveTest::test_s_004_5_command_fixes_days_approved_before`, `test_s_004_5_command_skips_locked_dates` | Passed · 2026-10-29 · auto |
+| S-004.6 | negative | Given a pending entry, when C rejects it, then the day is not rechecked and nothing official changes | `RecheckAfterApproveTest::test_s_004_6_reject_does_not_recheck` | Passed · 2026-10-29 · auto |
+| S-004.7 | negative | Given the existing suites, then they pass (one Slice 002 test changed on purpose: an approved day's note is now the recheck's) | full suite | Passed · 2026-10-29 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)

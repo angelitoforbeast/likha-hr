@@ -337,6 +337,9 @@ class AttendanceComputeService
      * Overridden fields keep their current (edited) values.
      * Non-overridden fields get fresh values from raw logs.
      * Metrics (work/late/early/OT) are always recomputed based on the final values.
+     *
+     * @param bool $keepStoredTimes every time field keeps its stored value: used for a day
+     *                              without punches, where there is nothing to rebuild from
      */
     protected function computeDayWithOverrides(
         Employee $employee,
@@ -345,7 +348,8 @@ class AttendanceComputeService
         ?\App\Models\Shift $shift,
         ?int $sourceRunId,
         AttendanceDay $existingDay,
-        array $overriddenFields
+        array $overriddenFields,
+        bool $keepStoredTimes = false
     ): AttendanceDay {
         $needsReview = false;
         $notes = [];
@@ -363,20 +367,22 @@ class AttendanceComputeService
             $notes[] = 'No shift assigned to employee.';
         }
 
+        $keep = fn (string $field) => $keepStoredTimes || in_array($field, $overriddenFields);
+
         // Determine final values: use existing (edited) value if field was overridden, otherwise use fresh
-        $finalTimeIn = in_array('time_in', $overriddenFields)
+        $finalTimeIn = $keep('time_in')
             ? ($existingDay->time_in ? Carbon::parse($existingDay->time_in) : null)
             : $freshTimeIn;
 
-        $finalTimeOut = in_array('time_out', $overriddenFields)
+        $finalTimeOut = $keep('time_out')
             ? ($existingDay->time_out ? Carbon::parse($existingDay->time_out) : null)
             : $freshTimeOut;
 
-        $finalLunchOut = in_array('lunch_out', $overriddenFields)
+        $finalLunchOut = $keep('lunch_out')
             ? ($existingDay->lunch_out ? Carbon::parse($existingDay->lunch_out) : null)
             : $freshLunchOut;
 
-        $finalLunchIn = in_array('lunch_in', $overriddenFields)
+        $finalLunchIn = $keep('lunch_in')
             ? ($existingDay->lunch_in ? Carbon::parse($existingDay->lunch_in) : null)
             : $freshLunchIn;
 
@@ -388,6 +394,24 @@ class AttendanceComputeService
         $computeShift = in_array('shift_id', $overriddenFields)
             ? \App\Models\Shift::find($existingDay->shift_id)
             : $shift;
+
+        // The checks of the import's own compute, on the final values: a time in that was
+        // cleared, or edited times out of order, leave the day as much in need of review
+        // as the same problems straight from the punches.
+        if (!$finalTimeIn) {
+            $needsReview = true;
+            $notes[] = 'No Time In recorded.';
+        }
+        foreach ([
+            ['Time In', $finalTimeIn, 'Lunch Out', $finalLunchOut],
+            ['Lunch Out', $finalLunchOut, 'Lunch In', $finalLunchIn],
+            ['Lunch In', $finalLunchIn, 'Time Out', $finalTimeOut],
+        ] as [$firstLabel, $first, $secondLabel, $second]) {
+            if ($first && $second && $first->gt($second)) {
+                $needsReview = true;
+                $notes[] = "{$firstLabel} is after {$secondLabel} (order issue).";
+            }
+        }
 
         if ($computeShift && (!$finalLunchOut || !$finalLunchIn)) {
             $needsReview = true;
@@ -439,6 +463,44 @@ class AttendanceComputeService
         ]);
 
         return $existingDay->fresh();
+    }
+
+    /**
+     * Recheck one existing day row after a change to it was made official: the same
+     * override-aware compute as "Compute Attendance" (force = false), for that day only.
+     * Overridden times keep their values; times nobody edited come from the punches;
+     * "needs review" and the note are then decided from the final times, so a problem
+     * an approval fixed is no longer reported. Approved overtime, SIL, rest days and the
+     * override rows are not touched, and the import run the day came from stays named.
+     *
+     * A day without punches (one created by an edit or an approval) keeps every stored
+     * time, because there is nothing to rebuild them from. Unlike "Compute Attendance",
+     * errors are not swallowed: the caller's transaction must fail with them.
+     */
+    public function recheckDay(AttendanceDay $day): AttendanceDay
+    {
+        $employee = $day->employee()->firstOrFail();
+        $workDate = $day->work_date->format('Y-m-d');
+
+        $punches = AttendanceLog::where('employee_id', $employee->id)
+            ->whereBetween('punched_at', [Carbon::parse($workDate)->startOfDay(), Carbon::parse($workDate)->endOfDay()])
+            ->orderBy('punched_at')
+            ->get();
+        $shift = $employee->getShiftForDate($workDate);
+        $overriddenFields = AttendanceOverride::where('attendance_day_id', $day->id)
+            ->pluck('field')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($punches->isNotEmpty() && empty($overriddenFields)) {
+            // As "Compute Attendance" does for a day nobody edited.
+            return $this->computeDay($employee, $workDate, $punches, $shift, $day->source_run_id);
+        }
+
+        return $this->computeDayWithOverrides(
+            $employee, $workDate, $punches, $shift, $day->source_run_id, $day, $overriddenFields, $punches->isEmpty()
+        );
     }
 
     /**

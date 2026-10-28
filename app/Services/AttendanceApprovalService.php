@@ -181,6 +181,11 @@ class AttendanceApprovalService
 
             $applied = $this->apply($employee, $date, $rows, $approver);
 
+            // Once per entry, after every field is in: the writes above recompute only the
+            // minutes, so the day would keep the "needs review" and note of the punches it
+            // had before. Inside this transaction, so a failed recheck undoes the approval.
+            $this->changes->recheckDay($employee, $date);
+
             // Compare-and-set: the rows are marked approved only if each is still
             // pending at the version that was applied. This holds even where the
             // row lock above does not exist.

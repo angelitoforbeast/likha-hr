@@ -5,9 +5,12 @@ namespace App\Services;
 use App\Models\AttendanceChangeRequest;
 use App\Models\AttendanceDateLock;
 use App\Models\Employee;
+use App\Models\Shift;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The CEO's decision on an entry: every pending request of one employee and
@@ -179,12 +182,7 @@ class AttendanceApprovalService
                 );
             }
 
-            $applied = $this->apply($employee, $date, $rows, $approver);
-
-            // Once per entry, after every field is in: the writes above recompute only the
-            // minutes, so the day would keep the "needs review" and note of the punches it
-            // had before. Inside this transaction, so a failed recheck undoes the approval.
-            $this->changes->recheckDay($employee, $date);
+            $applied = $this->applyEntry($employee, $date, $rows, $approver);
 
             // Compare-and-set: the rows are marked approved only if each is still
             // pending at the version that was applied. This holds even where the
@@ -273,6 +271,176 @@ class AttendanceApprovalService
         if (self::seenToken($rows) !== trim($seen)) {
             throw new AttendanceChangeRefused('Request changed, review again.', 409, ['short' => 'request changed']);
         }
+    }
+
+    /**
+     * What an approval writes: every field of the entry, then the recheck of the day.
+     * The approval and the preview both run this, so the preview cannot show anything
+     * other than what Approve saves.
+     *
+     * @return array<int, array{0: string, 1: ?int}> see apply()
+     */
+    protected function applyEntry(Employee $employee, string $date, Collection $rows, User $approver): array
+    {
+        $applied = $this->apply($employee, $date, $rows, $approver);
+
+        // Once per entry, after every field is in: the writes above recompute only the
+        // minutes, so the day would keep the "needs review" and note of the punches it
+        // had before. Inside the approval's transaction, so a failed recheck undoes it.
+        $this->changes->recheckDay($employee, $date);
+
+        return $applied;
+    }
+
+    /**
+     * The day now and as Approve would leave it, for the CEO to see before deciding.
+     *
+     * "If approved" is not a calculation of its own: the entry is applied with
+     * applyEntry(), the same code Approve runs, inside a transaction that is always
+     * rolled back (AttendanceChangeService::dryRun), and the day is read before the
+     * rollback. Nothing is committed. The checks that decide whether Approve is allowed
+     * at all (role, date lock, blocks, changed values) are not part of it: the page
+     * shows those on their own, and the preview shows what Approve writes once allowed.
+     *
+     * @return array{now: array, after: ?array, error: ?string, warnings: string[]}
+     */
+    public function preview(Employee $employee, string $date, Collection $rows, User $approver): array
+    {
+        // A copy without loaded relations: nothing the rolled-back writes leave in a
+        // model's memory may reach the rest of the page.
+        $employee = (clone $employee)->setRelations([]);
+        $preview = ['now' => $this->dayPicture($employee, $date), 'after' => null, 'error' => null, 'warnings' => []];
+
+        try {
+            $after = $this->changes->dryRun(
+                fn () => $this->applyEntry($employee, $date, $rows, $approver),
+                fn () => $this->dayPicture($employee, $date)
+            );
+        } catch (AttendanceChangeRefused $e) {
+            return ['error' => $e->getMessage()] + $preview;
+        } catch (\Throwable $e) {
+            Log::warning('Approval preview failed: ' . get_class($e), ['employee_id' => $employee->id, 'date' => $date]);
+
+            return ['error' => 'It could not be worked out.'] + $preview;
+        }
+
+        if ($after['has_row'] && $after['shift_id'] === null) {
+            return ['error' => 'No shift is set for this employee on this date, so hours, late and undertime cannot be worked out.'] + $preview;
+        }
+
+        return ['after' => $after, 'warnings' => $this->warnings($after)] + $preview;
+    }
+
+    /**
+     * One employee-day as the preview shows it, read from the database as it is at
+     * this moment (inside a dry run: as the approval leaves it).
+     */
+    public function dayPicture(Employee $employee, string $date): array
+    {
+        $day = $this->changes->findDay($employee->id, $date);
+        $shift = $day ? ($day->shift_id ? Shift::find($day->shift_id) : null) : $employee->getShiftForDate($date);
+        $time = fn ($value) => $value ? Carbon::parse($value)->format('H:i:s') : null;
+
+        $lunch = null;
+        if ($day && $day->lunch_out && $day->lunch_in) {
+            // Rounded as the compute rounds them: lunch out down, lunch in up to the minute.
+            $out = Carbon::parse($day->lunch_out)->second(0);
+            $in = Carbon::parse($day->lunch_in);
+            $in = $in->second > 0 ? $in->copy()->second(0)->addMinute() : $in->copy();
+            $lunch = (int) $out->diffInMinutes($in, false);
+        }
+
+        $shiftLunch = null;
+        if ($shift && $shift->lunch_start && $shift->lunch_end) {
+            $shiftLunch = (int) Carbon::parse($date . ' ' . $shift->lunch_start)->diffInMinutes(Carbon::parse($date . ' ' . $shift->lunch_end), false);
+        }
+
+        return [
+            'has_row'           => $day !== null,
+            'time_in'           => $time($day?->time_in),
+            'lunch_out'         => $time($day?->lunch_out),
+            'lunch_in'          => $time($day?->lunch_in),
+            'time_out'          => $time($day?->time_out),
+            'shift_id'          => $shift?->id,
+            'shift_name'        => $shift?->name,
+            'shift_lunch'       => $shiftLunch,
+            'shift_required'    => $shift ? (int) $shift->required_work_minutes : null,
+            'lunch'             => $lunch,
+            'work'              => $day ? (int) $day->computed_work_minutes : null,
+            'late'              => $day ? (int) $day->computed_late_minutes : null,
+            'undertime'         => $day ? (int) $day->computed_early_minutes : null,
+            'overtime'          => $day ? (int) $day->computed_overtime_minutes : null,
+            'approved_overtime' => $day && $day->approved_overtime_minutes !== null ? (int) $day->approved_overtime_minutes : null,
+            'needs_review'      => $day ? (bool) $day->needs_review : null,
+            'notes'             => $day?->notes,
+            'rest_day'          => $employee->isDayOff($date),
+            'sil'               => $employee->isDateSil($date),
+        ];
+    }
+
+    /**
+     * Plain-word lines for what is still unusual about the day as approved.
+     *
+     * @return string[]
+     */
+    public function warnings(array $day): array
+    {
+        if (!$day['has_row']) {
+            return [];
+        }
+
+        $warnings = [];
+        $hasLunch = $day['shift_lunch'] !== null;
+        $off = $day['rest_day'] || $day['sil'];
+
+        $missing = [];
+        foreach (['time_in' => 'time in', 'lunch_out' => 'lunch out', 'lunch_in' => 'lunch in', 'time_out' => 'time out'] as $field => $label) {
+            if ($day[$field] === null && ($hasLunch || !in_array($field, ['lunch_out', 'lunch_in'], true))) {
+                $missing[] = $label;
+            }
+        }
+        if ($missing && !$off) {
+            $warnings[] = 'Still missing: ' . implode(', ', $missing) . '.';
+        }
+
+        if ($day['lunch'] !== null && $day['lunch'] < 0) {
+            $warnings[] = 'Lunch in is before lunch out.';
+        } elseif ($day['lunch'] !== null && $hasLunch && $day['lunch'] > $day['shift_lunch']) {
+            $warnings[] = 'Lunch is ' . self::minutesText($day['lunch']) . ', longer than the shift\'s ' . self::minutesText($day['shift_lunch']) . '.';
+        }
+
+        if ($day['time_in'] !== null && $day['time_out'] !== null && $day['time_out'] < $day['time_in']) {
+            $warnings[] = 'Time out is before time in.';
+        }
+
+        if (!$off && $day['shift_required'] !== null && $day['work'] < $day['shift_required']) {
+            $warnings[] = 'Worked ' . self::minutesText($day['work']) . ', under the shift\'s ' . self::minutesText($day['shift_required']) . '.';
+        }
+
+        $uncovered = $day['overtime'] - ($day['approved_overtime'] ?? 0);
+        if ($uncovered > 0) {
+            $warnings[] = self::minutesText($uncovered) . ' of overtime is not covered by approved overtime.';
+        }
+
+        return $warnings;
+    }
+
+    /** Minutes as "8 h", "7 h 45 m" or "45 m"; null as a dash. */
+    public static function minutesText(?int $minutes): string
+    {
+        if ($minutes === null) {
+            return '–';
+        }
+        $sign = $minutes < 0 ? '-' : '';
+        $minutes = abs($minutes);
+        $h = intdiv($minutes, 60);
+        $m = $minutes % 60;
+
+        return $sign . match (true) {
+            $h > 0 && $m > 0 => "{$h} h {$m} m",
+            $h > 0           => "{$h} h",
+            default          => "{$m} m",
+        };
     }
 
     /**

@@ -10,6 +10,23 @@
     .approval-entry .approval-field + .approval-field { border-top: 1px solid #eee; }
     .approval-value { font-weight: 600; }
     .approval-flag { font-size: .8rem; }
+    /* The preview: below the request on a phone, beside it (right) from a laptop width up. */
+    .approval-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+    @media (min-width: 992px) {
+        .approval-layout.has-preview {
+            grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+            grid-template-rows: auto 1fr;
+            grid-template-areas: "request preview" "actions preview";
+        }
+        .approval-layout.has-preview .approval-request { grid-area: request; }
+        .approval-layout.has-preview .approval-side { grid-area: preview; align-self: start; }
+        .approval-layout.has-preview .approval-actions { grid-area: actions; align-self: start; }
+    }
+    .approval-preview-grid { display: grid; grid-template-columns: minmax(0, 38fr) minmax(0, 31fr) minmax(0, 31fr); font-size: .85rem; }
+    .approval-preview-line { display: contents; }
+    .approval-preview-line > div { padding: .15rem .3rem; border-top: 1px solid #eee; }
+    .approval-preview-head > div { font-weight: 600; border-top: 0; }
+    .approval-preview-changed > div:last-child, .approval-preview-changed-note { background: #fff3cd; font-weight: 600; }
 </style>
 @endpush
 
@@ -177,6 +194,8 @@
                     </div>
                 </div>
 
+                <div @class(['approval-layout', 'has-preview' => $isPending && isset($entry['preview'])])>
+                <div class="approval-request">
                 @foreach($entry['rows'] as $row)
                     <div class="approval-field py-2">
                         <div class="small text-muted text-uppercase">{{ $row->fieldLabel() }}</div>
@@ -224,8 +243,17 @@
                             Out {{ $entry['day']->time_out ? $entry['day']->time_out->format('g:i A') : '-' }}.
                         </div>
                     @endif
+                @endif
+                </div>
 
-                    <div class="d-flex flex-wrap align-items-start gap-2 mt-3">
+                @if($isPending)
+                    @isset($entry['preview'])
+                        <div class="approval-side">
+                            @include('approvals._preview', ['preview' => $entry['preview'], 'entry' => $entry])
+                        </div>
+                    @endisset
+
+                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">
                         <form method="POST" action="{{ url('/approvals/' . $entry['anchor'] . '/approve') }}" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
                             @csrf
                             <input type="hidden" name="seen" value="{{ $entry['seen'] }}">
@@ -250,6 +278,7 @@
                         </form>
                     </div>
                 @endif
+                </div>
             </div>
         </div>
     @endforeach

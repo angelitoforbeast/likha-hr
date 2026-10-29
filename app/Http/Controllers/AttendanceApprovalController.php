@@ -170,6 +170,8 @@ class AttendanceApprovalController extends Controller
                 $entry['drift']  = $this->approvals->drift($employee, $date, $entryRows);
                 $entry['blocks'] = $this->approvals->blocks($employee, $date, $entryRows);
                 $entry['day']    = $this->changes->findDay($employee->id, $date);
+                // The day now and as Approve would save it; computed and rolled back, never saved.
+                $entry['preview'] = $this->approvals->preview($employee, $date, $entryRows, Auth::user());
             }
 
             $entries[] = $entry;

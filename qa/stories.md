@@ -385,6 +385,27 @@ As the CEO, I want a day I approved complete to stop showing as a problem, so th
 | S-004.6 | negative | Given a pending entry, when C rejects it, then the day is not rechecked and nothing official changes | `RecheckAfterApproveTest::test_s_004_6_reject_does_not_recheck` | Passed · 2026-10-29 · auto |
 | S-004.7 | negative | Given the existing suites, then they pass (one Slice 002 test changed on purpose: an approved day's note is now the recheck's) | full suite | Passed · 2026-10-29 · auto |
 
+## Slice 005 – The approval preview
+
+Slice 005: 9 passed, 0 failed, 0 blocked, 0 skipped, 0 not run
+
+Tests live in `tests/Feature/Approvals/ApprovalPreviewTest.php`, with the fixtures of Slice 002. Each case makes its day from invented punches, has H ask for the change, and reads the preview the CEO's `/approvals` page shows beside the entry ("Now" and "If approved").
+
+### S-005 The CEO sees the whole day as it will be, before approving (P1)
+As the CEO, I want to see the employee's day as Approve would save it, beside the request, so that I decide with the hours, the lunch, late, undertime, overtime and any remaining problem in view.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-005.1 | happy | Given a day with time in and the lunch pair but no time out (needs review), when H asks for time out 17:00, then the preview shows Now: no time out, 4 h worked, needs review Yes; If approved: 5:00 PM, 8 h, needs review No, the changed lines highlighted | `ApprovalPreviewTest::test_s_005_1_missed_timeout_shows_the_completed_day` | Passed · 2026-10-29 · auto |
+| S-005.2 | happy | Given lunch back at 2:00 PM, when H asks for lunch in 13:00, then the preview shows lunch 2 h → 1 h, worked 7 h → 8 h, late 1 h → 0; a lunch still longer than the shift's, lunch in before lunch out, time out before time in, a missing punch and hours under the shift are warned in one line each | `test_s_005_2_lunch_fix_shows_the_new_lunch_length_and_hours`, `test_s_005_2_lunch_still_too_long_is_warned`, `test_s_005_2_other_unusual_results_are_warned` | Passed · 2026-10-29 · auto |
+| S-005.3 | happy | Given 2 h of overtime worked, when H asks for 1.5 h approved, then the preview shows approved overtime "not set" → 1 h 30 m and warns that 30 m is not covered; asked for 2 h, no warning | `test_s_005_3_overtime_request_shows_the_approved_overtime` | Passed · 2026-10-29 · auto |
+| S-005.4 | happy | Given Dr (8:03 AM to 5:00 PM on the 8-to-5 shift), when H asks for the 9-to-6 shift, then the preview shows the shift line Day shift → Late shift, late 3 m → 0, undertime 0 → 2 h, worked 7 h 57 m → 6 h | `test_s_005_4_shift_change_shows_the_new_shift_and_recomputed_late_and_undertime` | Passed · 2026-10-29 · auto |
+| S-005.5 | negative | Given seven entries of every kind (times, a new day, overtime, a shift from the calendar, a rest day, SIL, a lunch fix), when C loads the page twice, then every row of every table (and the id counters) is unchanged, no job is queued, and every entry has its preview | `test_s_005_5_rendering_the_page_writes_nothing` | Passed · 2026-10-29 · auto |
+| S-005.6 | happy | Given entries for a missed time out, a lunch fix, overtime, a shift change (from Save All and from the calendar's shift control), a new day, a rest day and SIL, when C approves each, then the saved day equals the preview shown before, read both through the preview's code and straight from the table | `test_s_005_6_preview_equals_the_day_after_approval` | Passed · 2026-10-29 · auto |
+| S-005.7 | negative | Given an employee without any shift, then the entry shows "Preview not available" with the reason and can still be approved; given an error inside the preview, then the page answers 200 with "Preview not available" and writes nothing | `test_s_005_7_preview_that_cannot_be_computed_says_so_and_can_still_be_approved`, `test_s_005_7_an_error_in_the_preview_never_breaks_the_page` | Passed · 2026-10-29 · auto |
+| S-005.8 | edge | Given a 390 px screen, then the preview is below the request (request, preview, buttons) with no sideways scroll; from 992 px it is a right-hand column | `test_s_005_8_preview_sits_between_the_request_and_the_buttons` (order and CSS in the HTML); the rendered page at 390 px and 1280 px, see the result | Passed · 2026-10-29 · auto + browser |
+| S-005.9 | negative | Given the existing suites, then they pass | full suite | Passed · 2026-10-29 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)

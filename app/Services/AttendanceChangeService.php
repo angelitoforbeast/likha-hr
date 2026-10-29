@@ -33,8 +33,48 @@ class AttendanceChangeService
     public const RECOMPUTE_DAY     = 'day';
     public const RECOMPUTE_PUNCHES = 'punches';
 
+    /**
+     * While dryRun() runs: the work a change leaves for after its commit, run by
+     * dryRun() itself before it rolls back. Null at every other time.
+     *
+     * @var array<int, callable>|null
+     */
+    protected ?array $deferred = null;
+
     public function __construct(protected AttendanceComputeService $compute)
     {
+    }
+
+    /**
+     * Run $work exactly as a real change runs, read the result with $read, then undo
+     * everything: the outer transaction is always rolled back, so nothing $work writes
+     * (day rows, overrides, logs, audit rows) is ever committed. The work a real change
+     * does after its commit (the rebuild of autoComputeSingleDay) is run here, inside
+     * the transaction and before $read, so what is read is what the commit would leave.
+     * Exceptions of $work and $read reach the caller, after the rollback.
+     */
+    public function dryRun(callable $work, callable $read): mixed
+    {
+        $level = DB::transactionLevel();
+        $this->deferred = [];
+        DB::beginTransaction();
+
+        try {
+            $work();
+            while (!empty($this->deferred)) {
+                $next = array_shift($this->deferred);
+                $next();
+            }
+
+            return $read();
+        } finally {
+            $this->deferred = null;
+            // Back to the level we started at, also when the database already ended an
+            // inner transaction (a deadlock) and the framework counted it down.
+            if (DB::transactionLevel() > $level) {
+                DB::rollBack($level);
+            }
+        }
     }
 
     /** Abort with 423 when the date is locked. Used by every entry point before it writes or asks. */
@@ -373,7 +413,7 @@ class AttendanceChangeService
         // After the commit of the change (at once when no transaction is open): this
         // rebuild swallows its errors, and an error swallowed inside a transaction could
         // leave that transaction half-applied without anyone noticing.
-        DB::afterCommit(function () use ($employee, $date) {
+        $rebuild = function () use ($employee, $date) {
             try {
                 $stats = ['processed' => 0, 'errors' => 0, 'overrides_deleted' => 0];
                 $this->compute->computeForEmployee(
@@ -391,7 +431,16 @@ class AttendanceChangeService
                     'error'       => get_class($e),
                 ]);
             }
-        });
+        };
+
+        // Inside a dry run the rebuild is part of what is shown, and is rolled back with it.
+        if ($this->deferred !== null) {
+            $this->deferred[] = $rebuild;
+
+            return;
+        }
+
+        DB::afterCommit($rebuild);
     }
 
     /**

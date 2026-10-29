@@ -309,13 +309,21 @@ class AttendanceApprovalService
         // A copy without loaded relations: nothing the rolled-back writes leave in a
         // model's memory may reach the rest of the page.
         $employee = (clone $employee)->setRelations([]);
-        $preview = ['now' => $this->dayPicture($employee, $date), 'after' => null, 'error' => null, 'warnings' => []];
+        $preview = ['now' => null, 'after' => null, 'error' => null, 'warnings' => []];
 
+        // Whatever fails here, the page shows "Preview not available" and stays usable.
         try {
+            $preview['now'] = $this->dayPicture($employee, $date);
             $after = $this->changes->dryRun(
                 fn () => $this->applyEntry($employee, $date, $rows, $approver),
                 fn () => $this->dayPicture($employee, $date)
             );
+
+            if ($after['has_row'] && $after['shift_id'] === null) {
+                return ['error' => 'No shift is set for this employee on this date, so hours, late and undertime cannot be worked out.'] + $preview;
+            }
+
+            return ['after' => $after, 'warnings' => $this->warnings($after)] + $preview;
         } catch (AttendanceChangeRefused $e) {
             return ['error' => $e->getMessage()] + $preview;
         } catch (\Throwable $e) {
@@ -323,12 +331,6 @@ class AttendanceApprovalService
 
             return ['error' => 'It could not be worked out.'] + $preview;
         }
-
-        if ($after['has_row'] && $after['shift_id'] === null) {
-            return ['error' => 'No shift is set for this employee on this date, so hours, late and undertime cannot be worked out.'] + $preview;
-        }
-
-        return ['after' => $after, 'warnings' => $this->warnings($after)] + $preview;
     }
 
     /**

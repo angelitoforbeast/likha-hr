@@ -7,6 +7,9 @@
 @endphp
 <div class="approval-preview border rounded p-2" data-preview="{{ $preview['error'] ? 'unavailable' : 'ok' }}">
     <div class="small fw-semibold mb-1">Preview</div>
+    @if(!$preview['error'] && ($entry['locked'] || !empty($entry['blocks'])))
+        <div class="small text-danger mb-1 approval-preview-blocked">Approve is not allowed now. This is what it would save once it is.</div>
+    @endif
     @if($preview['error'])
         <div class="small text-muted approval-preview-error">Preview not available: {{ $preview['error'] }}</div>
     @else

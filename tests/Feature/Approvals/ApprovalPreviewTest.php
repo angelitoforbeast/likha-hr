@@ -136,7 +136,7 @@ class ApprovalPreviewTest extends ApprovalsTestCase
         $card = html_entity_decode($this->card($html, $this->e1, self::DX));
         $this->assertStringContainsString('Note now: No Time Out recorded (missed timeout).', $card);
         $this->assertStringContainsString('Note if approved: Preserved overrides: time_out.', $card);
-        $this->assertStringNotContainsString('Shift</th>', $this->card($html, $this->e1, self::DX), 'no shift line when no shift change is asked');
+        $this->assertArrayNotHasKey('Shift', $shown, 'no shift line when no shift change is asked');
     }
 
     /* ── S-005.2 ── */
@@ -258,15 +258,69 @@ class ApprovalPreviewTest extends ApprovalsTestCase
         $this->travel(2)->hours();
         Queue::fake();
         $before = $this->everything();
+        $level = DB::transactionLevel();
 
         $html = $this->page();
         $html .= $this->page();
 
         $this->assertSame($before, $this->everything(), 'a table changed while the page was rendered');
+        $this->assertSame($level, DB::transactionLevel(), 'a dry run left a transaction open');
         Queue::assertNothingPushed();
         // Every entry did get a preview, so the dry runs did write before rolling back.
         $this->assertSame(7, substr_count($html, 'data-preview="ok"') / 2);
         $this->assertStringNotContainsString('Preview not available', $html);
+    }
+
+    public function test_s_005_5_a_sil_entry_without_a_balance_row_writes_none(): void
+    {
+        $this->silSetup($this->e2);
+        $this->applySil($this->h, $this->e2, self::D12)->assertStatus(200)->assertJson(['pending' => true]);
+        // The balance row is gone by the time the CEO looks; the employee is still SIL-eligible.
+        DB::table('employee_sil_balances')->delete();
+        $before = $this->everything();
+
+        $html = $this->page();
+
+        $this->assertSame($before, $this->everything());
+        $this->assertSame(0, DB::table('employee_sil_balances')->count());
+        $this->assertStringContainsString('Preview not available: No remaining SIL days for 2026.', $html);
+    }
+
+    public function test_s_005_5_a_dry_run_that_lost_its_transaction_runs_nothing_more(): void
+    {
+        $this->askFourTimes();
+        $changes = app(\App\Services\AttendanceChangeService::class);
+
+        $refused = null;
+        try {
+            $changes->dryRun(function () use (&$refused) {
+                // As after a deadlock on MySQL: the database ended the transaction, the code goes on.
+                DB::connection()->getPdo()->rollBack();
+                try {
+                    DB::table('attendance_days')->insert(['employee_id' => $this->e1->id, 'work_date' => self::DN]);
+                } catch (\RuntimeException $e) {
+                    $refused = $e->getMessage();
+                    throw $e;
+                }
+            }, fn () => null);
+        } catch (\Throwable $e) {
+            // Inside this test's own transaction the rollback to the savepoint fails as well.
+        } finally {
+            // That transaction went with the PDO rollback above: open it again, at the level
+            // the framework counts, so the test can end as usual.
+            $connection = DB::connection();
+            if (!$connection->getPdo()->inTransaction()) {
+                $connection->getPdo()->beginTransaction();
+            }
+            (fn () => $this->transactions = 1)->call($connection);
+        }
+
+        $this->assertStringContainsString('lost its transaction', (string) $refused, 'the statement after the lost transaction ran');
+
+        // Nothing was inserted (the rollback above also took this test's fixtures with it).
+        $this->assertNull($this->day($this->e1, self::DN));
+        // The dry run is closed again: a next one starts and finishes normally.
+        $this->assertSame('ok', $changes->dryRun(fn () => null, fn () => 'ok'));
     }
 
     /* ── S-005.6 ── */

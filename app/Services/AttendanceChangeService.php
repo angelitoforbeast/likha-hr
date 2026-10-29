@@ -9,6 +9,7 @@ use App\Models\DayOff;
 use App\Models\DayOffLog;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
+use App\Models\EmployeeSilBalance;
 use App\Models\SilApplication;
 use App\Models\User;
 use Carbon\Carbon;
@@ -55,9 +56,15 @@ class AttendanceChangeService
      */
     public function dryRun(callable $work, callable $read): mixed
     {
+        if ($this->deferred !== null) {
+            throw new \LogicException('A dry run cannot run inside another one.');
+        }
+
+        $this->guardConnection();
         $level = DB::transactionLevel();
-        $this->deferred = [];
         DB::beginTransaction();
+        $this->deferred = [];
+        self::$dryRuns++;
 
         try {
             $work();
@@ -69,12 +76,53 @@ class AttendanceChangeService
             return $read();
         } finally {
             $this->deferred = null;
+            self::$dryRuns--;
             // Back to the level we started at, also when the database already ended an
             // inner transaction (a deadlock) and the framework counted it down.
-            if (DB::transactionLevel() > $level) {
-                DB::rollBack($level);
+            try {
+                if (DB::transactionLevel() > $level) {
+                    DB::rollBack($level);
+                }
+            } catch (\Throwable $e) {
+                // The rollback itself failed. At the top level, drop the connection: the
+                // database ends an unfinished transaction when it goes, and the next query
+                // starts on a fresh connection that knows of no open transaction.
+                if ($level === 0) {
+                    DB::purge();
+                }
+                throw $e;
             }
         }
+    }
+
+    /** How many dry runs are open in this process; read by the guard below. */
+    protected static int $dryRuns = 0;
+
+    /** @var \WeakMap<\Illuminate\Database\Connection, true>|null connections that carry the guard */
+    protected static ?\WeakMap $guarded = null;
+
+    /**
+     * While a dry run is open, refuse every statement that would run outside a
+     * transaction. On MySQL a deadlock ends the whole transaction at once; if code
+     * inside the dry run swallows that error (the rebuild after an edit does, and so
+     * does the audit log), the next statements would run in autocommit and be saved
+     * for real. With this guard they fail instead, and the preview says it is not
+     * available.
+     */
+    protected function guardConnection(): void
+    {
+        $connection = DB::connection();
+        self::$guarded ??= new \WeakMap();
+        if (isset(self::$guarded[$connection])) {
+            return;
+        }
+        self::$guarded[$connection] = true;
+
+        $connection->beforeExecuting(function ($query, $bindings, $connection) {
+            if (self::$dryRuns > 0 && !$connection->getPdo()->inTransaction()) {
+                throw new \RuntimeException('The dry run lost its transaction; the statement was not run.');
+            }
+        });
     }
 
     /** Abort with 423 when the date is locked. Used by every entry point before it writes or asks. */
@@ -294,7 +342,11 @@ class AttendanceChangeService
         if (!$employee->sil_eligible) {
             throw new AttendanceChangeRefused('Employee is not marked as SIL-eligible. Toggle SIL eligibility on the Employee edit page first.');
         }
-        if ($employee->getSilRemainingDays($year) < 1) {
+        // The same number as Employee::getSilRemainingDays, read without creating a balance
+        // row: the Approvals page runs this check for every SIL entry it shows, and showing
+        // a page must not write.
+        $total = (float) (EmployeeSilBalance::where('employee_id', $employee->id)->where('year', $year)->value('total_days') ?? 0);
+        if ($total - $employee->getSilUsedDays($year) < 1) {
             throw new AttendanceChangeRefused('No remaining SIL days for ' . $year . '.');
         }
         if ($employee->isDateSil($date)) {

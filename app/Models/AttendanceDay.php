@@ -42,6 +42,23 @@ class AttendanceDay extends Model
         'needs_review' => 'boolean',
     ];
 
+    /** Whether the time out is on a later date than the work date: the person left after midnight. */
+    public function timeOutIsNextDay(): bool
+    {
+        return $this->time_out !== null && $this->work_date !== null
+            && $this->time_out->toDateString() > $this->work_date->toDateString();
+    }
+
+    /** The time out in $format, followed by " (next day)" when it is after midnight. */
+    public function timeOutLabel(string $format): ?string
+    {
+        if ($this->time_out === null) {
+            return null;
+        }
+
+        return $this->time_out->format($format) . ($this->timeOutIsNextDay() ? ' (next day)' : '');
+    }
+
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);

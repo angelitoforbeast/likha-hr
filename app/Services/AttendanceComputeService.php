@@ -49,19 +49,25 @@ class AttendanceComputeService
         array &$stats,
         bool $force = false
     ): void {
-        $punches = AttendanceLog::where('employee_id', $employee->id)
-            ->whereBetween('punched_at', [$start, $end])
-            ->orderBy('punched_at')
-            ->get();
-
-        $punchesByDate = $punches->groupBy(function ($log) {
-            return Carbon::parse($log->punched_at)->format('Y-m-d');
-        });
+        $workDates = $this->workDatePunches($employee, $start->format('Y-m-d'), $end->format('Y-m-d'));
 
         $current = $start->copy();
         while ($current->lte($end)) {
             $dateStr = $current->format('Y-m-d');
-            $dayPunches = $punchesByDate->get($dateStr, collect());
+            $dayPunches = $workDates[$dateStr] ?? collect();
+
+            // Every punch of this date went to the date before as its time out: a row made
+            // from them earlier is not a day any more.
+            $previous = $current->copy()->subDay()->format('Y-m-d');
+            $takenByPrevious = self::overnightPunch($workDates[$previous] ?? collect(), $previous)?->format('Y-m-d') === $dateStr;
+            if ($dayPunches->isEmpty() && $takenByPrevious) {
+                try {
+                    $this->dropDayOfTakenPunches($employee, $dateStr);
+                } catch (\Throwable $e) {
+                    Log::error("Error removing the day of taken punches for employee #{$employee->id} on {$dateStr}: " . $e->getMessage());
+                    $stats['errors']++;
+                }
+            }
 
             if ($dayPunches->isNotEmpty()) {
                 try {
@@ -106,6 +112,201 @@ class AttendanceComputeService
     }
 
     /**
+     * At most this many days are read back to find where a run of nights in a row starts
+     * (see workDatePunches). Longer runs are decided from this far back only.
+     */
+    protected const OVERNIGHT_LOOKBACK_MAX_DAYS = 31;
+
+    /**
+     * Each work date's punches from $first to $last, with the time out it takes from the
+     * next date.
+     *
+     * A date takes the last of the next date's punches inside the overnight window as its
+     * time out when its own punches give it a time in and no time out (warehouse staff who
+     * leave after midnight). Every punch of that window then belongs to the start date and
+     * is left out of the next date, so no punch counts twice and the next date's time in is
+     * its own first punch after the window. Whether a date takes the punch depends on the
+     * punches only, never on a lock: the same punches give the same days whatever is locked.
+     *
+     * The punch a date takes travels in that date's collection, after its own punches; it is
+     * the only punch dated after the work date, which is how assignTimestamps tells it apart.
+     *
+     * @return array<string, Collection> date => its own punches, plus the next date's punch it takes
+     */
+    public function workDatePunches(Employee $employee, string $first, string $last): array
+    {
+        // Whether a date takes the next date's punch depends on its own punches, which depend
+        // on what the date before took from it, and so on back. The walk starts at the first
+        // date before $first with no punch before "until": nothing can have been taken from
+        // it, so every date after it is decided exactly, whatever date a range starts on.
+        // The early punches of the days that may be read back, in one query.
+        $from = Carbon::parse($first)->subDay()->startOfDay();
+        $earlyDates = AttendanceLog::where('employee_id', $employee->id)
+            ->where('punched_at', '>=', $from->copy()->subDays(self::OVERNIGHT_LOOKBACK_MAX_DAYS))
+            ->where('punched_at', '<', Carbon::parse($from->format('Y-m-d') . ' ' . self::overnightUntil()))
+            ->whereTime('punched_at', '<', self::overnightUntil())
+            ->pluck('punched_at')
+            ->mapWithKeys(fn ($at) => [Carbon::parse($at)->format('Y-m-d') => true])
+            ->all();
+        for ($i = 0; $i < self::OVERNIGHT_LOOKBACK_MAX_DAYS && isset($earlyDates[$from->format('Y-m-d')]); $i++) {
+            $from->subDay();
+        }
+        $lastDate = Carbon::parse($last)->startOfDay();
+        // The window never ends later than "until" on the date after the last one.
+        $until = Carbon::parse($lastDate->copy()->addDay()->format('Y-m-d') . ' ' . self::overnightUntil());
+
+        $byDate = AttendanceLog::where('employee_id', $employee->id)
+            ->where('punched_at', '>=', $from)
+            ->where('punched_at', '<', $until)
+            ->orderBy('punched_at')
+            ->get()
+            ->groupBy(fn ($log) => Carbon::parse($log->punched_at)->format('Y-m-d'));
+
+        $out = [];
+        $takenIds = [];
+        for ($date = $from->copy(); $date->lte($lastDate); $date->addDay()) {
+            $dateStr = $date->format('Y-m-d');
+            $nextStr = $date->copy()->addDay()->format('Y-m-d');
+
+            $own = $byDate->get($dateStr, collect())
+                ->reject(fn ($log) => isset($takenIds[$log->id]))
+                ->values();
+            $takenIds = [];
+            $day = $own;
+
+            $nextPunches = $byDate->get($nextStr, collect());
+            // The cheap test first (punches are in time order): most next dates start after "until",
+            // and then the next date's shift need not be resolved.
+            $nextStartsEarly = $nextPunches->isNotEmpty()
+                && Carbon::parse($nextPunches->first()->punched_at)->format('H:i:s') < self::overnightUntil();
+            if ($own->isNotEmpty() && $nextStartsEarly) {
+                $windowEnd = $this->overnightWindowEnd($employee, $nextStr);
+                $inWindow = $nextPunches->filter(fn ($log) => Carbon::parse($log->punched_at)->lt($windowEnd))->values();
+
+                if ($inWindow->isNotEmpty()) {
+                    $assigned = $this->assignTimestamps($own, $employee->getShiftForDate($dateStr), $dateStr);
+                    if ($assigned['time_in'] && !$assigned['time_out']) {
+                        // The last one: a second tap on the way out is the time of leaving.
+                        $day = $own->concat([$inWindow->last()])->values();
+                        $takenIds = $inWindow->pluck('id')->flip()->all();
+                    }
+                }
+            }
+
+            $out[$dateStr] = $day;
+        }
+
+        return $out;
+    }
+
+    /** Whether the employee has a punch on $date before "until". */
+    protected function hasEarlyPunch(Employee $employee, Carbon $date): bool
+    {
+        return AttendanceLog::where('employee_id', $employee->id)
+            ->where('punched_at', '>=', $date->copy()->startOfDay())
+            ->where('punched_at', '<', Carbon::parse($date->format('Y-m-d') . ' ' . self::overnightUntil()))
+            ->exists();
+    }
+
+    /**
+     * A day row the punches no longer make: its date has punches, every one of them is the
+     * time out of the date before, and a compute of the same punches today makes no row for
+     * it. Removed so the punch is not used twice and payroll does not count a worked day
+     * nobody worked. Kept when it carries anything a person did (an edit, an approved
+     * overtime, a request), or when its date or the date before is locked; a person decides about those.
+     *
+     * @return string 'removed', 'kept' (a person must look), or 'none' (nothing to do)
+     */
+    public function dropDayOfTakenPunches(Employee $employee, string $date): string
+    {
+        $day = AttendanceDay::where('employee_id', $employee->id)->whereDate('work_date', $date)->first();
+        if (!$day) {
+            return 'none';
+        }
+
+        $own = $this->workDatePunches($employee, $date, $date)[$date]
+            ->filter(fn ($log) => Carbon::parse($log->punched_at)->format('Y-m-d') === $date);
+        $hasPunches = AttendanceLog::where('employee_id', $employee->id)
+            ->where('punched_at', '>=', Carbon::parse($date)->startOfDay())
+            ->where('punched_at', '<=', Carbon::parse($date)->endOfDay())
+            ->exists();
+        if ($own->isNotEmpty() || !$hasPunches) {
+            return 'none';
+        }
+
+        $touched = AttendanceOverride::where('attendance_day_id', $day->id)->exists()
+            || $day->approved_overtime_minutes !== null
+            || \App\Models\AttendanceChangeRequest::where('employee_id', $employee->id)->whereDate('work_date', $date)->exists()
+            // The date before locked: its row cannot take the punch, so this one keeps it.
+            || AttendanceDateLock::whereDate('lock_date', $date)->exists()
+            || AttendanceDateLock::whereDate('lock_date', Carbon::parse($date)->subDay()->format('Y-m-d'))->exists();
+        if ($touched) {
+            return 'kept';
+        }
+
+        $day->delete();
+
+        return 'removed';
+    }
+
+    /** The punch of a later date in a work date's punches (see workDatePunches), if any. */
+    public static function overnightPunch(Collection $punches, string $workDate): ?Carbon
+    {
+        $later = $punches->first(fn ($log) => Carbon::parse($log->punched_at)->format('Y-m-d') > $workDate);
+
+        return $later ? Carbon::parse($later->punched_at) : null;
+    }
+
+    /** "until" of the overnight window, as 'H:i:s'. */
+    public static function overnightUntil(): string
+    {
+        return Carbon::parse('2000-01-01 ' . config('attendance.overnight.until', '06:00'))->format('H:i:s');
+    }
+
+    /**
+     * Where the overnight window of $nextDate ends (the end itself is outside it): "until",
+     * or the configured hours before the shift start of $nextDate, whichever is earlier, so a
+     * punch of someone arriving early for the next shift stays that shift's time in.
+     */
+    public function overnightWindowEnd(Employee $employee, string $nextDate): Carbon
+    {
+        $end = Carbon::parse($nextDate . ' ' . self::overnightUntil());
+
+        $shift = $employee->getShiftForDate($nextDate);
+        if ($shift && $shift->start_time) {
+            $beforeShift = Carbon::parse($nextDate . ' ' . $shift->start_time)
+                ->subHours((int) config('attendance.overnight.hours_before_next_shift', 3));
+            if ($beforeShift->lt($end)) {
+                $end = $beforeShift;
+            }
+        }
+
+        return $end;
+    }
+
+    /**
+     * A time out typed by hand (a time of day on the work date) that is before the day's
+     * time in, and that would fall inside the next date's overnight window, is that next
+     * day's time: 01:11 after an 11:12 time in means the person left after midnight.
+     * Anything else is returned as it is.
+     */
+    public function typedTimeOut(Employee $employee, string $workDate, ?Carbon $timeIn, ?Carbon $lunchOut, ?Carbon $lunchIn, ?Carbon $timeOut): ?Carbon
+    {
+        if (!$timeOut || $timeOut->format('Y-m-d') !== $workDate) {
+            return $timeOut;
+        }
+
+        $before = $timeIn ?? $lunchIn ?? $lunchOut;
+        if (!$before || !$timeOut->lt($before)) {
+            return $timeOut;
+        }
+
+        $nextDay = $timeOut->copy()->addDay();
+
+        return $nextDay->lt($this->overnightWindowEnd($employee, $nextDay->format('Y-m-d'))) ? $nextDay : $timeOut;
+    }
+
+    /**
      * Round a Carbon time UP to the next whole minute (ceil).
      */
     protected function ceilToMinute(Carbon $time): Carbon
@@ -136,9 +337,16 @@ class AttendanceComputeService
      *
      * Each punch can only be assigned to one event (no duplicates).
      * Deduplication: if two punches have the exact same time, only one is used.
+     *
+     * A punch dated after the work date is the next date's punch this date takes (see
+     * workDatePunches): it can only fill the time-out slot, and only when the date's own
+     * punches leave it empty.
      */
     protected function assignTimestamps(Collection $punches, ?\App\Models\Shift $shift, string $workDate): array
     {
+        $overnightOut = self::overnightPunch($punches, $workDate);
+        $punches = $punches->filter(fn ($log) => Carbon::parse($log->punched_at)->format('Y-m-d') <= $workDate);
+
         $result = [
             'time_in'   => null,
             'lunch_out' => null,
@@ -170,6 +378,8 @@ class AttendanceComputeService
             $result['time_in'] = Carbon::parse($uniquePunches->first()->punched_at);
             if ($uniquePunches->count() > 1) {
                 $result['time_out'] = Carbon::parse($uniquePunches->last()->punched_at);
+            } elseif ($overnightOut) {
+                $result['time_out'] = $overnightOut->copy();
             }
             $result['needs_review'] = true;
             $result['notes'][] = 'No shift assigned to employee.';
@@ -221,6 +431,11 @@ class AttendanceComputeService
             }
         }
 
+        // Step 5: a time out after midnight, when the date's own punches gave none.
+        if (!$result['time_out'] && $result['time_in'] && $overnightOut) {
+            $result['time_out'] = $overnightOut->copy();
+        }
+
         // Validation: ensure logical order
         // Time In should be before Lunch Out
         if ($result['time_in'] && $result['lunch_out'] && $result['time_in']->gt($result['lunch_out'])) {
@@ -241,7 +456,7 @@ class AttendanceComputeService
         }
 
         // If only 1 punch, no time out
-        if ($uniquePunches->count() === 1) {
+        if ($uniquePunches->count() === 1 && !$result['time_out']) {
             $result['needs_review'] = true;
             $result['notes'][] = 'Only 1 punch recorded.';
         }
@@ -386,6 +601,12 @@ class AttendanceComputeService
             ? ($existingDay->lunch_in ? Carbon::parse($existingDay->lunch_in) : null)
             : $freshLunchIn;
 
+        // Only a time out typed by hand is read as possibly after midnight: one from the
+        // punches already carries its own date.
+        if (in_array('time_out', $overriddenFields)) {
+            $finalTimeOut = $this->typedTimeOut($employee, $workDate, $finalTimeIn, $finalLunchOut, $finalLunchIn, $finalTimeOut);
+        }
+
         $finalShiftId = in_array('shift_id', $overriddenFields)
             ? $existingDay->shift_id
             : ($shift?->id);
@@ -510,8 +731,25 @@ class AttendanceComputeService
         $effectiveShift = $day->employee?->getShiftForDate($workDateStr);
         $shift = $effectiveShift ?: $day->shift;
 
+        // Every typed time ends here (applyTimes): a typed time out after midnight is stored
+        // on the next day, so the minutes and the row agree.
+        $timeOut = $day->time_out ? Carbon::parse($day->time_out) : null;
+        $movedTimeOut = null;
+        if ($timeOut && $day->employee && AttendanceOverride::where('attendance_day_id', $day->id)->where('field', 'time_out')->exists()) {
+            $typed = $this->typedTimeOut(
+                $day->employee, $workDateStr,
+                $day->time_in ? Carbon::parse($day->time_in) : null,
+                $day->lunch_out ? Carbon::parse($day->lunch_out) : null,
+                $day->lunch_in ? Carbon::parse($day->lunch_in) : null,
+                $timeOut
+            );
+            if (!$typed->eq($timeOut)) {
+                $movedTimeOut = $timeOut = $typed;
+            }
+        }
+
         $computeTimeIn = $day->time_in ? $this->ceilToMinute(Carbon::parse($day->time_in)) : null;
-        $computeTimeOut = $day->time_out ? $this->floorToMinute(Carbon::parse($day->time_out)) : null;
+        $computeTimeOut = $timeOut ? $this->floorToMinute($timeOut) : null;
         $computeLunchOut = $day->lunch_out ? $this->floorToMinute(Carbon::parse($day->lunch_out)) : null;
         $computeLunchIn = $day->lunch_in ? $this->ceilToMinute(Carbon::parse($day->lunch_in)) : null;
         $computed = $this->computeMetrics(
@@ -530,6 +768,9 @@ class AttendanceComputeService
             'computed_overtime_minutes' => $computed['overtime_minutes'],
             'payable_work_minutes'      => $computed['work_minutes'],
         ];
+        if ($movedTimeOut) {
+            $updates['time_out'] = $movedTimeOut;
+        }
         if ($effectiveShift && $effectiveShift->id !== $day->shift_id) {
             $updates['shift_id'] = $effectiveShift->id;
         }
@@ -605,10 +846,28 @@ class AttendanceComputeService
     {
         $summary = ['days_computed' => 0, 'locked_skipped' => 0, 'errors' => 0];
 
-        $allDates = array_map('strval', array_merge([], ...array_map('array_keys', array_values($employeeDays))));
-        if (empty($allDates)) {
+        if (empty(array_filter($employeeDays))) {
             return $summary;
         }
+
+        $employees = Employee::whereIn('id', array_keys($employeeDays))
+            ->where('status', 'active')
+            ->get();
+
+        // A date that received a punch the date before takes as its time out: the file may
+        // not name that date (it came with an earlier file), so it is computed too, as if it
+        // had received the punch.
+        foreach ($employees as $employee) {
+            foreach ($employeeDays[$employee->id] ?? [] as $date => $hasNewPunch) {
+                $date = (string) $date;
+                $previous = Carbon::parse($date)->subDay()->format('Y-m-d');
+                if ($hasNewPunch && empty($employeeDays[$employee->id][$previous]) && $this->previousTakesPunchOf($employee, $date)) {
+                    $employeeDays[$employee->id][$previous] = true;
+                }
+            }
+        }
+
+        $allDates = array_map('strval', array_merge([], ...array_map('array_keys', array_values($employeeDays))));
 
         // whereDate, because the stored value carries a time part on some database drivers.
         $lockedDates = AttendanceDateLock::whereDate('lock_date', '>=', min($allDates))
@@ -616,10 +875,6 @@ class AttendanceComputeService
             ->get()
             ->mapWithKeys(fn ($lock) => [$lock->lock_date->format('Y-m-d') => true])
             ->all();
-
-        $employees = Employee::whereIn('id', array_keys($employeeDays))
-            ->where('status', 'active')
-            ->get();
 
         foreach ($employees as $employee) {
             $days = $employeeDays[$employee->id] ?? [];
@@ -653,6 +908,21 @@ class AttendanceComputeService
         }
 
         return $summary;
+    }
+
+    /**
+     * Whether the date before $date takes one of $date's punches as its time out. The
+     * cheap test first: most dates have no punch before "until" at all.
+     */
+    protected function previousTakesPunchOf(Employee $employee, string $date): bool
+    {
+        if (!$this->hasEarlyPunch($employee, Carbon::parse($date))) {
+            return false;
+        }
+        $previous = Carbon::parse($date)->subDay()->format('Y-m-d');
+
+        return self::overnightPunch($this->workDatePunches($employee, $previous, $previous)[$previous], $previous)
+            ?->format('Y-m-d') === $date;
     }
 
     /**

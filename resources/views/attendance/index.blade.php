@@ -189,7 +189,7 @@
                                   data-bs-content="@foreach($fieldOverrides as $ov)<div class='small mb-1'><strong>{{ $ov->updater->name ?? 'Unknown' }}</strong> on {{ $ov->created_at->format('M d, Y g:i A') }}<br>{{ $ov->old_value ?? '(empty)' }} &rarr; {{ $ov->new_value ?? '(empty)' }}<br><em>{{ $ov->reason }}</em></div>@endforeach"
                                   @endif
                             >
-                                {{ $timeVal ?: '—' }}
+                                {{ $timeVal ? ($timeField === 'time_out' ? $day->timeOutLabel('H:i') : $timeVal) : '—' }}
                                 @if($isEdited)
                                     <i class="bi bi-pencil-fill text-primary" style="font-size:0.65rem;"></i>
                                 @elseif(!$timeVal)

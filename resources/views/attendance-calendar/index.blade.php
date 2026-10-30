@@ -363,7 +363,7 @@
                                     . ' data-time-in-display="' . ($att->time_in ? \Carbon\Carbon::parse($att->time_in)->format('h:i A') : '-') . '"'
                                     . ' data-lunch-out-display="' . ($att->lunch_out ? \Carbon\Carbon::parse($att->lunch_out)->format('h:i A') : '-') . '"'
                                     . ' data-lunch-in-display="' . ($att->lunch_in ? \Carbon\Carbon::parse($att->lunch_in)->format('h:i A') : '-') . '"'
-                                    . ' data-time-out-display="' . ($att->time_out ? \Carbon\Carbon::parse($att->time_out)->format('h:i A') : '-') . '"'
+                                    . ' data-time-out-display="' . ($att->time_out ? $att->timeOutLabel('h:i A') : '-') . '"'
                                     . ' data-work="' . ($att->computed_work_minutes ?? 0) . '"'
                                     . ' data-late="' . ($att->computed_late_minutes ?? 0) . '"'
                                     . ' data-early="' . ($att->computed_early_minutes ?? 0) . '"'

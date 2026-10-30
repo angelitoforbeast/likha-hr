@@ -779,6 +779,8 @@ class AttendanceApprovalService
             'lunch_out'         => $time($day?->lunch_out),
             'lunch_in'          => $time($day?->lunch_in),
             'time_out'          => $time($day?->time_out),
+            // A time out after midnight: shown as the next day's, and not "before time in".
+            'time_out_next_day' => $day && $day->time_out && Carbon::parse($day->time_out)->toDateString() > $date,
             'shift_id'          => $shift?->id,
             'shift_name'        => $shift?->name,
             'shift_lunch'       => $shiftLunch,
@@ -904,7 +906,7 @@ class AttendanceApprovalService
             $warnings[] = 'Lunch is ' . self::minutesText($day['lunch']) . ', longer than the shift\'s ' . self::minutesText($day['shift_lunch']) . '.';
         }
 
-        if ($day['time_in'] !== null && $day['time_out'] !== null && $day['time_out'] < $day['time_in']) {
+        if ($day['time_in'] !== null && $day['time_out'] !== null && empty($day['time_out_next_day']) && $day['time_out'] < $day['time_in']) {
             $warnings[] = 'Time out is before time in.';
         }
 

@@ -1,0 +1,26 @@
+Seeded data: the fixtures of tests/Feature/Overnight/OvernightRepairTest.php (test database, sqlite in memory),
+rows as the old compute left them. Run through Artisan::call from a scratch test that extends that class.
+
+$ php artisan attendance:repair-overnight --from=2026-10-01 --to=2026-10-15
+Start dates 2026-10-01 to 2026-10-15.
+Dry run: nothing is written. Run again with --apply to write.
+Locked One (#6) 2026-10-07: skipped, the date is locked
+Warehouse One (#4) 2026-10-12: time out none -> 2026-10-13 01:11; worked 4 h -> 8 h; overtime 0 m -> 4 h 11 m; payable 4 h -> 8 h; needs review yes -> no
+  next date 2026-10-13: day removed (its only punch is the time out above)
+Typed One (#5) 2026-10-12: time out 2026-10-12 01:11 -> 2026-10-13 01:11; worked 4 h -> 8 h; undertime 18 h 49 m -> 0 m; overtime 0 m -> 4 h 11 m; payable 4 h -> 8 h; needs review yes -> no
+2 days would change, 1 next-date day would be removed, 1 locked date skipped.
+
+$ php artisan attendance:repair-overnight --from=2026-10-01 --to=2026-10-15 --apply
+Start dates 2026-10-01 to 2026-10-15.
+Writing the changes.
+Locked One (#6) 2026-10-07: skipped, the date is locked
+Warehouse One (#4) 2026-10-12: time out none -> 2026-10-13 01:11; worked 4 h -> 8 h; overtime 0 m -> 4 h 11 m; payable 4 h -> 8 h; needs review yes -> no
+  next date 2026-10-13: day removed (its only punch is the time out above)
+Typed One (#5) 2026-10-12: time out 2026-10-12 01:11 -> 2026-10-13 01:11; worked 4 h -> 8 h; undertime 18 h 49 m -> 0 m; overtime 0 m -> 4 h 11 m; payable 4 h -> 8 h; needs review yes -> no
+2 days changed, 1 next-date day removed, 1 locked date skipped.
+
+$ php artisan attendance:repair-overnight --from=2026-10-01 --to=2026-10-15 --apply   (again)
+Start dates 2026-10-01 to 2026-10-15.
+Writing the changes.
+Locked One (#6) 2026-10-07: skipped, the date is locked
+0 days changed, 0 next-date days removed, 1 locked date skipped.

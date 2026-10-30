@@ -20,7 +20,7 @@
                 ['Time in', $fmtTime($now['time_in']), $fmtTime($after['time_in'])],
                 ['Lunch out', $fmtTime($now['lunch_out']), $fmtTime($after['lunch_out'])],
                 ['Lunch in', $fmtTime($now['lunch_in']), $fmtTime($after['lunch_in'])],
-                ['Time out', $fmtTime($now['time_out']), $fmtTime($after['time_out'])],
+                ['Time out', $fmtTime($now['time_out']) . (!empty($now['time_out_next_day']) ? ' (next day)' : ''), $fmtTime($after['time_out']) . (!empty($after['time_out_next_day']) ? ' (next day)' : '')],
             ];
             if ($asked->contains('shift_id') || $now['shift_id'] !== $after['shift_id']) {
                 $lines[] = ['Shift', $now['shift_name'] ?? 'none', $after['shift_name'] ?? 'none'];

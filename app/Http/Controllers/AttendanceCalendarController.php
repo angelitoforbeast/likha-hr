@@ -696,7 +696,7 @@ class AttendanceCalendarController extends Controller
                 'time_in'   => ['display' => $day->time_in   ? Carbon::parse($day->time_in)->format('g:i A')   : '-', 'raw' => $day->time_in   ? Carbon::parse($day->time_in)->format('H:i:s')   : ''],
                 'lunch_out' => ['display' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('g:i A') : '-', 'raw' => $day->lunch_out ? Carbon::parse($day->lunch_out)->format('H:i:s') : ''],
                 'lunch_in'  => ['display' => $day->lunch_in  ? Carbon::parse($day->lunch_in)->format('g:i A')  : '-', 'raw' => $day->lunch_in  ? Carbon::parse($day->lunch_in)->format('H:i:s')  : ''],
-                'time_out'  => ['display' => $day->time_out  ? Carbon::parse($day->time_out)->format('g:i A')  : '-', 'raw' => $day->time_out  ? Carbon::parse($day->time_out)->format('H:i:s')  : ''],
+                'time_out'  => ['display' => $day->time_out  ? $day->timeOutLabel('g:i A')  : '-', 'raw' => $day->time_out  ? Carbon::parse($day->time_out)->format('H:i:s')  : ''],
             ] : null,
             'metrics' => $day ? [
                 'work_minutes'     => (int) $day->computed_work_minutes,
@@ -841,7 +841,7 @@ class AttendanceCalendarController extends Controller
                 'time_in'   => ['display' => Carbon::parse($day->time_in)->format('g:i A'),   'raw' => Carbon::parse($day->time_in)->format('H:i:s')],
                 'lunch_out' => ['display' => Carbon::parse($day->lunch_out)->format('g:i A'), 'raw' => Carbon::parse($day->lunch_out)->format('H:i:s')],
                 'lunch_in'  => ['display' => Carbon::parse($day->lunch_in)->format('g:i A'),  'raw' => Carbon::parse($day->lunch_in)->format('H:i:s')],
-                'time_out'  => ['display' => Carbon::parse($day->time_out)->format('g:i A'),  'raw' => Carbon::parse($day->time_out)->format('H:i:s')],
+                'time_out'  => ['display' => $day->timeOutLabel('g:i A'),  'raw' => Carbon::parse($day->time_out)->format('H:i:s')],
             ],
             'metrics' => [
                 'work_minutes'     => (int) $day->computed_work_minutes,

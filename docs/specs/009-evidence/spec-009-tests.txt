@@ -1,0 +1,62 @@
+PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\overnight-009\phpunit.xml
+
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.                                             21 / 21 (100%)
+
+Time: 00:03.297, Memory: 52.00 MB
+
+Overnight Approvals (Tests\Feature\Overnight\OvernightApprovals)
+ ✔ S-009.1 a 01:11 time out typed by the CEO on the calendar is stored as the next day and the day is a full day
+ ✔ S-009.1 a time out typed before the time in but outside the window stays on the date, as today
+ ✔ S-009.7 a 01:11 time out asked by HR: the preview shows 1:11 AM (next day), 8 h, no "Time out is before time in"; approve saves it as the next day
+ ✔ S-009.7 an overtime request on the live day: Now / If approved show the next-day time out, 4 h 11 m worked over the shift, and the approved overtime
+
+Overnight Compute (Tests\Feature\Overnight\OvernightCompute)
+ ✔ S-009.1 the live day from punches: time out next-day 01:11, regular full day, late 0, undertime 0, overtime 4 h 11 m recorded and not approved
+ ✔ S-009.1 the same day through the import, one file with all four punches
+ ✔ S-009.1 a later file that brings only the 01:11 punch recomputes the start date
+ ✔ S-009.1 a locked start date is not recomputed by an import that brings the 01:11 punch
+ ✔ S-009.2 the 01:11 punch is not the next date's time in; the next date's first punch after the window is
+ ✔ S-009.2 six nights in a row give six full days whether computed as one range, one day at a time, or by an import of each day
+ ✔ S-009.2 Recompute removes a next-date day made earlier from the 01:11 punch alone, unless it has edits or is locked
+ ✔ S-009.3 05:59 is inside the window and 06:00 is not; with an 08:00 shift next, 04:59 is inside and 05:00 is not
+ ✔ S-009.5 a normal day computes exactly as before
+ ✔ S-009.5 an early punch on the next date stays the next date's when the start date has its own time out, or no punches
+
+Overnight Display (Tests\Feature\Overnight\OvernightDisplay)
+ ✔ S-009.9 the calendar cell shows 01:11 AM (next day); its raw value stays 01:11:00
+ ✔ S-009.9 the attendance viewer shows 01:11 (next day) for the time out and plain times for the rest
+
+Overnight Payroll (Tests\Feature\Overnight\OvernightPayroll)
+ ✔ S-009.6 the daily breakdown shows the live day as 8 h and 718.00, and the totals count it as a full day with rice allowance
+ ✔ S-009.6 once the overtime is approved, its 4 h 11 m are paid at 1.25x
+
+Overnight Repair (Tests\Feature\Overnight\OvernightRepair)
+ ✔ S-009.8 the dry run lists every change and writes nothing
+ ✔ S-009.8 --apply writes the same changes; locked dates and normal days stay; a second run finds nothing
+ ✔ S-009.8 a next-date day with an edit or a request of its own is kept and named for a person to check
+
+OK (21 tests, 187 assertions)

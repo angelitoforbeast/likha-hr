@@ -457,6 +457,29 @@ As the CEO, I want a shift change asked for many days to be one card with one Ap
 | S-007.10d | happy | Editing or removing an assignment by HR is a request ("Change pending approval", "Removal pending approval" on the profile, "Remove shift assignment" on the card); approving applies it and recomputes the range | `AssignmentRequestTest::test_s_007_10_edit_and_delete_are_requests` | Passed · 2026-10-30 · auto |
 | S-007.11 | negative | Given the existing suites, then they pass (two assertions changed, see S-17.1 and S-17.9) | full suite: 319 tests | Passed · 2026-10-30 · auto |
 
+## Slice 009 – A time-out after midnight belongs to the day it started
+
+Slice 009: 21 passed, 0 failed, 0 blocked, 0 skipped; S-009.4 is an open question (the app has no night-differential computation)
+
+Tests live in `tests/Feature/Overnight/`, on the fixtures of Slice 002 plus the warehouse shift (12:00–21:00, lunch 16:00–17:00, 8 h) and W, daily rate 718. "The live day" is In 11:12 · Lunch out 16:00 · Lunch in 16:59 on Oct 12, and Out 01:11 on Oct 13.
+
+### S-009 A time out after midnight counts on the day it started (P1)
+As HR and the CEO, we want a punch after midnight to be the time out of the day it started, so that a person who worked past midnight is paid a full day and their overtime can be approved.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-009.1 | happy | Given the live day's punches, when computed (Recompute, the import of one file, or a later file with only 01:11), then the time out is Oct 13 01:11, regular 8 h, late 0, undertime 0, overtime 4 h 11 m recorded and not approved, and no day is made for Oct 13; a locked start date stays as it is | `OvernightComputeTest::test_s_009_1_*` (4 tests) | Passed · 2026-10-31 · auto |
+| S-009.1b | happy | Given the three punches only, when the CEO types time out 01:11, then it is stored on Oct 13 and the day is 8 h; the edit keeps "01:11:00"; a time out typed at 07:00 stays on Oct 12 | `OvernightApprovalsTest::test_s_009_1_typed_time_out_*` | Passed · 2026-10-31 · auto |
+| S-009.2 | happy | Given punches on Oct 13 at 01:11, 11:05, 16:00, 17:00 and 21:00, then Oct 13's time in is 11:05 and its day is 8 h; each date computed on its own gives the same rows; six nights in a row give six full days by range, day by day or import; Recompute removes an earlier Oct 13 day made from 01:11 alone, unless it has an edit of its own or the date before is locked | `OvernightComputeTest::test_s_009_2_*` (3 tests) | Passed · 2026-10-31 · auto |
+| S-009.3 | edge | 05:59 is the start date's time out and 06:00 is not; with an 08:00 shift on Oct 13, 04:59 is and 05:00 is not | `OvernightComputeTest::test_s_009_3_window_edges` | Passed · 2026-10-31 · auto |
+| S-009.4 | edge | Night differential for an eligible employee counts 22:00–01:11 | none: the app has no night-differential computation (only the flag) | Open question |
+| S-009.5 | negative | A normal day computes exactly as before; an early punch on the next date stays that date's when the start date has its own time out, or no punches | `OvernightComputeTest::test_s_009_5_*` | Passed · 2026-10-31 · auto |
+| S-009.6 | happy | The payroll of Oct 1–15 shows the live day as 01:11, 8 h, 718.00, undertime 0, OT 0; rice allowance counts 1 day; after approving 4.1833 h, OT 251 m pays 469.32 | `OvernightPayrollTest::test_s_009_6_*` | Passed · 2026-10-31 · auto |
+| S-009.7 | happy | A 01:11 time out asked by HR previews "1:11 AM (next day)", 8 h, undertime 0, no "Time out is before time in", and approving saves it on Oct 13; an overtime request on the live day shows Now/If approved with the next-day time out and approved overtime 4 h | `OvernightApprovalsTest::test_s_009_7_*` | Passed · 2026-10-31 · auto |
+| S-009.8 | happy | The repair command's dry run lists each change and writes nothing; --apply writes them, skips the locked date, removes the next-date day made from the 01:11, keeps one with an edit, and a second run changes nothing | `OvernightRepairTest::test_s_009_8_*` | Passed · 2026-10-31 · auto |
+| S-009.9 | happy (P2) | The calendar cell shows "01:11 AM (next day)" (raw value 01:11:00) and the attendance viewer shows "01:11 (next day)" | `OvernightDisplayTest::test_s_009_9_*` | Passed · 2026-10-31 · auto |
+| S-009.10 | negative | Given the existing suites, then they pass | full suite: 340 tests (319 before) | Passed · 2026-10-31 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)
@@ -466,3 +489,4 @@ As the CEO, I want a shift change asked for many days to be one card with one Ap
 - [ ] S-13.2 The requester sees the CEO's rejection reason on the calendar, on HR's account (staging)
 - [ ] S-007.9 The shift change card on a real phone (390 px, with the site styles): no sideways scroll, "See each day" opens (staging)
 - [ ] S-007.10 HR adds a shift assignment on a profile, it shows as pending there, and the CEO approves it from Approvals (staging)
+- [ ] S-009.1 After deploy, the repair dry run on production lists the live Oct 16 day; the owner decides on --apply (production)

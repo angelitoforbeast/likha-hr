@@ -304,15 +304,184 @@ class AttendanceChangeService
                 'remarks'         => $remarks,
             ]);
 
-            if ($recompute === self::RECOMPUTE_PUNCHES) {
-                $this->autoComputeSingleDay($employee, $date);
-            } elseif ($day = $this->findDay($employee->id, $date)) {
-                $day->load('shift');
-                $this->compute->recomputeDay($day);
-            }
+            $this->recomputeAfterShiftChange($employee, $date, $recompute);
 
             return $assignment;
         });
+    }
+
+    /**
+     * What follows a change of the shift of a date: the recompute assignShiftForDate runs
+     * after its write. Also run on its own for a day whose shift became official another way
+     * (a profile assignment), so its minutes are worked out exactly as an approval would.
+     */
+    public function recomputeAfterShiftChange(Employee $employee, string $date, string $recompute): void
+    {
+        if ($recompute === self::RECOMPUTE_PUNCHES) {
+            $this->autoComputeSingleDay($employee, $date);
+        } elseif ($day = $this->findDay($employee->id, $date)) {
+            $day->load('shift');
+            $this->compute->recomputeDay($day);
+        }
+    }
+
+    /**
+     * Add a shift assignment of the employee profile, as the profile form has always done:
+     * an open-ended assignment that starts before it is closed the day before, an overlap
+     * with any other assignment is refused, and an employee in department mode is switched
+     * to manual. Days are not recomputed here (see recomputeShiftRange).
+     *
+     * @param array{shift_id: int|string, effective_date: string, effective_until: ?string, remarks: ?string} $fields
+     * @return array{assignment: EmployeeShiftAssignment, closed: int, mode_changed: bool}
+     */
+    public function addShiftAssignment(Employee $employee, array $fields): array
+    {
+        return DB::transaction(function () use ($employee, $fields) {
+            $this->lockEmployee($employee);
+            $start = Carbon::parse($fields['effective_date'])->toDateString();
+
+            $openShifts = EmployeeShiftAssignment::where('employee_id', $employee->id)
+                ->whereNull('effective_until')
+                ->where('effective_date', '<', $start)
+                ->get();
+            foreach ($openShifts as $openShift) {
+                $openShift->effective_until = Carbon::parse($start)->subDay()->format('Y-m-d');
+                $openShift->save();
+            }
+
+            $this->assertNoShiftOverlap($employee->id, $start, $fields['effective_until'] ?? null);
+
+            $assignment = $employee->shiftAssignments()->create([
+                'shift_id'        => $fields['shift_id'],
+                'effective_date'  => $fields['effective_date'],
+                'effective_until' => $fields['effective_until'] ?? null,
+                'remarks'         => $fields['remarks'] ?? null,
+            ]);
+
+            $modeChanged = false;
+            $fresh = Employee::find($employee->id);
+            if ($fresh->isDepartmentMode()) {
+                $fresh->update(['schedule_mode' => Employee::MODE_MANUAL]);
+                $modeChanged = true;
+            }
+
+            return ['assignment' => $assignment, 'closed' => $openShifts->count(), 'mode_changed' => $modeChanged];
+        });
+    }
+
+    /** Change a shift assignment of the profile, as its edit form has always done. */
+    public function updateShiftAssignment(EmployeeShiftAssignment $assignment, array $fields): EmployeeShiftAssignment
+    {
+        return DB::transaction(function () use ($assignment, $fields) {
+            $this->lockEmployeeById($assignment->employee_id);
+            $this->assertNoShiftOverlap($assignment->employee_id, Carbon::parse($fields['effective_date'])->toDateString(), $fields['effective_until'] ?? null, $assignment->id);
+            $assignment->update([
+                'shift_id'        => $fields['shift_id'],
+                'effective_date'  => $fields['effective_date'],
+                'effective_until' => $fields['effective_until'] ?? null,
+                'remarks'         => $fields['remarks'] ?? null,
+            ]);
+
+            return $assignment;
+        });
+    }
+
+    public function deleteShiftAssignment(EmployeeShiftAssignment $assignment): void
+    {
+        DB::transaction(function () use ($assignment) {
+            $this->lockEmployeeById($assignment->employee_id);
+            $assignment->delete();
+        });
+    }
+
+    /**
+     * The overlap rule checked when a change is only asked for, so the requester hears of an
+     * overlap at once instead of when the CEO approves. An addition is checked as it will be
+     * applied: after an open-ended assignment that starts before it is closed.
+     */
+    public function assertShiftAssignmentFits(int $employeeId, string $start, ?string $end, ?int $excludeId, bool $isAddition): void
+    {
+        $this->assertNoShiftOverlap($employeeId, Carbon::parse($start)->toDateString(), $end, $excludeId, $isAddition);
+    }
+
+    /** The overlap rule of the profile form, with its message. */
+    protected function assertNoShiftOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null, bool $skipOpenBefore = false): void
+    {
+        $overlap = EmployeeShiftAssignment::where('employee_id', $employeeId)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->when($skipOpenBefore, fn ($q) => $q->where(fn ($w) => $w->whereNotNull('effective_until')->orWhere('effective_date', '>=', $start)))
+            ->where('effective_date', '<=', $end ?? '9999-12-31')
+            ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $start))
+            ->first();
+
+        if ($overlap) {
+            throw new AttendanceChangeRefused(
+                "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).",
+                422,
+                ['short' => 'overlaps another assignment']
+            );
+        }
+    }
+
+    /**
+     * The computed days of an employee from $from to $until (open-ended when null), except
+     * those on a locked date, recomputed with the shift each date has now, the way the
+     * calendar's own shift change of a date recomputes it (rebuilt from its punches, overrides
+     * kept), then the recheck an approval runs. So a range approved at once ends with the same
+     * minutes as the same shift approved day by day from the calendar. Returns the dates
+     * recomputed and the locked dates left alone.
+     *
+     * @return array{recomputed: string[], locked: string[]}
+     */
+    public function recomputeShiftRange(Employee $employee, string $from, ?string $until, ?array $onlyDates = null): array
+    {
+        $dates = $this->daysInRange($employee->id, $from, $until);
+        if ($onlyDates !== null) {
+            $dates = array_values(array_intersect($dates, $onlyDates));
+        }
+        // For update, as an approval reads a lock: a date locked at this moment waits for us.
+        $locked = $this->lockedDates($dates, true);
+        $done = [];
+        foreach (array_diff($dates, $locked) as $date) {
+            $this->recomputeAfterShiftChange($employee, $date, self::RECOMPUTE_PUNCHES);
+            $this->recheckDay($employee, $date);
+            $done[] = $date;
+        }
+
+        return ['recomputed' => array_values($done), 'locked' => array_values($locked)];
+    }
+
+    /** @return string[] the dates (Y-m-d, ascending) of an employee's day rows in a range */
+    public function daysInRange(int $employeeId, string $from, ?string $until): array
+    {
+        return AttendanceDay::where('employee_id', $employeeId)
+            ->whereDate('work_date', '>=', $from)
+            ->when($until, fn ($q) => $q->whereDate('work_date', '<=', $until))
+            ->orderBy('work_date')
+            ->pluck('work_date')
+            ->map(fn ($d) => Carbon::parse($d)->toDateString())
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param string[] $dates
+     * @return string[] those of the dates that are locked
+     */
+    public function lockedDates(array $dates, bool $forUpdate = false): array
+    {
+        if ($dates === []) {
+            return [];
+        }
+        $locked = AttendanceDateLock::whereDate('lock_date', '>=', min($dates))
+            ->whereDate('lock_date', '<=', max($dates))
+            ->when($forUpdate, fn ($q) => $q->lockForUpdate())
+            ->pluck('lock_date')
+            ->map(fn ($d) => Carbon::parse($d)->toDateString())
+            ->all();
+
+        return array_values(array_intersect($dates, $locked));
     }
 
     /**

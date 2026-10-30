@@ -445,7 +445,12 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label small fw-semibold">Remarks</label>
-                                <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                                @if($mustRequest)
+                                    {{-- It waits for the CEO, who reads this before approving. --}}
+                                    <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Reason (required, sent for approval)" required minlength="3">
+                                @else
+                                    <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
+                                @endif
                             </div>
                             <div class="col-md-2">
                                 <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
@@ -464,6 +469,19 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Asked for, waiting for the CEO: not in effect. --}}
+                        @foreach($pendingAssignments->filter(fn ($r) => ($r->details['action'] ?? null) === 'add') as $req)
+                            @php $asked = $req->details['after']; @endphp
+                            <tr class="table-info shift-pending">
+                                <td class="fw-semibold">{{ \Carbon\Carbon::parse($asked['effective_date'])->format('M d, Y') }}</td>
+                                <td>{{ $asked['effective_until'] ? \Carbon\Carbon::parse($asked['effective_until'])->format('M d, Y') : '— Ongoing' }}</td>
+                                <td>{{ $shifts->firstWhere('id', $asked['shift_id'])->name ?? '—' }}</td>
+                                <td colspan="{{ $canEdit('shift_assignments') ? 4 : 3 }}" class="small">
+                                    <span class="badge bg-info text-dark">Pending approval</span>
+                                    Not in effect until the CEO approves. Asked by {{ $req->requesterName() }}: {{ $req->reason }}
+                                </td>
+                            </tr>
+                        @endforeach
                         @forelse($employee->shiftAssignments as $assignment)
                         {{-- Display Row --}}
                         <tr id="shift-view-{{ $assignment->id }}">
@@ -478,12 +496,30 @@
                                 {{ \Carbon\Carbon::parse($assignment->shift->lunch_start)->format('g:i A') }}
                                 — {{ \Carbon\Carbon::parse($assignment->shift->lunch_end)->format('g:i A') }}
                             </td>
-                            <td class="small">{{ $assignment->remarks ?? '—' }}</td>
+                            <td class="small">
+                                {{ $assignment->remarks ?? '—' }}
+                                @if($req = $pendingByAssignment->get($assignment->id))
+                                    @php $asked = $req->details['after'] ?? null; @endphp
+                                    <div class="mt-1">
+                                        @if($asked)
+                                            <span class="badge bg-info text-dark">Change pending approval</span>
+                                            to {{ $shifts->firstWhere('id', $asked['shift_id'])->name ?? '—' }} from {{ \Carbon\Carbon::parse($asked['effective_date'])->format('M d, Y') }}{{ $asked['effective_until'] ? ' until ' . \Carbon\Carbon::parse($asked['effective_until'])->format('M d, Y') : ', ongoing' }}
+                                        @else
+                                            <span class="badge bg-info text-dark">Removal pending approval</span>
+                                        @endif
+                                        (asked by {{ $req->requesterName() }})
+                                    </div>
+                                @endif
+                            </td>
                             @if($canEdit('shift_assignments'))
                             <td class="text-nowrap">
                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('shift', {{ $assignment->id }})"><i class="bi bi-pencil"></i></button>
-                                <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
+                                <form method="POST" action="{{ route('employees.delete-shift-assignment', [$employee, $assignment]) }}" onsubmit="return confirm('{{ $mustRequest ? 'Send the removal for approval?' : 'Remove?' }}')" class="d-inline">
                                     @csrf @method('DELETE')
+                                    @if($mustRequest)
+                                        <input type="text" name="reason" class="form-control form-control-sm d-inline-block" style="width: 9rem"
+                                               required minlength="3" maxlength="500" placeholder="Reason" aria-label="Reason for removing">
+                                    @endif
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
                             </td>

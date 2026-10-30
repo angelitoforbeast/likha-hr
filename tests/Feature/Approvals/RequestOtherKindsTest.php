@@ -579,7 +579,7 @@ class RequestOtherKindsTest extends ApprovalsTestCase
         $this->assertNotNull($this->day($this->e1, self::DN));
     }
 
-    #[TestDox('S-17.9 a SIL request is refused at approval when the balance is gone or the date is already SIL')]
+    #[TestDox('S-17.9 a SIL request is refused at approval when the balance is gone, and closes as no longer needed when the date is already SIL')]
     public function test_s_17_9_sil_request_after_the_balance_changed(): void
     {
         $this->silSetup($this->e1, 5);
@@ -593,12 +593,14 @@ class RequestOtherKindsTest extends ApprovalsTestCase
 
         $this->silSetup($this->e1, 5);
         $this->applySil($this->c, $this->e1, self::DX)->assertStatus(200);
+        // Spec 007: what it asks for is already official, so it closes instead of being refused.
         $already = $this->approve($this->c, $this->e1, self::DX, ['confirmed' => true]);
-        $already->assertStatus(422);
-        $this->assertStringContainsString('already applied', $already->json('message'));
+        $already->assertStatus(200);
+        $this->assertStringContainsString('No longer needed', $already->json('message'));
 
         $this->assertSame(1, DB::table('sil_applications')->count());
-        $this->assertSame(2, $this->requestCount('pending'));
+        $this->assertSame(1, $this->requestCount('pending'));
+        $this->assertSame(1, $this->requestCount('no_longer_needed'));
     }
 
     #[TestDox('S-17.10 a rest-day request is still applied after the day row was removed')]

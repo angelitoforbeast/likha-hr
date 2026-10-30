@@ -115,6 +115,7 @@ class AttendanceController extends Controller
         // Days of these employees with a request waiting for the CEO, in one query. The rows
         // below keep their official values; a pending day only gets a marker.
         $pendingDays = AttendanceChangeRequest::where('status', AttendanceChangeRequest::STATUS_PENDING)
+            ->where('field', '!=', AttendanceChangeRequest::FIELD_ASSIGNMENT)
             ->whereBetween('work_date', [$startDate, $endDate])
             ->whereIn('employee_id', $filteredEmployees->pluck('id'))
             ->select('employee_id', 'work_date')

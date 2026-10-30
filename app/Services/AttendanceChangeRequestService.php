@@ -74,6 +74,8 @@ class AttendanceChangeRequestService
         $rows = AttendanceChangeRequest::with(['requester', 'decider'])
             ->where('employee_id', $employee->id)
             ->where('work_date', $date)
+            // A profile assignment request covers a range, not this day: it is shown on the profile.
+            ->where('field', '!=', AttendanceChangeRequest::FIELD_ASSIGNMENT)
             ->where(fn ($q) => $q->where('status', AttendanceChangeRequest::STATUS_PENDING)
                 ->orWhere(fn ($r) => $r->where('status', AttendanceChangeRequest::STATUS_REJECTED)->whereNull('superseded_at')))
             ->orderBy('id')
@@ -164,6 +166,107 @@ class AttendanceChangeRequestService
             }
 
             return ['rows' => $rows, 'already' => !$changed];
+        });
+    }
+
+    /**
+     * Store a shift assignment of the profile (add, edit or remove) as one request for its
+     * whole range. Nothing is written to the assignments: the approval does that.
+     *
+     * The row sits on the first date of the range it touches; `details` holds the assignment
+     * as asked (after) and as it is now (before), so the approval can tell if it changed since.
+     * One pending request per employee and first date: the same person asking again updates it.
+     */
+    public function submitAssignment(Employee $employee, string $action, ?\App\Models\EmployeeShiftAssignment $assignment, ?array $fields, string $reason, User $actor): AttendanceChangeRequest
+    {
+        return $this->changes->withLockRetry(function () use ($employee, $action, $assignment, $fields, $reason, $actor) {
+            $this->changes->lockEmployee($employee);
+
+            $describe = fn ($a) => $a ? [
+                'shift_id'        => (int) $a['shift_id'],
+                'effective_date'  => Carbon::parse($a['effective_date'])->toDateString(),
+                'effective_until' => empty($a['effective_until']) ? null : Carbon::parse($a['effective_until'])->toDateString(),
+                'remarks'         => $a['remarks'] ?? null,
+            ] : null;
+            $before = $assignment ? $describe($assignment->only(['shift_id', 'effective_date', 'effective_until', 'remarks'])) : null;
+            $after = $action === AttendanceChangeRequest::ASSIGNMENT_DELETE ? null : $describe($fields);
+
+            if ($before && $after && array_diff_key($before, ['remarks' => 1]) === array_diff_key($after, ['remarks' => 1])) {
+                throw new AttendanceChangeRefused('No changes: the assignment already is what was asked.', 422);
+            }
+            if ($after) {
+                $this->changes->assertShiftAssignmentFits(
+                    $employee->id, $after['effective_date'], $after['effective_until'], $assignment?->id,
+                    $action === AttendanceChangeRequest::ASSIGNMENT_ADD
+                );
+            }
+
+            $details = [
+                'action'        => $action,
+                'assignment_id' => $assignment?->id,
+                'before'        => $before,
+                'after'         => $after,
+            ];
+            $date = ($after ?? $before)['effective_date'];
+
+            $existing = AttendanceChangeRequest::where('employee_id', $employee->id)
+                ->where('work_date', $date)
+                ->where('field', AttendanceChangeRequest::FIELD_ASSIGNMENT)
+                ->where('status', AttendanceChangeRequest::STATUS_PENDING)
+                ->lockForUpdate()
+                ->first();
+            if ($existing && (int) $existing->requested_by !== (int) $actor->id) {
+                throw new AttendanceChangeRefused(
+                    'A shift assignment from this date is already requested by ' . $existing->requesterName()
+                    . ' and is pending approval. Nothing was saved.',
+                    409
+                );
+            }
+            // Asking again corrects the same change; a different change on the same date would
+            // silently replace what the CEO may be reading, so it waits for the first one.
+            if ($existing && (($existing->details['action'] ?? null) !== $action
+                || (int) ($existing->details['assignment_id'] ?? 0) !== (int) ($assignment?->id ?? 0))) {
+                throw new AttendanceChangeRefused(
+                    'Another shift assignment change from this date is already pending approval. Wait for the CEO to decide it first. Nothing was saved.',
+                    409
+                );
+            }
+            // A second change of the same assignment, from another date, would be approved
+            // against an assignment the first one already changed.
+            if ($assignment && AttendanceChangeRequest::where('employee_id', $employee->id)
+                ->where('field', AttendanceChangeRequest::FIELD_ASSIGNMENT)
+                ->where('status', AttendanceChangeRequest::STATUS_PENDING)
+                ->when($existing, fn ($q) => $q->whereKeyNot($existing->id))
+                ->get()->contains(fn ($r) => (int) ($r->details['assignment_id'] ?? 0) === (int) $assignment->id)) {
+                throw new AttendanceChangeRefused('A change of this assignment is already pending approval. Nothing was saved.', 409);
+            }
+            if ($existing) {
+                $existing->update([
+                    'new_value'  => $after ? (string) $after['shift_id'] : null,
+                    'old_value'  => $before ? (string) $before['shift_id'] : null,
+                    'details'    => $details,
+                    'reason'     => $reason,
+                    'version'    => $existing->version + 1,
+                    'changed_at' => now(),
+                ]);
+
+                return $existing;
+            }
+
+            return AttendanceChangeRequest::create([
+                'employee_id'    => $employee->id,
+                'work_date'      => $date,
+                'field'          => AttendanceChangeRequest::FIELD_ASSIGNMENT,
+                'new_value'      => $after ? (string) $after['shift_id'] : null,
+                'old_value'      => $before ? (string) $before['shift_id'] : null,
+                'details'        => $details,
+                'reason'         => $reason,
+                'origin'         => 'profile_' . $action,
+                'requested_by'   => $actor->id,
+                'status'         => AttendanceChangeRequest::STATUS_PENDING,
+                'pending_marker' => 1,
+                'version'        => 1,
+            ]);
         });
     }
 

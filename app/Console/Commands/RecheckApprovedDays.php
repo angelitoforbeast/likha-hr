@@ -40,6 +40,8 @@ class RecheckApprovedDays extends Command
         $allowOther = (bool) $this->option('allow-other-changes');
 
         $days = AttendanceChangeRequest::where('status', AttendanceChangeRequest::STATUS_APPROVED)
+            // A profile assignment covers a range and its approval recomputes it; it is not a day entry.
+            ->where('field', '!=', AttendanceChangeRequest::FIELD_ASSIGNMENT)
             ->get(['employee_id', 'work_date'])
             ->map(fn ($row) => ['employee_id' => (int) $row->employee_id, 'date' => $row->dateString()])
             ->unique(fn ($day) => $day['employee_id'] . '_' . $day['date'])

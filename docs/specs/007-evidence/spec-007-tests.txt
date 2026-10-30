@@ -1,0 +1,45 @@
+PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\approvals-007\phpunit.xml
+
+.                                     29 / 29 (100%)
+
+Time: 00:07.197, Memory: 52.00 MB
+
+Assignment Request (Tests\Feature\Approvals\AssignmentRequest)
+ ✔ S-007.10 a profile assignment by HR is one pending card; nothing is in effect until approved
+ ✔ S-007.10 a reason is required to ask
+ ✔ S-007.10 approving creates the same rows as the direct path and recomputes the days, not the locked one
+ ✔ S-007.10 the previous open assignment is closed on approval, as the profile form does
+ ✔ S-007.10 an assignment that overlaps by the time of approval is refused and stays pending
+ ✔ S-007.10 rejecting changes nothing
+ ✔ S-007.10 the CEO adds an assignment directly, as before
+ ✔ S-007.10 editing or removing an assignment by HR is a request; approving it applies it
+ ✔ S-007.10 an edit whose assignment the CEO changed since needs a confirm on the card
+ ✔ S-007.10 an addition with an end date that closes an open assignment recomputes past its end too
+ ✔ S-007.10 an overlap or a second different change from the same date is refused when asked
+
+Auto Close (Tests\Feature\Approvals\AutoClose)
+ ✔ S-007.6 requests the profile assignment already made official close on page load as no longer needed, with their record kept
+ ✔ S-007.6 a request someone already entered closes; a locked date is left as it is
+ ✔ S-007.6 a request that still changes something stays pending
+ ✔ S-007.7 approving a group where one day is already official approves the others and closes that one
+ ✔ S-007.8 a closed day whose minutes were computed with the old shift is recomputed as its approval would
+ ✔ S-007.8 a closed day on a locked date is not recomputed
+
+Shift Groups (Tests\Feature\Approvals\ShiftGroups)
+ ✔ S-007.1 shift requests of one change are one card; another requester, minute, value or a mixed day are not
+ ✔ S-007.1 requests with the same batch id are one card even when asked in different minutes; different batch ids are not
+ ✔ S-007.2 one Approve on the card saves exactly what approving each day saves, change log included
+ ✔ S-007.2 one Reject with a reason rejects every day of the card and writes nothing
+ ✔ S-007.2 a day inside the card can still be approved on its own
+ ✔ S-007.3 a locked day inside the card is named and stays pending; the other days are approved together
+ ✔ S-007.4 selecting a card selects its days for Approve selected; the badge counts cards
+ ✔ S-007.4 the count a decision returns is the number of cards left
+ ✔ S-007.5 times asked for several days in one minute keep one card per day
+ ✔ S-007 a group post with a day of another change, or a made-up key, approves nothing
+ ✔ S-007 a group post naming a day that also has a times request is refused
+ ✔ S-007 a change of more than 50 days is cut into cards of at most 50 days, with the same key
+
+OK (29 tests, 412 assertions)

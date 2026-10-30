@@ -1,0 +1,450 @@
+<div class="approval-assignment card border-0 shadow-sm mb-3" data-anchor="7" data-assignment-employee="5">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+            <div>
+                <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"
+                       name="entries[a1][id]" value="7" aria-label="Select this shift assignment">
+                <input type="hidden" form="severalForm" name="entries[a1][seen]" value="7:1">
+                <span class="fw-bold">Ben Santos</span>
+                <span class="text-muted">&middot;</span>
+                <span class="approval-value">Shift assignment → Late shift · from Oct 01, 2026 · ongoing</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                                <span class="badge bg-light text-dark border approval-flag">Employee profile</span>
+            </div>
+        </div>
+        <div class="small">Reason: Lumipat sa hapon na shift</div>
+        <div class="small text-muted mb-2">Asked by Hr One on Oct 30, 2026 3:45 PM</div>
+
+                            <div class="small text-danger fw-semibold"><i class="bi bi-lock"></i> Oct 13 is locked: its day is not recomputed</div>
+                            <div class="approval-preview-grid approval-totals border rounded p-1 mb-2" role="table" aria-label="Totals of the change, now and if approved">
+        <div class="approval-preview-line approval-preview-head" role="row">
+            <div role="columnheader">5 days</div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+        </div>
+                    <div role="row" data-total="work" class="approval-preview-line approval-preview-changed">
+                <div role="rowheader" class="text-muted">Worked</div>
+                <div role="cell">38 h 36 m</div>
+                <div role="cell">34 h 6 m</div>
+            </div>
+                    <div role="row" data-total="late" class="approval-preview-line approval-preview-changed">
+                <div role="rowheader" class="text-muted">Late</div>
+                <div role="cell">24 m</div>
+                <div role="cell">0 m</div>
+            </div>
+                    <div role="row" data-total="undertime" class="approval-preview-line approval-preview-changed">
+                <div role="rowheader" class="text-muted">Undertime</div>
+                <div role="cell">1 h</div>
+                <div role="cell">5 h 54 m</div>
+            </div>
+            </div>
+        
+        <div class="approval-actions d-flex flex-wrap align-items-start gap-2">
+            <form method="POST" action="http://localhost/approvals/7/approve" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
+                <input type="hidden" name="_token" value="ybRXyhuKU9N6koNbznZBtDArfwHUYS7VpUCWHVo7" autocomplete="off">                <input type="hidden" name="seen" value="7:1">
+                                <button type="submit" class="btn btn-success approval-approve" ><i class="bi bi-check-lg"></i> Approve</button>
+            </form>
+            <form method="POST" action="http://localhost/approvals/7/reject" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
+                <input type="hidden" name="_token" value="ybRXyhuKU9N6koNbznZBtDArfwHUYS7VpUCWHVo7" autocomplete="off">                <input type="hidden" name="seen" value="7:1">
+                <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"
+                       required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">
+                <button type="submit" class="btn btn-outline-danger approval-reject"><i class="bi bi-x-lg"></i> Reject</button>
+            </form>
+        </div>
+
+                    <details class="approval-group-days mt-2">
+                <summary class="small fw-semibold">See each day (5 with attendance)</summary>
+                <div class="mt-2">
+                                            <div class="approval-assignment-day border rounded p-2 mb-2">
+                            <div class="fw-semibold small mb-1">Oct 05, 2026</div>
+                            <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">7:58 AM</div>
+                    <div role="cell">7:58 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:00 PM</div>
+                    <div role="cell">1:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">1:00 PM</div>
+                    <div role="cell">12:00 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">4:30 PM</div>
+                    <div role="cell">4:30 PM</div>
+                </div>
+                            <div role="row" data-line="Shift" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Shift</div>
+                    <div role="cell">Day shift</div>
+                    <div role="cell">Late shift</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">1 h</div>
+                    <div role="cell">-1 h</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">7 h 30 m</div>
+                    <div role="cell">6 h 30 m</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">30 m</div>
+                    <div role="cell">1 h 30 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">No</div>
+                    <div role="cell">Yes</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: none</div>
+            <div class="small approval-preview-changed-note">Note if approved: Lunch Out is after Lunch In (order issue).</div>
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">
+                                    <li>Lunch in is before lunch out.</li>
+                                    <li>Worked 6 h 30 m, under the shift&#039;s 8 h.</li>
+                            </ul>
+            </div>
+                        </div>
+                                            <div class="approval-assignment-day border rounded p-2 mb-2">
+                            <div class="fw-semibold small mb-1">Oct 06, 2026</div>
+                            <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">8:12 AM</div>
+                    <div role="cell">8:12 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:00 PM</div>
+                    <div role="cell">1:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">1:00 PM</div>
+                    <div role="cell">12:00 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">5:02 PM</div>
+                    <div role="cell">5:02 PM</div>
+                </div>
+                            <div role="row" data-line="Shift" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Shift</div>
+                    <div role="cell">Day shift</div>
+                    <div role="cell">Late shift</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">1 h</div>
+                    <div role="cell">-1 h</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">7 h 48 m</div>
+                    <div role="cell">7 h 2 m</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">12 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">58 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">2 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">No</div>
+                    <div role="cell">Yes</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: none</div>
+            <div class="small approval-preview-changed-note">Note if approved: Lunch Out is after Lunch In (order issue).</div>
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">
+                                    <li>Lunch in is before lunch out.</li>
+                                    <li>Worked 7 h 2 m, under the shift&#039;s 8 h.</li>
+                            </ul>
+            </div>
+                        </div>
+                                            <div class="approval-assignment-day border rounded p-2 mb-2">
+                            <div class="fw-semibold small mb-1">Oct 08, 2026</div>
+                            <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">7:58 AM</div>
+                    <div role="cell">7:58 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:00 PM</div>
+                    <div role="cell">1:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">1:00 PM</div>
+                    <div role="cell">12:00 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">5:02 PM</div>
+                    <div role="cell">5:02 PM</div>
+                </div>
+                            <div role="row" data-line="Shift" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Shift</div>
+                    <div role="cell">Day shift</div>
+                    <div role="cell">Late shift</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">1 h</div>
+                    <div role="cell">-1 h</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">8 h</div>
+                    <div role="cell">7 h 2 m</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">58 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">2 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">No</div>
+                    <div role="cell">Yes</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: none</div>
+            <div class="small approval-preview-changed-note">Note if approved: Lunch Out is after Lunch In (order issue).</div>
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">
+                                    <li>Lunch in is before lunch out.</li>
+                                    <li>Worked 7 h 2 m, under the shift&#039;s 8 h.</li>
+                            </ul>
+            </div>
+                        </div>
+                                            <div class="approval-assignment-day border rounded p-2 mb-2">
+                            <div class="fw-semibold small mb-1">Oct 09, 2026</div>
+                            <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">8:12 AM</div>
+                    <div role="cell">8:12 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:00 PM</div>
+                    <div role="cell">1:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">1:00 PM</div>
+                    <div role="cell">12:00 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">4:30 PM</div>
+                    <div role="cell">4:30 PM</div>
+                </div>
+                            <div role="row" data-line="Shift" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Shift</div>
+                    <div role="cell">Day shift</div>
+                    <div role="cell">Late shift</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">1 h</div>
+                    <div role="cell">-1 h</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">7 h 18 m</div>
+                    <div role="cell">6 h 30 m</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">12 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">30 m</div>
+                    <div role="cell">1 h 30 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">No</div>
+                    <div role="cell">Yes</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: none</div>
+            <div class="small approval-preview-changed-note">Note if approved: Lunch Out is after Lunch In (order issue).</div>
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">
+                                    <li>Lunch in is before lunch out.</li>
+                                    <li>Worked 6 h 30 m, under the shift&#039;s 8 h.</li>
+                            </ul>
+            </div>
+                        </div>
+                                            <div class="approval-assignment-day border rounded p-2 mb-2">
+                            <div class="fw-semibold small mb-1">Oct 12, 2026</div>
+                            <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">7:58 AM</div>
+                    <div role="cell">7:58 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:00 PM</div>
+                    <div role="cell">1:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">1:00 PM</div>
+                    <div role="cell">12:00 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">5:02 PM</div>
+                    <div role="cell">5:02 PM</div>
+                </div>
+                            <div role="row" data-line="Shift" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Shift</div>
+                    <div role="cell">Day shift</div>
+                    <div role="cell">Late shift</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">1 h</div>
+                    <div role="cell">-1 h</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">8 h</div>
+                    <div role="cell">7 h 2 m</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">58 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">2 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">No</div>
+                    <div role="cell">Yes</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: none</div>
+            <div class="small approval-preview-changed-note">Note if approved: Lunch Out is after Lunch In (order issue).</div>
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">
+                                    <li>Lunch in is before lunch out.</li>
+                                    <li>Worked 7 h 2 m, under the shift&#039;s 8 h.</li>
+                            </ul>
+            </div>
+                        </div>
+                                                        </div>
+            </details>
+            </div>
+</div><!-- /approval-assignment -->

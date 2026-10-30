@@ -38,7 +38,7 @@
 @endphp
 
 <div class="d-flex flex-wrap gap-2 mb-3">
-    @foreach(['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected', 'withdrawn' => 'Withdrawn'] as $key => $label)
+    @foreach(['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected', 'withdrawn' => 'Withdrawn', 'no_longer_needed' => 'No longer needed'] as $key => $label)
         <a href="{{ url('/approvals') }}{{ $key === 'pending' ? '' : '?status=' . $key }}"
            class="btn btn-sm {{ $status === $key ? 'btn-primary' : 'btn-outline-secondary' }}">{{ $label }}</a>
     @endforeach
@@ -70,7 +70,7 @@
                 <label class="form-label small mb-0" for="fKind">Kind</label>
                 <select name="kind" id="fKind" class="form-select form-select-sm">
                     <option value="">Any</option>
-                    @foreach(['times' => 'Times', 'overtime' => 'Overtime', 'shift' => 'Shift', 'sil' => 'SIL', 'rest_day' => 'Rest day'] as $key => $label)
+                    @foreach(['times' => 'Times', 'overtime' => 'Overtime', 'shift' => 'Shift', 'sil' => 'SIL', 'rest_day' => 'Rest day', 'assignment' => 'Shift assignment'] as $key => $label)
                         <option value="{{ $key }}" @selected($filters['kind'] === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -90,7 +90,7 @@
     </div>
 </form>
 
-@if(empty($entries))
+@if($isPending ? empty($cards) : empty($entries))
     <div class="card border-0 shadow-sm">
         <div class="card-body text-center text-muted py-5">
             <i class="bi bi-check2-circle" style="font-size: 2rem;"></i>
@@ -110,7 +110,7 @@
         <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
             <div class="form-check me-2">
                 <input class="form-check-input" type="checkbox" id="selectAllEntries"
-                       onclick="document.querySelectorAll('.entry-select').forEach(cb => cb.checked = this.checked)">
+                       onclick="document.querySelectorAll('.entry-select').forEach(cb => { cb.checked = this.checked; cb.dispatchEvent(new Event('change')); })">
                 <label class="form-check-label small" for="selectAllEntries">Select all on this page</label>
             </div>
             <button type="submit" formaction="{{ url('/approvals/approve-several') }}" class="btn btn-sm btn-success"
@@ -131,12 +131,20 @@
         // Entries made by one bulk action, to offer one decision for all of them on this page.
         $batchEntries = $isPending ? collect($entries)->filter(fn ($e) => $e['batch'])->groupBy('batch') : collect();
         $batchShown = [];
+        // Pending: the cards of the page (a day, a shift change over several days, a profile
+        // assignment). Other tabs: one entry per employee and date, as before.
+        $list = $isPending ? $cards : array_map(fn ($entry) => ['type' => 'day', 'entry' => $entry], $entries);
     @endphp
-    @foreach($entries as $i => $entry)
-        @php
-            $blocked = $isPending && (!empty($entry['blocks']) || $entry['locked']);
-            $hasDrift = $isPending && !empty($entry['drift']);
-        @endphp
+    @foreach($list as $i => $card)
+        @if($card['type'] === 'group')
+            @include('approvals._group', ['card' => $card])
+            @continue
+        @endif
+        @if($card['type'] === 'assignment')
+            @include('approvals._assignment', ['card' => $card, 'n' => $i])
+            @continue
+        @endif
+        @php $entry = $card['entry']; @endphp
         @if($isPending && $entry['batch'] && !isset($batchShown[$entry['batch']]) && $batchEntries[$entry['batch']]->count() > 1)
             @php $batchShown[$entry['batch']] = true; $inBatch = $batchEntries[$entry['batch']]; @endphp
             <div class="card border-0 shadow-sm mb-2 approval-batch" data-batch="{{ $entry['batch'] }}">
@@ -168,134 +176,28 @@
                 </div>
             </div>
         @endif
-        <div class="approval-entry card border-0 shadow-sm mb-3" data-anchor="{{ $entry['anchor'] }}" data-batch="{{ $entry['batch'] }}">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                    <div>
-                        @if($isPending)
-                            <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"
-                                   name="entries[{{ $i }}][id]" value="{{ $entry['anchor'] }}" aria-label="Select this entry">
-                            <input type="hidden" form="severalForm" name="entries[{{ $i }}][seen]" value="{{ $entry['seen'] }}">
-                        @endif
-                        <span class="fw-bold">{{ $entry['employee']->display_name }}</span>
-                        <span class="text-muted">&middot; {{ $fmtDate($entry['date']) }}</span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-1">
-                        @if($entry['locked'])
-                            <span class="badge bg-danger approval-flag"><i class="bi bi-lock"></i> Date locked</span>
-                        @endif
-                        @if($entry['inactive'])
-                            <span class="badge bg-warning text-dark approval-flag">Inactive employee</span>
-                        @endif
-                        @foreach($entry['blocks'] ?? [] as $block)
-                            <span class="badge bg-danger approval-flag">{{ $block }}</span>
-                        @endforeach
-                        @if($entry['batch'])
-                            <span class="badge bg-light text-dark border approval-flag">Bulk action</span>
-                        @endif
-                    </div>
-                </div>
-
-                <div @class(['approval-layout', 'has-preview' => $isPending && isset($entry['preview'])])>
-                <div class="approval-request">
-                @foreach($entry['rows'] as $row)
-                    <div class="approval-field py-2">
-                        <div class="small text-muted text-uppercase">{{ $row->fieldLabel() }}</div>
-                        <div>
-                            <span class="approval-value">{{ $row->displayValue($row->new_value, $shiftNames) }}</span>
-                            @if($isPending)
-                                <span class="text-muted small">
-                                    (official now: {{ $row->displayValue($entry['official'][$row->id] ?? null, $shiftNames, false) }})
-                                </span>
-                                @if(isset($entry['drift'][$row->id]))
-                                    <div class="text-danger small">
-                                        <i class="bi bi-exclamation-triangle"></i>
-                                        Official value changed: was {{ $row->displayValue($entry['drift'][$row->id]['was'], $shiftNames, false) }}, now {{ $row->displayValue($entry['drift'][$row->id]['now'], $shiftNames, false) }}
-                                    </div>
-                                @endif
-                            @else
-                                <span class="text-muted small">
-                                    (was: {{ $row->displayValue($row->old_value, $shiftNames, false) }})
-                                </span>
-                            @endif
-                        </div>
-                        <div class="small">Reason: {{ $row->reason }}</div>
-                        <div class="small text-muted">Asked by {{ $row->requesterName() }} on {{ $row->created_at->format('M d, Y g:i A') }}@if($row->changed_at), changed {{ $row->changed_at->format('M d, Y g:i A') }}@endif</div>
-                        @unless($isPending)
-                            <div class="small text-muted">
-                                @if($row->status === 'approved')
-                                    Approved by {{ $row->decider->name ?? 'Unknown' }} on {{ $row->decided_at?->format('M d, Y g:i A') }}
-                                @elseif($row->status === 'rejected')
-                                    Rejected by {{ $row->decider->name ?? 'Unknown' }} on {{ $row->decided_at?->format('M d, Y g:i A') }}: {{ $row->decision_reason }}
-                                @else
-                                    Withdrawn by the requester
-                                @endif
-                            </div>
-                        @endunless
-                    </div>
-                @endforeach
-
-                @if($isPending)
-                    @if($entry['day'] && $entry['rows']->contains(fn ($r) => in_array($r->field, ['sil', 'rest_day'], true)))
-                        <div class="alert alert-light border small py-2 mt-2 mb-0">
-                            This day has attendance:
-                            In {{ $entry['day']->time_in ? $entry['day']->time_in->format('g:i A') : '-' }},
-                            Lunch {{ $entry['day']->lunch_out ? $entry['day']->lunch_out->format('g:i A') : '-' }}
-                            to {{ $entry['day']->lunch_in ? $entry['day']->lunch_in->format('g:i A') : '-' }},
-                            Out {{ $entry['day']->time_out ? $entry['day']->time_out->format('g:i A') : '-' }}.
-                        </div>
-                    @endif
-                @endif
-                </div>
-
-                @if($isPending)
-                    @isset($entry['preview'])
-                        <div class="approval-side">
-                            @isset($entry['punches'])
-                                @include('approvals._punches', ['punches' => $entry['punches']])
-                            @endisset
-                            @include('approvals._preview', ['preview' => $entry['preview'], 'entry' => $entry])
-                        </div>
-                    @endisset
-
-                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">
-                        <form method="POST" action="{{ url('/approvals/' . $entry['anchor'] . '/approve') }}" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
-                            @csrf
-                            <input type="hidden" name="seen" value="{{ $entry['seen'] }}">
-                            @if($hasDrift && !$blocked)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="confirmed" value="1" id="confirm{{ $entry['anchor'] }}" required>
-                                    <label class="form-check-label small" for="confirm{{ $entry['anchor'] }}">I have seen the changed values</label>
-                                </div>
-                            @endif
-                            <button type="submit" class="btn btn-success approval-approve" @disabled($blocked)>
-                                <i class="bi bi-check-lg"></i> Approve
-                            </button>
-                        </form>
-                        <form method="POST" action="{{ url('/approvals/' . $entry['anchor'] . '/reject') }}" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
-                            @csrf
-                            <input type="hidden" name="seen" value="{{ $entry['seen'] }}">
-                            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"
-                                   required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">
-                            <button type="submit" class="btn btn-outline-danger approval-reject">
-                                <i class="bi bi-x-lg"></i> Reject
-                            </button>
-                        </form>
-                    </div>
-                @endif
-                </div>
-            </div>
-        </div>
+        @include('approvals._entry', ['entry' => $entry, 'i' => $i, 'inGroup' => false])
     @endforeach
     </div>
     <div id="approvalListEnd"></div>
 
-    <div class="mt-3">{{ $pairs->links() }}</div>
+    @if($isPending)
+        @if($pager['pages'] > 1)
+            @php $pageUrl = fn ($p) => url('/approvals') . '?' . http_build_query(array_merge(request()->except('page'), ['page' => $p])); @endphp
+            <nav class="mt-3 d-flex flex-wrap align-items-center gap-2 small" aria-label="Pages">
+                @if($pager['page'] > 1)<a class="btn btn-sm btn-outline-secondary" href="{{ $pageUrl($pager['page'] - 1) }}" rel="prev">Previous</a>@endif
+                <span>Page {{ $pager['page'] }} of {{ $pager['pages'] }}</span>
+                @if($pager['page'] < $pager['pages'])<a class="btn btn-sm btn-outline-secondary" href="{{ $pageUrl($pager['page'] + 1) }}" rel="next">Next</a>@endif
+            </nav>
+        @endif
+    @else
+        <div class="mt-3">{{ $pairs->links() }}</div>
+    @endif
 @endif
 @endsection
 
 {{-- Only where there is something to decide: the page with nothing waiting carries no script. --}}
-@if($isPending && !empty($entries))
+@if($isPending && !empty($cards))
 @push('scripts')
 <script>
 // Decisions on this page are sent in the background and answered in the page: a decided entry
@@ -332,9 +234,22 @@
 
     // A decided entry leaves the page, with what the batch headings still hold of it.
     function removeEntry(id) {
-        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"]');
+        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"], .approval-assignment[data-anchor="' + id + '"]');
         const batch = card ? card.dataset.batch : '';
         if (card) card.remove();
+        // A day of a shift change card: the day leaves the card, and the card's forms stop
+        // carrying it; the card leaves when its last day is decided.
+        const day = document.querySelector('.approval-group-day[data-day-anchor="' + id + '"]');
+        if (day) {
+            const group = day.closest('.approval-group');
+            day.remove();
+            group.querySelectorAll('input[name$="[id]"][value="' + id + '"]').forEach(function (input) {
+                const seen = input.nextElementSibling;
+                if (seen && /\[seen\]$/.test(seen.name || '')) seen.remove();
+                input.remove();
+            });
+            if (!group.querySelector('.approval-group-day')) group.remove();
+        }
         document.querySelectorAll('input[data-batch-entry][name$="[id]"][value="' + id + '"]').forEach(function (input) {
             const seen = input.nextElementSibling;
             if (seen && seen.hasAttribute('data-batch-entry')) seen.remove();
@@ -343,7 +258,7 @@
         if (batch && !document.querySelector('.approval-entry[data-batch="' + batch + '"]')) {
             document.querySelectorAll('.approval-batch[data-batch="' + batch + '"]').forEach(el => el.remove());
         }
-        if (!document.querySelector('.approval-entry')) {
+        if (!document.querySelector('.approval-entry, .approval-group, .approval-assignment')) {
             const list = document.getElementById('approvalList');
             const empty = document.createElement('div');
             empty.className = 'text-center text-muted py-4';
@@ -353,7 +268,7 @@
     }
 
     function entryMessage(id, text) {
-        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"]');
+        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"], .approval-assignment[data-anchor="' + id + '"], .approval-group-day[data-day-anchor="' + id + '"]');
         if (!card) return;
         let msg = card.querySelector('.approval-entry-msg');
         if (!msg) {
@@ -395,8 +310,8 @@
                 if (reason) reason.value = '';
                 pageMessage(data.message, !data.results.some(r => !r.ok));
             } else {
-                const card = form.closest('.approval-entry');
-                if (card) removeEntry(card.dataset.anchor);
+                const card = form.closest('.approval-group-day, .approval-entry, .approval-assignment');
+                if (card) removeEntry(card.dataset.dayAnchor || card.dataset.anchor);
                 pageMessage(data.message, true);
             }
             setNavCount(data.pending_entries);
@@ -427,6 +342,13 @@
         row.append(text, yes, no);
         form.insertAdjacentElement('afterend', row);
     }
+
+    // Ticking a shift change card selects every day of it for "Approve/Reject selected".
+    document.querySelectorAll('.group-select').forEach(function (box) {
+        box.addEventListener('change', function () {
+            document.querySelectorAll('[data-group-of="' + box.dataset.group + '"]').forEach(input => input.disabled = !box.checked);
+        });
+    });
 
     let uid = 0;
     document.querySelectorAll('form.approval-form').forEach(function (form) {

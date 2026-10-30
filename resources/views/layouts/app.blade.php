@@ -73,7 +73,7 @@
             </a>
             @endif
             @if($userRole === 'ceo')
-            @php $pendingApprovals = \App\Models\AttendanceChangeRequest::pendingEntryCount(); @endphp
+            @php $pendingApprovals = \App\Models\AttendanceChangeRequest::pendingCardCount(); @endphp
             <a class="nav-link {{ request()->is('approvals*') ? 'active' : '' }}" href="{{ url('/approvals') }}">
                 <i class="bi bi-check2-square"></i> Approvals
                 @if($pendingApprovals > 0)

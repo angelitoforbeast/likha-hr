@@ -19,6 +19,10 @@ use App\Models\FeaturePermission;
 use Illuminate\Http\Request;
 use App\Models\EmployeeActiveStatus;
 use Illuminate\Support\Facades\Auth;
+use App\Models\AttendanceChangeRequest;
+use App\Services\AttendanceChangeRefused;
+use App\Services\AttendanceChangeRequestService;
+use App\Services\AttendanceChangeService;
 
 class EmployeeController extends Controller
 {
@@ -106,10 +110,22 @@ class EmployeeController extends Controller
         $silUsed = $silApplications->count();
         $silRemaining = (float) $silBalance->total_days - $silUsed;
 
+        // Shift assignments asked for and waiting for the CEO: shown as pending, never as in effect.
+        $pendingAssignments = AttendanceChangeRequest::with('requester')
+            ->where('employee_id', $employee->id)
+            ->where('field', AttendanceChangeRequest::FIELD_ASSIGNMENT)
+            ->where('status', AttendanceChangeRequest::STATUS_PENDING)
+            ->orderBy('id')
+            ->get();
+        $pendingByAssignment = $pendingAssignments->filter(fn ($r) => !empty($r->details['assignment_id']))
+            ->keyBy(fn ($r) => (int) $r->details['assignment_id']);
+        $mustRequest = AttendanceChangeRequestService::mustRequest(Auth::user());
+
         return view('employees.edit', compact(
             'employee', 'shifts', 'departments',
             'employmentStatuses', 'benefitTypes', 'permissions',
-            'silBalance', 'silApplications', 'silUsed', 'silRemaining', 'currentYear'
+            'silBalance', 'silApplications', 'silUsed', 'silRemaining', 'currentYear',
+            'pendingAssignments', 'pendingByAssignment', 'mustRequest'
         ));
     }
 
@@ -148,31 +164,18 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        $newStart = $validated['effective_date'];
-
-        // Auto-close any open-ended shift that starts before the new shift
-        $openShifts = EmployeeShiftAssignment::where('employee_id', $employee->id)
-            ->whereNull('effective_until')
-            ->where('effective_date', '<', $newStart)
-            ->get();
-
-        foreach ($openShifts as $openShift) {
-            $openShift->effective_until = Carbon::parse($newStart)->subDay()->format('Y-m-d');
-            $openShift->save();
+        // Anyone but the CEO asks: the assignment waits on Approvals, nothing is in effect yet.
+        if (AttendanceChangeRequestService::mustRequest(Auth::user())) {
+            return $this->askForAssignment($employee, AttendanceChangeRequest::ASSIGNMENT_ADD, null, $validated, $validated['remarks'] ?? null);
         }
 
-        // Check for remaining overlaps (with closed-end assignments)
-        $overlap = $this->checkShiftOverlap($employee->id, $newStart, $validated['effective_until'] ?? null);
-        if ($overlap) {
-            return redirect()->route('employees.edit', $employee)
-                ->with('error', "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).");
+        try {
+            $done = app(AttendanceChangeService::class)->addShiftAssignment($employee, $validated);
+        } catch (AttendanceChangeRefused $e) {
+            return redirect()->route('employees.edit', $employee)->with('error', $e->getMessage());
         }
-
-        $employee->shiftAssignments()->create($validated);
-        $message = "Shift assignment added effective {$newStart}." . ($openShifts->count() ? ' Previous open shift auto-closed.' : '');
-
-        if ($employee->isDepartmentMode()) {
-            $employee->update(['schedule_mode' => Employee::MODE_MANUAL]);
+        $message = "Shift assignment added effective {$validated['effective_date']}." . ($done['closed'] ? ' Previous open shift auto-closed.' : '');
+        if ($done['mode_changed']) {
             $message .= ' Schedule mode set to Manual.';
         }
 
@@ -180,12 +183,41 @@ class EmployeeController extends Controller
             ->with('success', $message);
     }
 
-    public function deleteShiftAssignment(Employee $employee, EmployeeShiftAssignment $assignment)
+    public function deleteShiftAssignment(Request $request, Employee $employee, EmployeeShiftAssignment $assignment)
     {
         $this->guardFeature('shift_assignments');
         if ($assignment->employee_id !== $employee->id) abort(403);
-        $assignment->delete();
+
+        if (AttendanceChangeRequestService::mustRequest(Auth::user())) {
+            $reason = $request->validate(['reason' => 'nullable|string|max:500'])['reason'] ?? null;
+
+            return $this->askForAssignment($employee, AttendanceChangeRequest::ASSIGNMENT_DELETE, $assignment, null, $reason);
+        }
+
+        app(AttendanceChangeService::class)->deleteShiftAssignment($assignment);
         return redirect()->route('employees.edit', $employee)->with('success', 'Shift assignment removed.');
+    }
+
+    /**
+     * Store a profile shift assignment as one request for its whole range. The reason is
+     * required, as for every request: the CEO reads it before approving.
+     */
+    protected function askForAssignment(Employee $employee, string $action, ?EmployeeShiftAssignment $assignment, ?array $fields, ?string $reason)
+    {
+        if (strlen(trim((string) $reason)) < 3) {
+            return redirect()->route('employees.edit', $employee)->with('error',
+                'A reason is required for the CEO to approve this. Type it in '
+                . ($action === AttendanceChangeRequest::ASSIGNMENT_DELETE ? 'the Reason box' : 'Remarks') . ' and save again.');
+        }
+
+        try {
+            app(AttendanceChangeRequestService::class)->submitAssignment($employee, $action, $assignment, $fields, trim($reason), Auth::user());
+        } catch (AttendanceChangeRefused $e) {
+            return redirect()->route('employees.edit', $employee)->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', 'Sent for approval. Nothing changes until the CEO approves it.');
     }
 
     /* ── Rates ── */
@@ -588,14 +620,15 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        // Check for overlapping assignments (exclude current)
-        $overlap = $this->checkShiftOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null, $assignment->id);
-        if ($overlap) {
-            return redirect()->route('employees.edit', $employee)
-                ->with('error', "Shift assignment overlaps with existing assignment (effective {$overlap->effective_date->format('M d, Y')}).");
+        if (AttendanceChangeRequestService::mustRequest(Auth::user())) {
+            return $this->askForAssignment($employee, AttendanceChangeRequest::ASSIGNMENT_UPDATE, $assignment, $validated, $validated['remarks'] ?? null);
         }
 
-        $assignment->update($validated);
+        try {
+            app(AttendanceChangeService::class)->updateShiftAssignment($assignment, $validated);
+        } catch (AttendanceChangeRefused $e) {
+            return redirect()->route('employees.edit', $employee)->with('error', $e->getMessage());
+        }
 
         return redirect()->route('employees.edit', $employee)
             ->with('success', 'Shift assignment updated.');
@@ -765,23 +798,6 @@ class EmployeeController extends Controller
     }
 
     /* ── Overlap Validation Helpers ── */
-
-    protected function checkShiftOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)
-    {
-        $query = EmployeeShiftAssignment::where('employee_id', $employeeId);
-        if ($excludeId) $query->where('id', '!=', $excludeId);
-
-        return $query->where(function ($q) use ($start, $end) {
-            $q->where(function ($q2) use ($start, $end) {
-                // New record overlaps with existing
-                $q2->where('effective_date', '<=', $end ?? '9999-12-31')
-                   ->where(function ($q3) use ($start) {
-                       $q3->whereNull('effective_until')
-                          ->orWhere('effective_until', '>=', $start);
-                   });
-            });
-        })->first();
-    }
 
     protected function checkRateOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)
     {

@@ -86,8 +86,10 @@ class AttendanceCalendarController extends Controller
 
         // Employees with a request in this range that waits for the CEO, or that was rejected and
         // not asked again, are listed too: a day that is only requested must be visible.
-        $openRequestScope = fn ($q) => $q->where('status', AttendanceChangeRequest::STATUS_PENDING)
-            ->orWhere(fn ($r) => $r->where('status', AttendanceChangeRequest::STATUS_REJECTED)->whereNull('superseded_at'));
+        // A profile shift assignment request covers a range, not a day: it is shown on the profile.
+        $openRequestScope = fn ($q) => $q->where('field', '!=', AttendanceChangeRequest::FIELD_ASSIGNMENT)
+            ->where(fn ($s) => $s->where('status', AttendanceChangeRequest::STATUS_PENDING)
+                ->orWhere(fn ($r) => $r->where('status', AttendanceChangeRequest::STATUS_REJECTED)->whereNull('superseded_at')));
         $employeeIdsWithLogs = array_values(array_unique(array_merge(
             $employeeIdsWithLogs,
             AttendanceChangeRequest::whereBetween('work_date', [$dateFrom, $dateTo])
@@ -399,6 +401,7 @@ class AttendanceCalendarController extends Controller
         $myRejected = AttendanceChangeRequest::with('employee')
             ->where('requested_by', $viewerId)
             ->where('status', AttendanceChangeRequest::STATUS_REJECTED)
+            ->where('field', '!=', AttendanceChangeRequest::FIELD_ASSIGNMENT)
             ->whereNull('superseded_at')
             ->orderByDesc('decided_at')
             ->limit(60)

@@ -226,6 +226,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/approvals', [AttendanceApprovalController::class, 'index'])->name('approvals.index');
     Route::post('/approvals/approve-several', [AttendanceApprovalController::class, 'approveSeveral'])->name('approvals.approve-several');
     Route::post('/approvals/reject-several', [AttendanceApprovalController::class, 'rejectSeveral'])->name('approvals.reject-several');
+    Route::post('/approvals/shift-group/approve', [AttendanceApprovalController::class, 'approveShiftGroup'])->name('approvals.shift-group.approve');
+    Route::post('/approvals/shift-group/reject', [AttendanceApprovalController::class, 'rejectShiftGroup'])->name('approvals.shift-group.reject');
     Route::post('/approvals/batch/{batch}/approve', [AttendanceApprovalController::class, 'approveBatch'])->whereUuid('batch')->name('approvals.batch.approve');
     Route::post('/approvals/batch/{batch}/reject', [AttendanceApprovalController::class, 'rejectBatch'])->whereUuid('batch')->name('approvals.batch.reject');
     Route::post('/approvals/{changeRequest}/approve', [AttendanceApprovalController::class, 'approve'])->whereNumber('changeRequest')->name('approvals.approve');

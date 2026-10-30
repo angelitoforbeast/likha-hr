@@ -720,7 +720,10 @@ class ApprovalFlowTest extends ApprovalsTestCase
 
         $page = $this->actingAs($this->c)->get('/approvals')->assertStatus(200);
         $page->assertSee('was none, now 8:20 AM')->assertSee('was none, now 4:40 PM');
-        $this->assertCount(4, $this->pending($this->e1, self::DN));
+        // Spec 007: the imported lunch punches equal the lunch asked for, so those two requests
+        // closed themselves as no longer needed when the page was loaded; the other two wait.
+        $this->assertSame(['time_in', 'time_out'], array_keys($this->pending($this->e1, self::DN)));
+        $this->assertSame(2, $this->requestCount('no_longer_needed'));
 
         $refused = $this->approve($this->c, $this->e1, self::DN);
         $refused->assertStatus(409)->assertJson(['needs_confirm' => true]);

@@ -406,9 +406,31 @@ As the CEO, I want to see the employee's day as Approve would save it, beside th
 | S-005.8 | edge | Given a 390 px screen, then the preview is below the request (request, preview, buttons) with no sideways scroll; from 992 px it is a right-hand column | `test_s_005_8_preview_sits_between_the_request_and_the_buttons` (order and CSS in the HTML); the rendered page at 390 px and 1280 px, see the result | Passed · 2026-10-29 · auto + browser |
 | S-005.9 | negative | Given the existing suites, then they pass | full suite | Passed · 2026-10-29 · auto |
 
+## Slice 006 – The device punches beside each approval
+
+Slice 006: 9 passed, 0 failed, 0 blocked, 0 skipped, 0 not run
+
+Tests live in `tests/Feature/Approvals/ApprovalPunchesTest.php`, with the fixtures of Slice 002. Each case stores invented punches in `attendance_logs`, has H ask for a change, and reads the "Device punches" block the CEO's `/approvals` page shows above the preview of each pending entry.
+
+### S-006 The CEO sees what the device recorded, beside each request (P1)
+As the CEO, I want to see the punches the biometric device stored for the employee on the request's date, and which of them the day uses, so that I judge a missed time out, a lunch fix or an overtime claim against what was actually recorded.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-006.1 | happy | Given punches on Dr stored out of order with seconds, at 00:00:00 and 23:59:59, and one at 23:59:59 the day before, then the block lists the seven punches of Dr in time order as "8:03 AM" (no seconds), and not the one of the day before | `test_s_006_1_shows_every_punch_of_the_date_in_time_order_in_12_hour_format` | Passed · 2026-10-30 · auto |
+| S-006.2 | edge | Given a punch stored twice (same employee, same time), then it is listed once | `test_s_006_2_a_punch_stored_twice_is_listed_once` | Passed · 2026-10-30 · auto |
+| S-006.3 | edge | Given next-day punches at 1:11 AM, 5:59:59 AM, 6:00 AM and 6:30 AM, then "Next day: 1:11 AM, 5:59 AM" is shown on its own muted line; the day's list, the preview and the day row are unchanged | `test_s_006_3_early_next_day_punches_are_on_their_own_line_and_change_nothing` | Passed · 2026-10-30 · auto |
+| S-006.4 | negative | Given a date without punches, then "No punches from the device on this date." (and the next-day line if any) | `test_s_006_4_a_date_without_punches_says_so`, `test_s_006_4_a_date_without_punches_still_shows_the_next_day_line` | Passed · 2026-10-30 · auto |
+| S-006.5 | happy | Given the day's official times now, then each punch equal to one (to the minute) carries its label ("8:03 AM · Time in"); an extra punch in between, and a punch the day no longer uses, are plain | `test_s_006_5_the_punches_the_day_uses_now_carry_their_label`, `test_s_006_5_labels_follow_the_official_times_now_not_the_punches` | Passed · 2026-10-30 · auto |
+| S-006.6 | negative | Given E2 punches on the same date, then they never appear in E1's entry; given E1 entries on Dr and Dn, a 1:00 AM punch on Dn is Dr's next-day line and Dn's own first punch | `test_s_006_6_another_employees_punches_never_appear`, `test_s_006_6_entries_of_one_employee_on_consecutive_dates_each_get_their_own_punches` | Passed · 2026-10-30 · auto |
+| S-006.7 | negative | Given pending entries with punches, when C loads the page twice, then every row of every table is unchanged and no job is queued; with 1 and with 31 entries, the page runs exactly one query on `attendance_logs` | `test_s_006_7_rendering_the_punches_writes_nothing`, `test_s_006_7_the_punch_queries_do_not_grow_with_the_groups` | Passed · 2026-10-30 · auto |
+| S-006.8 | edge | Given a 390 px screen, then the block is below the request (request, punches, preview, buttons), wraps and sets no width | `test_s_006_8_the_block_sits_below_the_request_and_never_widens_the_page` (order and CSS in the HTML); the rendered page in a 390 px frame, see the result | Passed · 2026-10-30 · auto + browser (offline) |
+| S-006.9 | negative | Given the existing suites, then they pass | full suite | Passed · 2026-10-30 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)
 - [ ] S-11.1 CEO approves a request on a real phone and sees the day become real attendance (staging)
+- [ ] S-006.8 The Device punches block on a real phone (390 px, with the site's styles loaded): below the request, no sideways scroll (staging)
 - [ ] S-10.1 The Approvals link and the count look right in the nav on the CEO's account (staging)
 - [ ] S-13.2 The requester sees the CEO's rejection reason on the calendar, on HR's account (staging)

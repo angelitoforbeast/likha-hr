@@ -143,6 +143,11 @@ class AttendanceApprovalController extends Controller
             ->get()
             ->keyBy(fn ($lock) => $lock->lock_date->format('Y-m-d'));
 
+        // The device punches of every pending entry on the page, in one read.
+        $punches = $status === AttendanceChangeRequest::STATUS_PENDING
+            ? $this->approvals->devicePunches($pairs->map(fn ($pair) => [(int) $pair->employee_id, substr((string) $pair->work_date, 0, 10)])->all())
+            : [];
+
         $entries = [];
         foreach ($pairs as $pair) {
             $date = substr((string) $pair->work_date, 0, 10);
@@ -172,6 +177,11 @@ class AttendanceApprovalController extends Controller
                 $entry['day']    = $this->changes->findDay($employee->id, $date);
                 // The day now and as Approve would save it; computed and rolled back, never saved.
                 $entry['preview'] = $this->approvals->preview($employee, $date, $entryRows, Auth::user());
+                $own = $punches[$employee->id . '_' . $date] ?? ['day' => [], 'next_day' => []];
+                $entry['punches'] = [
+                    'day'      => $this->approvals->labelPunches($own['day'], $entry['day']),
+                    'next_day' => $own['next_day'],
+                ];
             }
 
             $entries[] = $entry;

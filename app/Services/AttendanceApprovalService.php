@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceChangeRequest;
 use App\Models\AttendanceDateLock;
+use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\User;
@@ -378,6 +379,83 @@ class AttendanceApprovalService
             'rest_day'          => $employee->isDayOff($date),
             'sil'               => $employee->isDateSil($date),
         ];
+    }
+
+    /** Punches of the next date before this hour are shown beside the day, never added to it. */
+    public const NEXT_DAY_UNTIL = '06:00:00';
+
+    /**
+     * The device punches of every entry of a page, read in one query: each date's own
+     * punches (the compute's calendar day, 00:00:00 to 23:59:59) and the next date's
+     * early ones. One condition per entry keeps the read to exactly those days, through
+     * the (employee_id, punched_at) index, however far apart the page's dates are.
+     *
+     * @param  array<int, array{0: int, 1: string}>  $pairs  [employee id, Y-m-d]
+     * @return array<string, array{day: Carbon[], next_day: Carbon[]}>  keyed "employeeId_date"
+     */
+    public function devicePunches(array $pairs): array
+    {
+        if ($pairs === []) {
+            return [];
+        }
+
+        $ranges = [];
+        foreach ($pairs as [$employeeId, $date]) {
+            $next = Carbon::parse($date)->addDay()->toDateString();
+            $ranges[$employeeId . '_' . $date] = [(int) $employeeId, $date, $next, $date . ' 00:00:00', $next . ' ' . self::NEXT_DAY_UNTIL];
+        }
+
+        // DISTINCT: older imports stored some punches twice; one punch is shown once.
+        $rows = DB::table('attendance_logs')
+            ->distinct()
+            ->select('employee_id', 'punched_at')
+            ->where(function ($q) use ($ranges) {
+                foreach ($ranges as [$employeeId, , , $from, $until]) {
+                    $q->orWhere(fn ($w) => $w->where('employee_id', $employeeId)
+                        ->where('punched_at', '>=', $from)
+                        ->where('punched_at', '<', $until));
+                }
+            })
+            ->orderBy('punched_at')
+            ->get()
+            ->groupBy('employee_id');
+
+        $out = [];
+        foreach ($ranges as $key => [$employeeId, $date, $next, $from, $until]) {
+            $out[$key] = ['day' => [], 'next_day' => []];
+            foreach ($rows->get($employeeId, []) as $row) {
+                $at = Carbon::parse($row->punched_at);
+                $stamp = $at->format('Y-m-d H:i:s');
+                if ($stamp < $from || $stamp >= $until) {
+                    continue;
+                }
+                $out[$key][$at->toDateString() === $date ? 'day' : 'next_day'][] = $at;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * The day's punches with the official times each one equals now (to the minute,
+     * date included), as the preview's Now column shows them.
+     *
+     * @param  Carbon[]  $punches
+     * @return array<int, array{at: Carbon, labels: string[]}>
+     */
+    public function labelPunches(array $punches, ?AttendanceDay $day): array
+    {
+        $official = [];
+        foreach (['time_in' => 'Time in', 'lunch_out' => 'Lunch out', 'lunch_in' => 'Lunch in', 'time_out' => 'Time out'] as $field => $label) {
+            if ($day && $day->{$field}) {
+                $official[$label] = Carbon::parse($day->{$field})->format('Y-m-d H:i');
+            }
+        }
+
+        return array_map(fn (Carbon $at) => [
+            'at'     => $at,
+            'labels' => array_keys($official, $at->format('Y-m-d H:i'), true),
+        ], $punches);
     }
 
     /**

@@ -27,6 +27,8 @@
     .approval-preview-line > div { padding: .15rem .3rem; border-top: 1px solid #eee; }
     .approval-preview-head > div { font-weight: 600; border-top: 0; }
     .approval-preview-changed > div:last-child, .approval-preview-changed-note { background: #fff3cd; font-weight: 600; }
+    /* Device punches: several to a line, wrapping on a phone instead of widening the page. */
+    .approval-punch-list { display: flex; flex-wrap: wrap; gap: .1rem 1rem; font-size: .85rem; }
 </style>
 @endpush
 
@@ -249,6 +251,9 @@
                 @if($isPending)
                     @isset($entry['preview'])
                         <div class="approval-side">
+                            @isset($entry['punches'])
+                                @include('approvals._punches', ['punches' => $entry['punches']])
+                            @endisset
                             @include('approvals._preview', ['preview' => $entry['preview'], 'entry' => $entry])
                         </div>
                     @endisset

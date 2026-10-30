@@ -1,0 +1,130 @@
+<div class="approval-entry card border-0 shadow-sm mb-3" data-anchor="1" data-batch="">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                    <div>
+                                                    <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"
+                                   name="entries[0][id]" value="1" aria-label="Select this entry">
+                            <input type="hidden" form="severalForm" name="entries[0][seen]" value="1:1">
+                                                <span class="fw-bold">Maria Dela Cruz</span>
+                        <span class="text-muted">&middot; Oct 08, 2026</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                                                                                                                    </div>
+                </div>
+
+                <div class="approval-layout has-preview">
+                <div class="approval-request">
+                                    <div class="approval-field py-2">
+                        <div class="small text-muted text-uppercase">Time Out</div>
+                        <div>
+                            <span class="approval-value">5:00 PM</span>
+                                                            <span class="text-muted small">
+                                    (official now: none)
+                                </span>
+                                                                                    </div>
+                        <div class="small">Reason: Nakalimutan mag-punch out, umuwi ng 5 PM</div>
+                        <div class="small text-muted">Asked by Hr One on Oct 30, 2026 12:22 AM</div>
+                                            </div>
+                
+                                                                    </div>
+
+                                                            <div class="approval-side">
+                                                            <div class="approval-punches border rounded p-2 mb-2">
+    <div class="small fw-semibold mb-1">Device punches</div>
+            <ul class="approval-punch-list list-unstyled mb-0">
+                            <li class="approval-punch">7:58 AM<span class="small text-muted"> · Time in</span></li>
+                            <li class="approval-punch">12:01 PM<span class="small text-muted"> · Lunch out</span></li>
+                            <li class="approval-punch">12:58 PM<span class="small text-muted"> · Lunch in</span></li>
+                            <li class="approval-punch">3:10 PM</li>
+                    </ul>
+                <div class="small text-muted mt-1 approval-punches-next">Next day: 1:11 AM</div>
+    </div><!-- /approval-punches -->
+                                                        <div class="approval-preview border rounded p-2" data-preview="ok">
+    <div class="small fw-semibold mb-1">Preview</div>
+                        
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">
+            <div class="approval-preview-line approval-preview-head" role="row">
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>
+            </div>
+                            <div role="row" data-line="Time in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Time in</div>
+                    <div role="cell">7:58 AM</div>
+                    <div role="cell">7:58 AM</div>
+                </div>
+                            <div role="row" data-line="Lunch out" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Lunch out</div>
+                    <div role="cell">12:01 PM</div>
+                    <div role="cell">12:01 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch in" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Lunch in</div>
+                    <div role="cell">12:58 PM</div>
+                    <div role="cell">12:58 PM</div>
+                </div>
+                            <div role="row" data-line="Time out" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Time out</div>
+                    <div role="cell">none</div>
+                    <div role="cell">5:00 PM</div>
+                </div>
+                            <div role="row" data-line="Lunch" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Lunch</div>
+                    <div role="cell">58 m</div>
+                    <div role="cell">58 m</div>
+                </div>
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Worked</div>
+                    <div role="cell">4 h</div>
+                    <div role="cell">8 h</div>
+                </div>
+                            <div role="row" data-line="Late" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Late</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Undertime" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Undertime</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime worked</div>
+                    <div role="cell">0 m</div>
+                    <div role="cell">0 m</div>
+                </div>
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">
+                    <div role="rowheader" class="text-muted">Overtime approved</div>
+                    <div role="cell">not set</div>
+                    <div role="cell">not set</div>
+                </div>
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">
+                    <div role="rowheader" class="text-muted">Needs review</div>
+                    <div role="cell">Yes</div>
+                    <div role="cell">No</div>
+                </div>
+                    </div>
+                            <div class="small text-muted">Note now: No Time Out recorded (missed timeout).</div>
+            <div class="small approval-preview-changed-note">Note if approved: Preserved overrides: time_out.</div>
+                    </div>
+                        </div>
+                    
+                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">
+                        <form method="POST" action="http://localhost/approvals/1/approve" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
+                            <input type="hidden" name="_token" value="Dp6qEF0SWralzcrAXikH3UVtzXw7ciudGHqKcKBe" autocomplete="off">                            <input type="hidden" name="seen" value="1:1">
+                                                        <button type="submit" class="btn btn-success approval-approve" >
+                                <i class="bi bi-check-lg"></i> Approve
+                            </button>
+                        </form>
+                        <form method="POST" action="http://localhost/approvals/1/reject" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">
+                            <input type="hidden" name="_token" value="Dp6qEF0SWralzcrAXikH3UVtzXw7ciudGHqKcKBe" autocomplete="off">                            <input type="hidden" name="seen" value="1:1">
+                            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"
+                                   required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">
+                            <button type="submit" class="btn btn-outline-danger approval-reject">
+                                <i class="bi bi-x-lg"></i> Reject
+                            </button>
+                        </form>
+                    </div>
+                                </div>
+            </div>
+        </div>
+        </div>
+    <div 

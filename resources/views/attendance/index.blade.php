@@ -520,7 +520,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.punches.forEach(p => {
                     const li = document.createElement('li');
                     li.className = 'list-group-item py-1 px-2';
-                    li.textContent = `${p.time}  (${p.time_display})`;
+                    // A punch of the next date (the time out of a shift past midnight) is marked,
+                    // so it never reads as a punch of this date.
+                    li.textContent = p.next_day
+                        ? `${p.time_display} (next day) · ${p.date}`
+                        : `${p.time}  (${p.time_display})`;
                     list.appendChild(li);
                 });
             })

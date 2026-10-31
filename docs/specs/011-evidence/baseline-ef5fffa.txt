@@ -1,0 +1,4 @@
+$ php vendor/bin/phpunit   (at ef5fffa, before any code)
+Time: 00:46.096, Memory: 68.00 MB
+
+OK (340 tests, 3115 assertions)

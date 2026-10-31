@@ -1,0 +1,17 @@
+$ php vendor/bin/phpunit tests/Feature/Overnight/OvernightRawPunchesTest.php --testdox
+Overnight Raw Punches (Tests\Feature\Overnight\OvernightRawPunches)
+ ✔ S-011.1 the punches of D are its own three, then 01:11:04 of D+1 flagged next day; 11:56 is not included
+ ✔ S-011.1 the modal renders "1:11:04 AM (next day)" and "4 punches total"; the time-out picker offers it (the page script run in node)
+ ✔ S-011.2 window edges: 05:59 of D+1 is included and 06:00 is not
+ ✔ S-011.2 window edges: with a D+1 shift starting at 08:00 the window ends 05:00; 04:59 is included and 05:30 is not
+ ✔ S-011.3 a normal day with no punch after midnight returns exactly the JSON of before
+ ✔ S-011.4 the list of D+1 is unchanged: 01:11:04 is still its own first punch
+ ✔ S-011.5 the CEO picks "1:11:04 AM (next day)" as the time out and saves (11:00 shift): time out D+1 01:11:04, the day as the compute makes it (468: 12 m late)
+ ✔ S-011.5 the same pick on the live day's 12:00 shift: time out D+1 01:11:04 and payable 480 (8 h), as the repair made it
+ ✔ S-011.5 HR picks the next-day time out: the request, once approved, stores time out D+1 01:11:04, the day as the compute makes it
+ ✔ S-011.5 a day with no time in yet (no day row): the time-out picker shows the next-day punch but it cannot be picked, since the save would keep it on D
+ ✔ S-011.5 when the day already has the next-day time out, saving the same pick changes nothing
+ ✔ S-011.6 the first day of the employee records, and a D+1 with no punches: no error, no extra rows
+ ✔ S-011.6 a date with no punches of its own lists none of the next date's early punches
+ ✔ S-011.6 a date whose only punch is the time out of the date before lists no next-day punch, so none can be saved as its time out
+OK (14 tests, 75 assertions)

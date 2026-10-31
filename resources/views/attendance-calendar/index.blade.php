@@ -1273,7 +1273,13 @@
             data.punches.forEach(p => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item py-1 px-2';
-                li.textContent = `${p.time}  (${p.time_display})`;
+                li.textContent = rawPunchText(p);
+                if (p.next_day) {
+                    const on = document.createElement('span');
+                    on.className = 'small text-muted ms-2';
+                    on.textContent = p.date;
+                    li.appendChild(on);
+                }
                 list.appendChild(li);
             });
         })
@@ -1892,6 +1898,30 @@
         el.value = parts.slice(0, 3).map(p => p.padStart(2, '0')).join(':');
     }
 
+    /* raw-punch-render */
+    // How one raw punch reads. A punch of the next date (the time out of a shift that ran past
+    // midnight) is marked, so it never reads as a punch of this date.
+    function rawPunchText(p) {
+        return p.next_day ? `${p.time_display} (next day)` : `${p.time}  (${p.time_display})`;
+    }
+    // The options of one punch picker. A next-day punch can only be picked as the time out, and
+    // only when the day already has a time in: the save stores the time of day and the compute
+    // moves it to the next date only when it is before the time in. A time in or a lunch saved
+    // from it, or a time out on a day without a time in, would land on this date.
+    function punchPickerOptions(punches, field, hasTimeIn) {
+        let html = '<option value="">Punches…</option>';
+        punches.forEach(pu => {
+            if (!pu.next_day) {
+                html += `<option value="${pu.time}">${pu.time}</option>`;
+                return;
+            }
+            const disabled = field === 'time_out' && hasTimeIn ? '' : ' disabled';
+            html += `<option value="${pu.time}"${disabled}>${rawPunchText(pu)}</option>`;
+        });
+        return html;
+    }
+    /* /raw-punch-render */
+
     // Fetch raw punches for this employee/date once, populate all 4 punch-picker dropdowns.
     function loadPunchesIntoPickers(employeeId, date) {
         const pickers = document.querySelectorAll('.punch-picker');
@@ -1906,12 +1936,9 @@
         .then(r => r.json())
         .then(data => {
             const punches = data.punches || [];
+            const hasTimeIn = !!(currentTd && currentTd.dataset.timeIn);
             pickers.forEach(p => {
-                let html = '<option value="">Punches…</option>';
-                punches.forEach(pu => {
-                    html += `<option value="${pu.time}">${pu.time}</option>`;
-                });
-                p.innerHTML = html;
+                p.innerHTML = punchPickerOptions(punches, p.dataset.target.replace('dInput_', ''), hasTimeIn);
                 p.disabled = false;
             });
         })

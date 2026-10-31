@@ -480,6 +480,25 @@ As HR and the CEO, we want a punch after midnight to be the time out of the day 
 | S-009.9 | happy (P2) | The calendar cell shows "01:11 AM (next day)" (raw value 01:11:00) and the attendance viewer shows "01:11 (next day)" | `OvernightDisplayTest::test_s_009_9_*` | Passed · 2026-10-31 · auto |
 | S-009.10 | negative | Given the existing suites, then they pass | full suite: 340 tests (319 before) | Passed · 2026-10-31 · auto |
 
+## Slice 011 – The raw punches of a day include its overnight time out
+
+Slice 011: 15 passed, 0 failed, 0 blocked, 0 skipped
+
+Tests live in `tests/Feature/Overnight/OvernightRawPunchesTest.php`, on the fixtures of Slice 009 plus an 11:00–20:00 shift (lunch 16:00–17:00) for X. D is Oct 12, D+1 Oct 13. The picker cases run the calendar page's own render functions in node.
+
+### S-011 HR sees the whole shift on the day it belongs to (P1)
+As HR, we want the Raw Punches modal and the punch pickers of a day to list its time out after midnight, so that a day that ran past midnight does not read as missing its time out.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-011.1 | happy | Given D 11:12, 16:00, 16:59 and D+1 01:11:04, 11:56, then the punches of D are 4, the 4th is 01:11:04 with next_day and its date; 11:56 is not listed; the modal shows "1:11:04 AM (next day)" and "4 punches total" | `test_s_011_1_*` (2 tests) | Passed · 2026-10-31 · auto |
+| S-011.2 | edge | A D+1 punch at 05:59 is listed and 06:00 is not; with an 08:00 shift on D+1, 04:59 is and 05:30 is not | `test_s_011_2_*` (2 tests) | Passed · 2026-10-31 · auto |
+| S-011.3 | negative | A normal day with no punch after midnight returns exactly the JSON of before | `test_s_011_3_normal_day_is_unchanged` | Passed · 2026-10-31 · auto |
+| S-011.4 | negative | D+1's own list is unchanged and still has 01:11:04 | `test_s_011_4_next_date_keeps_its_own_list` | Passed · 2026-10-31 · auto |
+| S-011.5 | happy | The time-out picker offers "1:11:04 AM (next day)" (the other three pickers show it disabled); saving it, directly or by an approved request, stores time out D+1 01:11:04 and the day as the compute makes it: payable 480 on the live day's 12:00 shift, 468 on the 11:00 shift (12 m late); the same pick again is no change; on a day with no time in yet the option is shown disabled | `test_s_011_5_*` (5 tests) | Passed · 2026-10-31 · auto |
+| S-011.6 | edge (P2) | The first day of the records, a D+1 with no punches, a D with no punches, and a D whose only punch is the time out of the date before: no error, no next-day rows | `test_s_011_6_*` (3 tests) | Passed · 2026-10-31 · auto |
+| S-011.7 | negative | Given the existing suites, then they pass | full suite: 354 tests (340 before) | Passed · 2026-10-31 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)
@@ -490,3 +509,4 @@ As HR and the CEO, we want a punch after midnight to be the time out of the day 
 - [ ] S-007.9 The shift change card on a real phone (390 px, with the site styles): no sideways scroll, "See each day" opens (staging)
 - [ ] S-007.10 HR adds a shift assignment on a profile, it shows as pending there, and the CEO approves it from Approvals (staging)
 - [ ] S-009.1 After deploy, the repair dry run on production lists the live Oct 16 day; the owner decides on --apply (production)
+- [ ] S-011.1 After deploy, the Raw Punches of the live Oct 16 day on the calendar list the 1:11 AM punch as "(next day)" and count 4 (production)

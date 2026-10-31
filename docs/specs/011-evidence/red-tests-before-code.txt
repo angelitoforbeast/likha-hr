@@ -1,0 +1,101 @@
+PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\phpunit.xml
+
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+.                                                       11 / 11 (100%)
+
+Time: 00:01.568, Memory: 48.00 MB
+
+There was 1 error:
+
+1) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_5_picked_next_day_time_out_requested_and_approved
+ErrorException: Trying to access array offset on null
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\vendor\laravel\framework\src\Illuminate\Foundation\Bootstrap\HandleExceptions.php:255
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:204
+
+--
+
+There were 5 failures:
+
+1) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_1_next_day_time_out_is_listed_after_the_date_own
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+ Array &0 [
+     'employee_name' => 'Eleven One',
+     'date' => '2026-10-12',
+-    'count' => 4,
++    'count' => 3,
+     'punches' => Array &1 [
+         0 => Array &2 [
+             'time' => '11:12:00',
+@@ @@
+         2 => Array &4 [
+             'time' => '16:59:00',
+             'time_display' => '4:59:00 PM',
+-        ],
+-        3 => Array &5 [
+-            'time' => '01:11:04',
+-            'time_display' => '1:11:04 AM',
+-            'next_day' => true,
+-            'date' => '2026-10-13',
+         ],
+     ],
+ ]
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:61
+
+2) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_1_modal_and_pickers_render_the_next_day_punch
+the render functions are on the page
+Failed asserting that 0 is identical to 1.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:257
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:78
+
+3) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_2_until_edge
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+     0 => '11:12:00',
+     1 => '16:00:00',
+     2 => '16:59:00',
+-    3 => '05:59:00',
+ ]
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:103
+
+4) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_2_next_shift_edge
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+     0 => '11:12:00',
+     1 => '16:00:00',
+     2 => '16:59:00',
+-    3 => '04:59:00',
+ ]
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:121
+
+5) Tests\Feature\Overnight\OvernightRawPunchesTest::test_s_011_5_picked_next_day_time_out_saved_directly
+Failed asserting that null is identical to Array &0 [
+    'time' => '01:11:04',
+    'time_display' => '1:11:04 AM',
+    'next_day' => true,
+    'date' => '2026-10-13',
+].
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\punches-011\tests\Feature\Overnight\OvernightRawPunchesTest.php:185
+
+ERRORS!
+Tests: 11, Assertions: 32, Errors: 1, Failures: 5.

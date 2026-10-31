@@ -1,0 +1,15 @@
+{
+    "employee_name": "Eleven One",
+    "date": "2026-10-13",
+    "count": 2,
+    "punches": [
+        {
+            "time": "01:11:04",
+            "time_display": "1:11:04 AM"
+        },
+        {
+            "time": "11:56:00",
+            "time_display": "11:56:00 AM"
+        }
+    ]
+}

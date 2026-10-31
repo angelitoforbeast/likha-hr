@@ -1,0 +1,9 @@
+$ phpunit --filter taken   (before the fix of the review finding)
+Failed asserting that two arrays are identical.
+-    'count' => 1,
++    'count' => 2,
+Tests: 1, Assertions: 2, Failures: 1.
+
+$ phpunit --filter without_a_time_in   (before the picker gate)
+Failed asserting that '<option value="">Punches…</option><option value="11:12:00">11:12:00</option><option value="16:00:00">16:00:00</option><option value="16:59:00">16:59:00</option><option value="01:11:04">1:11:04 AM (next day)</option>' [UTF-8](length: 217) contains "<option value="01:11:04" disabled>1:11:04 AM (next day)</option>" [ASCII](length: 64).
+Tests: 1, Assertions: 5, Failures: 1.

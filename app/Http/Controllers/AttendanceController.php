@@ -264,14 +264,47 @@ class AttendanceController extends Controller
             ->orderBy('punched_at')
             ->get(['punched_at']);
 
+        $punches = $logs->map(fn ($l) => [
+            'time'         => $l->punched_at->format('H:i:s'),
+            'time_display' => $l->punched_at->format('g:i:s A'),
+        ])->values();
+
+        // A shift that runs past midnight ends on the next date: its time out is a punch of the
+        // next date inside the overnight window, the same window the compute uses. Listed after
+        // the date's own punches and flagged, so HR sees the whole shift on the day it belongs to.
+        // The next date keeps listing it as its own: raw punches are never moved or hidden.
+        // A date has no shift to run past midnight when it has no punches of its own as the
+        // compute sees them: none at all, or only the time out of the date before. Offering a
+        // next-day punch there would let it be saved as a time out with no time in before it,
+        // which stays on this date.
+        $compute = new AttendanceComputeService();
+        $dateStr = $start->format('Y-m-d');
+        $ownAsComputed = $logs->isNotEmpty()
+            && $compute->workDatePunches($employee, $dateStr, $dateStr)[$dateStr]
+                ->contains(fn ($log) => Carbon::parse($log->punched_at)->format('Y-m-d') === $dateStr);
+        if ($ownAsComputed) {
+            $nextDate = $start->copy()->addDay();
+            $windowEnd = $compute->overnightWindowEnd($employee, $nextDate->format('Y-m-d'));
+            $nextDay = AttendanceLog::where('employee_id', $employee->id)
+                ->where('punched_at', '>=', $nextDate)
+                ->where('punched_at', '<', $windowEnd)
+                ->orderBy('punched_at')
+                ->get(['punched_at']);
+            foreach ($nextDay as $l) {
+                $punches->push([
+                    'time'         => $l->punched_at->format('H:i:s'),
+                    'time_display' => $l->punched_at->format('g:i:s A'),
+                    'next_day'     => true,
+                    'date'         => $l->punched_at->format('Y-m-d'),
+                ]);
+            }
+        }
+
         return response()->json([
             'employee_name' => $employee->display_name,
             'date'    => $validated['date'],
-            'count'   => $logs->count(),
-            'punches' => $logs->map(fn ($l) => [
-                'time'         => $l->punched_at->format('H:i:s'),
-                'time_display' => $l->punched_at->format('g:i:s A'),
-            ])->values(),
+            'count'   => $punches->count(),
+            'punches' => $punches,
         ]);
     }
 

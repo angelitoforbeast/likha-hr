@@ -34,6 +34,12 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perHour(60)->by('schedule-feed:' . hash('sha256', (string) $request->header('X-SCHEDULE-FEED-KEY')));
         });
 
+        // The office PC biometrics agent: 300 calls an hour per key (a poll a minute posts its
+        // punches and a heartbeat). It runs after the key check, so only a valid key reaches it.
+        RateLimiter::for('biometrics-feed', function (Request $request) {
+            return Limit::perHour(300)->by('biometrics-feed:' . hash('sha256', (string) $request->header('X-BIOMETRICS-FEED-KEY')));
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

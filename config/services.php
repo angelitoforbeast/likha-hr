@@ -37,4 +37,10 @@ return [
         'key' => env('SCHEDULE_FEED_KEY'),
     ],
 
+    // Key the office PC biometrics agent sends as X-BIOMETRICS-FEED-KEY to post punches to
+    // /api/biometrics/*. Empty means every biometrics endpoint refuses every call (spec 012).
+    'biometrics_feed' => [
+        'key' => env('BIOMETRICS_FEED_KEY'),
+    ],
+
 ];

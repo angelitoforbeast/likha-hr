@@ -1,0 +1,10 @@
+﻿Cross-process check of the ingest lock (spec 012, S-03): 4 PHP processes, each booting the app with
+CACHE_DRIVER=file and the same SQLite file, call BiometricFeedService::ingestAgentPost with the same new
+punch "1<TAB>2026-11-10 05:33:00" at the same planned instant (scratch script, not committed).
+
+{"pid":293688,"run":20,"inserted":0,"duplicates":1,"t":1794309251.632922}
+{"pid":301892,"run":19,"inserted":0,"duplicates":1,"t":1794309251.389885}
+{"pid":296700,"run":21,"inserted":0,"duplicates":1,"t":1794309251.892673}
+{"pid":267336,"run":18,"inserted":1,"duplicates":0,"t":1794309251.176192}
+
+attendance_logs rows for that punch: [{"n":1}]

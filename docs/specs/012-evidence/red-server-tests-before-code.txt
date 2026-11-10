@@ -1,0 +1,1152 @@
+﻿PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\phpunit.xml
+
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+E  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F           55 / 55 (100%)
+
+Time: 00:06.022, Memory: 52.00 MB
+
+There were 6 errors:
+
+1) Tests\Feature\Biometrics\DuplicatesTest::test_s_012_3_concurrent_post_is_serialized
+Error: Class "App\Services\AttendanceIngestLock" not found
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DuplicatesTest.php:64
+
+2) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_wrong_keys_get_an_empty_401_and_write_nothing
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed (Connection: sqlite, SQL: select count(*) as aggregate from "biometric_feed")
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:829
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:39
+
+Caused by
+PDOException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:423
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:816
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:39
+
+3) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_manual_upload_holds_unmatched_ids
+ErrorException: Undefined array key "held_punches"
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Foundation\Bootstrap\HandleExceptions.php:255
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:160
+
+4) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_over_1000_lines_is_refused_whole
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed (Connection: sqlite, SQL: select count(*) as aggregate from "biometric_feed")
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:829
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:125
+
+Caused by
+PDOException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:423
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:816
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:125
+
+5) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_missing_attlog_is_422
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed (Connection: sqlite, SQL: select count(*) as aggregate from "biometric_feed")
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:829
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:137
+
+Caused by
+PDOException: SQLSTATE[HY000]: General error: 1 no such table: biometric_feed
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:423
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:816
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:783
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Connection.php:414
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2913
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2902
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3456
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:2901
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3383
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3311
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\BiometricsTestCase.php:109
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:137
+
+6) Tests\Feature\Biometrics\RefusedDatesTest::test_s_012_6_manual_upload_refuses_too
+ErrorException: Undefined array key "refused_dates"
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Foundation\Bootstrap\HandleExceptions.php:255
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\RefusedDatesTest.php:69
+
+--
+
+There were 49 failures:
+
+1) Tests\Feature\Biometrics\DeviceUsersTest::test_s_012_13_new_users_listed_known_untouched
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DeviceUsersTest.php:22
+
+2) Tests\Feature\Biometrics\DeviceUsersTest::test_s_012_13_deleted_device_user
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DeviceUsersTest.php:39
+
+3) Tests\Feature\Biometrics\DeviceUsersTest::test_s_012_13_listed_until_hr_adds_them
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DeviceUsersTest.php:50
+
+4) Tests\Feature\Biometrics\DeviceUsersTest::test_s_012_13_untrusted_names_and_ids
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DeviceUsersTest.php:60
+
+5) Tests\Feature\Biometrics\DuplicatesTest::test_s_012_3_same_punch_twice
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DuplicatesTest.php:20
+
+6) Tests\Feature\Biometrics\DuplicatesTest::test_s_012_3_reread_of_200_known_records
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DuplicatesTest.php:44
+
+7) Tests\Feature\Biometrics\DuplicatesTest::test_s_012_3_retry_after_timeout
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DuplicatesTest.php:84
+
+8) Tests\Feature\Biometrics\DuplicatesTest::test_s_012_3_quiet_runs_are_pruned_and_hidden
+a run that stored punches is kept
+Failed asserting that null is not null.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\DuplicatesTest.php:102
+
+9) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_no_key_configured_means_off
+POST /api/biometrics/punches
+Failed asserting that 404 is identical to 401.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:78
+
+10) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_the_right_key_works
+POST /api/biometrics/punches: {
+    "message": "The route api/biometrics/punches could not be found."
+}
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:91
+
+11) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_rate_limit_is_300_an_hour_per_key
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:105
+
+12) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_wrong_method_is_405
+Expected response status code [405] but received 404.
+Failed asserting that 404 is identical to 405.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:120
+
+13) Tests\Feature\Biometrics\FeedKeyTest::test_s_012_2_keys_are_separate
+Expected response status code [401] but received 404.
+Failed asserting that 404 is identical to 401.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\FeedKeyTest.php:133
+
+14) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_last_contact_is_stored_and_shown_in_manila_time
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:33
+
+15) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_wrong_key_does_not_update_last_contact
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:46
+
+16) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_silence_warning_in_the_day
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:59
+
+17) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_no_warning_at_night
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:77
+
+18) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_agent_alive_device_unreachable
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:95
+
+19) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_11_record_count_warnings
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:110
+
+20) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_6_clock_drift_is_shown
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:127
+
+21) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_status_is_read_only_and_has_no_names
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:140
+
+22) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_bad_heartbeat_values
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:162
+
+23) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_panel_needs_the_import_permission
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:179
+
+24) Tests\Feature\Biometrics\HeartbeatAndStatusTest::test_s_012_9_agent_runs_are_listed_for_admins
+Failed asserting that '<!DOCTYPE html>\n
+<html lang="en">\n
+<head>\n
+    <meta charset="UTF-8">\n
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n
+    <meta name="csrf-token" content="ES42Jkgen8t9xszbLMSAxFku0WWLwjSa2CDaDwAS">\n
+    <title>Import Attendance</title>\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">\n
+    <style>\n
+        body { background-color: #f4f6f9; }\n
+        .sidebar {\n
+            height: 100vh;\n
+            background: #212529;\n
+            color: #fff;\n
+            width: 250px;\n
+            position: fixed;\n
+            top: 0; left: 0;\n
+            z-index: 100;\n
+            overflow-y: auto;\n
+            overflow-x: hidden;\n
+            scrollbar-width: thin;\n
+            scrollbar-color: rgba(255,255,255,.3) transparent;\n
+        }\n
+        .sidebar::-webkit-scrollbar { width: 6px; }\n
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 3px; }\n
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }\n
+        .sidebar .nav-link { color: rgba(255,255,255,.7); padding: .75rem 1.25rem; }\n
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,.1); }\n
+        .sidebar .nav-link i { margin-right: .5rem; width: 20px; text-align: center; }\n
+        .main-content { margin-left: 250px; padding: 1.5rem; }\n
+        .sidebar-brand { padding: 1rem 1.25rem; font-size: 1.1rem; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }\n
+        .top-bar { background: #fff; border-bottom: 1px solid #dee2e6; padding: .75rem 1.5rem; margin: -1.5rem -1.5rem 1.5rem; }\n
+        @media print {\n
+            .sidebar, .top-bar, .no-print { display: none !important; }\n
+            .main-content { margin-left: 0 !important; padding: 0 !important; }\n
+        }\n
+    </style>\n
+    </head>\n
+<body>\n
+    \n
+    <div class="sidebar d-print-none">\n
+        <div class="sidebar-brand">\n
+            <i class="bi bi-clock-history"></i> HR Attendance\n
+        </div>\n
+                <nav class="nav flex-column mt-2">\n
+                        <a class="nav-link " href="http://localhost/dashboard">\n
+                <i class="bi bi-speedometer2"></i> Dashboard\n
+            </a>\n
+                                    <a class="nav-link active" href="http://localhost/import">\n
+                <i class="bi bi-upload"></i> Import Attendance\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance">\n
+                <i class="bi bi-calendar-check"></i> Attendance Viewer\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance-calendar">\n
+                <i class="bi bi-calendar2-week"></i> Attendance Calendar\n
+            </a>\n
+                                                            <a class="nav-link " href="http://localhost/employees">\n
+                <i class="bi bi-people"></i> Employees\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/shifts">\n
+                <i class="bi bi-clock"></i> Shifts\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/departments">\n
+                <i class="bi bi-diagram-3"></i> Departments\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/day-off-calendar">\n
+                <i class="bi bi-calendar-x"></i> Day Off Calendar\n
+            </a>\n
+                                                <a class="nav-link " href="http://localhost/manus-edit-logs">\n
+                <i class="bi bi-journal-code"></i> Edit Logs\n
+            </a>\n
+                                                            <div class="nav-item">\n
+                <a class="nav-link d-flex justify-content-between align-items-center " data-bs-toggle="collapse" href="#settingsMenu" role="button">\n
+                    <span><i class="bi bi-gear"></i> Settings</span>\n
+                    <i class="bi bi-chevron-down small"></i>\n
+                </a>\n
+                <div class="collapse " id="settingsMenu">\n
+                                        <a class="nav-link ps-4 py-2 " href="http://localhost/settings/employment-statuses">\n
+                        <i class="bi bi-tags"></i> Employment Statuses\n
+                    </a>\n
+                                                            <a class="nav-link ps-4 py-2 " href="http://localhost/settings/holidays">\n
+                        <i class="bi bi-calendar-heart"></i> Holiday Calendar\n
+                    </a>\n
+                                                        </div>\n
+            </div>\n
+                    </nav>\n
+    </div>\n
+\n
+    \n
+    <div class="main-content">\n
+        <div class="top-bar d-flex justify-content-between align-items-center d-print-none">\n
+            <h5 class="mb-0">Import Attendance</h5>\n
+            <div class="d-flex align-items-center gap-3">\n
+                <span class="text-muted small">\n
+                    Ms. Andreane Rolfson\n
+                                            <span class="badge bg-secondary">Admin</span>\n
+                                    </span>\n
+                <form method="POST" action="http://localhost/logout" class="d-inline">\n
+                    <input type="hidden" name="_token" value="ES42Jkgen8t9xszbLMSAxFku0WWLwjSa2CDaDwAS" autocomplete="off">                    <button type="submit" class="btn btn-sm btn-outline-secondary">\n
+                        <i class="bi bi-box-arrow-right"></i> Logout\n
+                    </button>\n
+                </form>\n
+            </div>\n
+        </div>\n
+\n
+        \n
+        \n
+        \n
+        \n
+        <div class="row g-4">\n
+    \n
+    <div class="col-lg-5">\n
+        <div class="card border-0 shadow-sm">\n
+            <div class="card-header bg-white">\n
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Upload attlog.dat</h5>\n
+            </div>\n
+            <div class="card-body">\n
+                <div class="alert alert-info small mb-3 mb-0-child">\n
+                    <i class="bi bi-info-circle"></i>\n
+                    Users are synced separately.\n
+                    <a href="http://localhost/import/sync-users" class="fw-semibold">Sync Users</a>\n
+                    handles user.dat (with its own preview);\n
+                    <a href="http://localhost/import/check" class="fw-semibold">Check user.dat</a>\n
+                    is a read-only mapping check.\n
+                </div>\n
+                <form method="POST" action="http://localhost/import/upload" enctype="multipart/form-data">\n
+                    <input type="hidden" name="_token" value="ES42Jkgen8t9xszbLMSAxFku0WWLwjSa2CDaDwAS" autocomplete="off">                    <div class="mb-3">\n
+                        <label for="attlog_dat" class="form-label">attlog.dat <span class="text-danger">*</span></label>\n
+                        <input type="file" class="form-control "\n
+                               id="attlog_dat" name="attlog_dat" accept=".dat,.txt" required>\n
+                                                <div class="form-text">ZKTeco attendance log file (punch records)</div>\n
+                    </div>\n
+                    <button type="submit" class="btn btn-primary w-100">\n
+                        <i class="bi bi-eye"></i> Upload &amp; Preview\n
+                    </button>\n
+                </form>\n
+\n
+                <hr>\n
+\n
+                <div class="d-grid gap-2">\n
+                    <a href="http://localhost/import/sync-users" class="btn btn-outline-success btn-sm">\n
+                        <i class="bi bi-people-fill"></i> Sync Users (user.dat)\n
+                    </a>\n
+                    <a href="http://localhost/import/check" class="btn btn-outline-info btn-sm">\n
+                        <i class="bi bi-search"></i> Check user.dat (read-only)\n
+                    </a>\n
+                </div>\n
+            </div>\n
+        </div>\n
+    </div>\n
+\n
+    \n
+    <div class="col-lg-7">\n
+        <div class="card border-0 shadow-sm">\n
+            <div class="card-header bg-white">\n
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Import History</h5>\n
+            </div>\n
+            <div class="card-body p-0">\n
+                <table class="table table-hover mb-0">\n
+                    <thead class="table-light">\n
+                        <tr>\n
+                            <th>#</th>\n
+                            <th>Uploaded By</th>\n
+                            <th>Status</th>\n
+                            <th>Stats</th>\n
+                            <th>Date</th>\n
+                        </tr>\n
+                    </thead>\n
+                    <tbody id="runs-table">\n
+                                                <tr>\n
+                            <td colspan="5" class="text-center text-muted py-4">No import runs yet.</td>\n
+                        </tr>\n
+                                            </tbody>\n
+                </table>\n
+            </div>\n
+                    </div>\n
+    </div>\n
+</div>\n
+    </div>\n
+\n
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>\n
+    <script>\n
+document.addEventListener('DOMContentLoaded', function() {\n
+    // Poll for active runs\n
+    function pollActiveRuns() {\n
+        const rows = document.querySelectorAll('tr[data-run-id]');\n
+        rows.forEach(row => {\n
+            const status = row.getAttribute('data-status');\n
+            if (status === 'queued' || status === 'processing') {\n
+                const runId = row.getAttribute('data-run-id');\n
+                fetch(`/import/${runId}/status`)\n
+                    .then(r => r.json())\n
+                    .then(data => {\n
+                        row.setAttribute('data-status', data.status);\n
+\n
+                        // Update status badge\n
+                        const badge = row.querySelector('.run-status-badge');\n
+                        badge.textContent = data.status.toUpperCase();\n
+                        badge.className = 'badge run-status-badge';\n
+                        if (data.status === 'done') badge.classList.add('bg-success');\n
+                        else if (data.status === 'failed') badge.classList.add('bg-danger');\n
+                        else if (data.status === 'processing') badge.classList.add('bg-warning', 'text-dark');\n
+                        else badge.classList.add('bg-info', 'text-dark');\n
+\n
+                        // Update stats\n
+                        const statsCell = row.querySelector('.run-stats');\n
+                        if (data.stats_json) {\n
+                            const s = data.stats_json;\n
+                            statsCell.innerHTML =\n
+                                `Users: ${s.total_users_parsed || 0}, ` +\n
+                                `Logs: ${s.total_logs_inserted || 0}/${s.total_logs_parsed || 0}, ` +\n
+                                `Dupes: ${s.total_duplicates_skipped || 0}, ` +\n
+                                `Unmatched: ${s.unmatched_zkteco_ids || 0}` +\n
+                                (s.duration_seconds ? ` (${s.duration_seconds}s)` : '');\n
+                            // The wording comes from the server so it matches a reloaded page.\n
+                            if (data.compute_text) {\n
+                                statsCell.appendChild(document.createElement('br'));\n
+                                statsCell.appendChild(document.createTextNode(data.compute_text));\n
+                            }\n
+                        }\n
+                    })\n
+                    .catch(() => {});\n
+            }\n
+        });\n
+    }\n
+\n
+    setInterval(pollActiveRuns, 3000);\n
+});\n
+</script>\n
+</body>\n
+</html>\n
+' matches PCRE pattern "/data-run-id="".*?Biometric agent \(office-pc\)/s".
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeartbeatAndStatusTest.php:196
+
+25) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_unmatched_punches_are_held
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:30
+
+26) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_creating_the_employee_applies_them
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:46
+
+27) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_sync_users_creation_applies_them
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:63
+
+28) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_other_id_applies_nothing
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:78
+
+29) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_held_punches_respect_locks
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:91
+
+30) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_held_punches_are_deduplicated
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:107
+
+31) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_held_punches_match_stored_ones
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:122
+
+32) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_next_post_applies_held_punches_of_existing_employees
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:136
+
+33) Tests\Feature\Biometrics\HeldPunchesTest::test_s_012_7_preview_commit_no_longer_blocks_unmatched_ids
+Failed asserting that '<!DOCTYPE html>\n
+<html lang="en">\n
+<head>\n
+    <meta charset="UTF-8">\n
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n
+    <meta name="csrf-token" content="dqYifMGz6MMp84wJVbsbHuvxnoxHGGiIfow01mX3">\n
+    <title>Attlog.dat Preview</title>\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">\n
+    <style>\n
+        body { background-color: #f4f6f9; }\n
+        .sidebar {\n
+            height: 100vh;\n
+            background: #212529;\n
+            color: #fff;\n
+            width: 250px;\n
+            position: fixed;\n
+            top: 0; left: 0;\n
+            z-index: 100;\n
+            overflow-y: auto;\n
+            overflow-x: hidden;\n
+            scrollbar-width: thin;\n
+            scrollbar-color: rgba(255,255,255,.3) transparent;\n
+        }\n
+        .sidebar::-webkit-scrollbar { width: 6px; }\n
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 3px; }\n
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }\n
+        .sidebar .nav-link { color: rgba(255,255,255,.7); padding: .75rem 1.25rem; }\n
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,.1); }\n
+        .sidebar .nav-link i { margin-right: .5rem; width: 20px; text-align: center; }\n
+        .main-content { margin-left: 250px; padding: 1.5rem; }\n
+        .sidebar-brand { padding: 1rem 1.25rem; font-size: 1.1rem; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }\n
+        .top-bar { background: #fff; border-bottom: 1px solid #dee2e6; padding: .75rem 1.5rem; margin: -1.5rem -1.5rem 1.5rem; }\n
+        @media print {\n
+            .sidebar, .top-bar, .no-print { display: none !important; }\n
+            .main-content { margin-left: 0 !important; padding: 0 !important; }\n
+        }\n
+    </style>\n
+    </head>\n
+<body>\n
+    \n
+    <div class="sidebar d-print-none">\n
+        <div class="sidebar-brand">\n
+            <i class="bi bi-clock-history"></i> HR Attendance\n
+        </div>\n
+                <nav class="nav flex-column mt-2">\n
+                        <a class="nav-link " href="http://localhost/dashboard">\n
+                <i class="bi bi-speedometer2"></i> Dashboard\n
+            </a>\n
+                                    <a class="nav-link active" href="http://localhost/import">\n
+                <i class="bi bi-upload"></i> Import Attendance\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance">\n
+                <i class="bi bi-calendar-check"></i> Attendance Viewer\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance-calendar">\n
+                <i class="bi bi-calendar2-week"></i> Attendance Calendar\n
+            </a>\n
+                                                <a class="nav-link " href="http://localhost/approvals">\n
+                <i class="bi bi-check2-square"></i> Approvals\n
+                            </a>\n
+                                    <a class="nav-link " href="http://localhost/payroll">\n
+                <i class="bi bi-cash-stack"></i> Payroll\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/employees">\n
+                <i class="bi bi-people"></i> Employees\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/shifts">\n
+                <i class="bi bi-clock"></i> Shifts\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/departments">\n
+                <i class="bi bi-diagram-3"></i> Departments\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/day-off-calendar">\n
+                <i class="bi bi-calendar-x"></i> Day Off Calendar\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/users">\n
+                <i class="bi bi-person-gear"></i> User Management\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/manus-edit-logs">\n
+                <i class="bi bi-journal-code"></i> Edit Logs\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/audit-logs">\n
+                <i class="bi bi-shield-check"></i> Audit Logs\n
+            </a>\n
+                                                <div class="nav-item">\n
+                <a class="nav-link d-flex justify-content-between align-items-center " data-bs-toggle="collapse" href="#settingsMenu" role="button">\n
+                    <span><i class="bi bi-gear"></i> Settings</span>\n
+                    <i class="bi bi-chevron-down small"></i>\n
+                </a>\n
+                <div class="collapse " id="settingsMenu">\n
+                                        <a class="nav-link ps-4 py-2 " href="http://localhost/settings/employment-statuses">\n
+                        <i class="bi bi-tags"></i> Employment Statuses\n
+                    </a>\n
+                                                            <a class="nav-link ps-4 py-2 " href="http://localhost/settings/holidays">\n
+                        <i class="bi bi-calendar-heart"></i> Holiday Calendar\n
+                    </a>\n
+                                                            <a class="nav-link ps-4 py-2 " href="http://localhost/settings/feature-permissions">\n
+                        <i class="bi bi-shield-lock"></i> Feature Permissions\n
+                    </a>\n
+                                    </div>\n
+            </div>\n
+                    </nav>\n
+    </div>\n
+\n
+    \n
+    <div class="main-content">\n
+        <div class="top-bar d-flex justify-content-between align-items-center d-print-none">\n
+            <h5 class="mb-0">Attlog.dat Preview</h5>\n
+            <div class="d-flex align-items-center gap-3">\n
+                <span class="text-muted small">\n
+                    Liza Kirlin\n
+                                            <span class="badge bg-secondary">CEO</span>\n
+                                    </span>\n
+                <form method="POST" action="http://localhost/logout" class="d-inline">\n
+                    <input type="hidden" name="_token" value="dqYifMGz6MMp84wJVbsbHuvxnoxHGGiIfow01mX3" autocomplete="off">                    <button type="submit" class="btn btn-sm btn-outline-secondary">\n
+                        <i class="bi bi-box-arrow-right"></i> Logout\n
+                    </button>\n
+                </form>\n
+            </div>\n
+        </div>\n
+\n
+        \n
+        \n
+        \n
+        \n
+        \n
+\n
+<form id="importPreviewForm" method="GET" action="http://localhost/import/preview">\n
+    <div class="card border-0 shadow-sm mb-3">\n
+        <div class="card-body">\n
+            <div class="d-flex justify-content-between flex-wrap gap-2 align-items-center">\n
+                <div>\n
+                    <div class="text-muted small">Staged file</div>\n
+                    <div class="fw-semibold">attlog.dat</div>\n
+                </div>\n
+                <div class="d-flex gap-2 flex-wrap">\n
+                    <span class="badge bg-secondary">Total lines: 8</span>\n
+                    <span class="badge bg-warning text-dark">Out of range: 0</span>\n
+                    <span class="badge bg-danger">Invalid: 0</span>\n
+                    <span class="badge bg-primary">Known IDs: 1</span>\n
+                    <span class="badge bg-danger">Unknown IDs: 1</span>\n
+                </div>\n
+            </div>\n
+\n
+            <hr class="my-3">\n
+\n
+            \n
+            <div class="row g-2 align-items-end">\n
+                <div class="col-auto">\n
+                    <label class="form-label small fw-semibold mb-1">Import window — from</label>\n
+                    <input type="date" name="date_from" value="2026-11-01" class="form-control form-control-sm">\n
+                </div>\n
+                <div class="col-auto">\n
+                    <label class="form-label small fw-semibold mb-1">to</label>\n
+                    <input type="date" name="date_to" value="2026-11-05" class="form-control form-control-sm">\n
+                </div>\n
+                <div class="col-auto">\n
+                    <button type="submit" class="btn btn-outline-primary btn-sm">\n
+                        <i class="bi bi-arrow-repeat"></i> Reload preview\n
+                    </button>\n
+                </div>\n
+                <div class="col">\n
+                    <div class="small text-muted">\n
+                        Only punches within this window are imported. Older or newer punches in the file are ignored.\n
+                    </div>\n
+                </div>\n
+            </div>\n
+\n
+                            <div class="alert alert-danger small mt-3 mb-0">\n
+                    <i class="bi bi-exclamation-triangle-fill"></i>\n
+                    <strong>Cannot proceed —</strong> 1 ZKTeco ID(s) in the file don't match any employee.\n
+                    Add or sync them first:\n
+                    <a href="http://localhost/import/sync-users" class="fw-semibold">Sync Users</a> ·\n
+                    <a href="http://localhost/employees" class="fw-semibold">Manage Employees</a>\n
+                </div>\n
+                    </div>\n
+    </div>\n
+</form>\n
+\n
+<form method="POST" action="http://localhost/import/preview/commit" id="commitForm"\n
+      onsubmit="return confirmCommit();">\n
+    <input type="hidden" name="_token" value="dqYifMGz6MMp84wJVbsbHuvxnoxHGGiIfow01mX3" autocomplete="off">    <input type="hidden" name="date_from" value="2026-11-01">\n
+    <input type="hidden" name="date_to"   value="2026-11-05">\n
+\n
+    <div class="card border-0 shadow-sm mb-3">\n
+        <div class="card-body py-2 d-flex justify-content-end gap-2">\n
+            <a href="http://localhost/import" class="btn btn-outline-secondary btn-sm"\n
+               onclick="return confirm('Leave without importing? The staged file will be kept until you cancel it explicitly.');">\n
+                <i class="bi bi-arrow-left"></i> Back\n
+            </a>\n
+            <button type="button" class="btn btn-outline-danger btn-sm"\n
+                    onclick="if (confirm('Discard the staged file?')) { document.getElementById('cancelForm').submit(); }">\n
+                <i class="bi bi-x-lg"></i> Cancel &amp; Discard\n
+            </button>\n
+            <button type="submit" class="btn btn-primary btn-sm"  disabled title="Resolve unknown IDs first" >\n
+                <i class="bi bi-cloud-upload"></i> Proceed with Import\n
+            </button>\n
+        </div>\n
+    </div>\n
+\n
+            <div class="card border-0 shadow-sm mb-3">\n
+            <div class="card-header bg-white text-danger">\n
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Unknown ZKTeco IDs — not in employees table</h6>\n
+            </div>\n
+            <div class="card-body p-0">\n
+                <div class="table-responsive">\n
+                    <table class="table table-sm table-hover mb-0">\n
+                        <thead class="table-light">\n
+                            <tr>\n
+                                <th style="width:120px">ZKTeco ID</th>\n
+                                <th style="width:120px">Punch days</th>\n
+                                                                    <th class="text-center small p-1" style="min-width:38px;">\n
+                                        Nov 1\n
+                                    </th>\n
+                                                                    <th class="text-center small p-1" style="min-width:38px;">\n
+                                        Nov 2\n
+                                    </th>\n
+                                                                    <th class="text-center small p-1" style="min-width:38px;">\n
+                                        Nov 3\n
+                                    </th>\n
+                                                                    <th class="text-center small p-1" style="min-width:38px;">\n
+                                        Nov 4\n
+                                    </th>\n
+                                                                    <th class="text-center small p-1" style="min-width:38px;">\n
+                                        Nov 5\n
+                                    </th>\n
+                                                            </tr>\n
+                        </thead>\n
+                        <tbody>\n
+                                                            <tr class="table-danger">\n
+                                    <td class="font-monospace small">99</td>\n
+                                    <td class="small">1 / 5</td>\n
+                                                                            <td class="text-center p-1">\n
+                                                                                            <span class="text-muted">·</span>\n
+                                                                                    </td>\n
+                                                                            <td class="text-center p-1">\n
+                                                                                            ✅\n
+                                                                                    </td>\n
+                                                                            <td class="text-center p-1">\n
+                                                                                            <span class="text-muted">·</span>\n
+                                                                                    </td>\n
+                                                                            <td class="text-center p-1">\n
+                                                                                            <span class="text-muted">·</span>\n
+                                                                                    </td>\n
+                                                                            <td class="text-center p-1">\n
+                                                                                            <span class="text-muted">·</span>\n
+                                                                                    </td>\n
+                                                                    </tr>\n
+                                                    </tbody>\n
+                    </table>\n
+                </div>\n
+            </div>\n
+        </div>\n
+    \n
+    <div class="card border-0 shadow-sm">\n
+        <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">\n
+            <h6 class="mb-0"><i class="bi bi-calendar-check"></i> Employees with punches (1)</h6>\n
+            <div class="d-flex gap-3 align-items-center small text-muted">\n
+                <span>Uncheck to exclude from this import.</span>\n
+                <span>\n
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleAllEmployees(true)">Include all</button>\n
+                    /\n
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleAllEmployees(false)">Exclude all</button>\n
+                </span>\n
+            </div>\n
+        </div>\n
+        <div class="card-body p-0">\n
+            <div class="table-responsive">\n
+                <table class="table table-sm table-hover mb-0">\n
+                    <thead class="table-light">\n
+                        <tr>\n
+                            <th style="width:50px" class="text-center">Include</th>\n
+                            <th style="width:140px">Department</th>\n
+                            <th style="width:170px">Employee</th>\n
+                            <th style="width:80px">Days</th>\n
+                                                            <th class="text-center small p-1" style="min-width:38px;">\n
+                                    Nov 1\n
+                                </th>\n
+                                                            <th class="text-center small p-1" style="min-width:38px;">\n
+                                    Nov 2\n
+                                </th>\n
+                                                            <th class="text-center small p-1" style="min-width:38px;">\n
+                                    Nov 3\n
+                                </th>\n
+                                                            <th class="text-center small p-1" style="min-width:38px;">\n
+                                    Nov 4\n
+                                </th>\n
+                                                            <th class="text-center small p-1" style="min-width:38px;">\n
+                                    Nov 5\n
+                                </th>\n
+                                                    </tr>\n
+                    </thead>\n
+                    <tbody>\n
+                                                    <tr>\n
+                                <td class="text-center">\n
+                                    <input class="form-check-input emp-include" type="checkbox"\n
+                                           name="include_zkteco[]" value="1" checked>\n
+                                </td>\n
+                                <td class="small">—</td>\n
+                                <td class="small">\n
+                                    <a href="http://localhost/employees/1/edit" target="_blank">Employee A</a>\n
+                                    <div class="text-muted font-monospace" style="font-size:0.75em;">ID 1</div>\n
+                                </td>\n
+                                <td class="small">1 / 5</td>\n
+                                                                    <td class="text-center p-1">\n
+                                                                                    <span class="text-muted">❌</span>\n
+                                                                            </td>\n
+                                                                    <td class="text-center p-1">\n
+                                                                                    ✅\n
+                                                                            </td>\n
+                                                                    <td class="text-center p-1">\n
+                                                                                    <span class="text-muted">❌</span>\n
+                                                                            </td>\n
+                                                                    <td class="text-center p-1">\n
+                                                                                    <span class="text-muted">❌</span>\n
+                                                                            </td>\n
+                                                                    <td class="text-center p-1">\n
+                                                                                    <span class="text-muted">❌</span>\n
+                                                                            </td>\n
+                                                            </tr>\n
+                                            </tbody>\n
+                </table>\n
+            </div>\n
+        </div>\n
+    </div>\n
+</form>\n
+\n
+\n
+<form id="cancelForm" method="POST" action="http://localhost/import/preview/cancel" style="display:none;">\n
+    <input type="hidden" name="_token" value="dqYifMGz6MMp84wJVbsbHuvxnoxHGGiIfow01mX3" autocomplete="off"></form>\n
+\n
+<script>\n
+    function toggleAllEmployees(state) {\n
+        document.querySelectorAll('.emp-include').forEach(function (cb) { cb.checked = state; });\n
+    }\n
+    function confirmCommit() {\n
+        var included = document.querySelectorAll('.emp-include:checked').length;\n
+        var total = document.querySelectorAll('.emp-include').length;\n
+        if (included === 0) {\n
+            return confirm('You unchecked ALL employees — nothing will be imported. Continue anyway?');\n
+        }\n
+        if (included < total) {\n
+            return confirm('Proceed with import for ' + included + ' of ' + total + ' employees? Excluded employees will be skipped.');\n
+        }\n
+        return confirm('Proceed with import for all ' + total + ' employees within the selected date range?');\n
+    }\n
+</script>\n
+    </div>\n
+\n
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>\n
+    </body>\n
+</html>\n
+' [UTF-8](length: 20512) contains "held until" [ASCII](length: 10).
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:560
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\HeldPunchesTest.php:178
+
+34) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_one_punch_is_stored_and_computed
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:17
+
+35) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_four_punch_day
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:38
+
+36) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_bad_lines_are_counted_not_stored_not_echoed
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:60
+
+37) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_crlf_and_extra_columns
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:76
+
+38) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_same_result_as_a_manual_upload
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:100
+
+39) Tests\Feature\Biometrics\PunchArrivesTest::test_s_012_1_midnight_edge_keeps_its_date
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\PunchArrivesTest.php:110
+
+40) Tests\Feature\Biometrics\RefusedDatesTest::test_s_012_6_reset_clock_punches_are_refused_and_counted
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\RefusedDatesTest.php:25
+
+41) Tests\Feature\Biometrics\RefusedDatesTest::test_s_012_6_refused_punch_is_counted_once
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\RefusedDatesTest.php:43
+
+42) Tests\Feature\Biometrics\RefusedDatesTest::test_s_012_6_import_page_shows_refused_count
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\RefusedDatesTest.php:54
+
+43) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_locked_date
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:28
+
+44) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_override_stays
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:42
+
+45) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_approved_fields_stay
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:54
+
+46) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_pending_request_stays_pending
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:70
+
+47) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_overnight_time_out_joins_the_previous_day
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:82
+
+48) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_compute_error_keeps_the_punch
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:106
+
+49) Tests\Feature\Biometrics\SameAsManualTest::test_s_012_8_inactive_employee
+Expected response status code [200] but received 404.
+Failed asserting that 404 is identical to 200.
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\vendor\laravel\framework\src\Illuminate\Testing\Concerns\AssertsStatusCodes.php:16
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Biometrics\SameAsManualTest.php:116
+
+ERRORS!
+Tests: 55, Assertions: 56, Errors: 6, Failures: 49.

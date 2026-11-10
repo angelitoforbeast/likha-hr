@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceImportRun;
 use App\Models\AttendanceLog;
+use App\Models\BiometricFeed;
 use App\Models\Employee;
 use App\Services\AttendanceComputeService;
 use Carbon\Carbon;
@@ -39,14 +40,28 @@ class ZktecoParserService
             'total_logs_inserted'      => 0,
             'total_duplicates_skipped' => 0,
             'unmatched_zkteco_ids'     => 0,
+            // Spec 012: lines that cannot be read, punches held for an ID with no employee
+            // (new ones), and punches refused for a date outside 2020-01-01 .. now + 1 day
+            // (in this file, and the ones not seen before).
+            'invalid_lines'            => 0,
+            'held_punches'             => 0,
+            'refused_dates'            => 0,
+            'refused_new'              => 0,
             'duration_seconds'         => 0,
         ];
 
-        // The commit step stored which preview filter produced this file. It must
-        // outlive the counts written below, on success and on failure alike.
-        $previewFilter = $run->statsArray()['preview_filter'] ?? null;
+        // The commit step stored which preview filter produced this file, and an agent
+        // post or a held-punch run stored where it came from. They must outlive the counts
+        // written below, on success and on failure alike.
+        $before = $run->statsArray();
+        $previewFilter = $before['preview_filter'] ?? null;
         if (is_array($previewFilter)) {
             $stats['preview_filter'] = $previewFilter;
+        }
+        foreach (['source', 'agent_id'] as $origin) {
+            if (isset($before[$origin]) && is_string($before[$origin])) {
+                $stats[$origin] = $before[$origin];
+            }
         }
 
         try {
@@ -438,20 +453,35 @@ class ZktecoParserService
             throw new \RuntimeException("Cannot open attlog.dat");
         }
 
+        // Every employee's ID, to tell an ID with no employee (held) from one missing only
+        // from the file's user list (skipped, as before).
+        $knownZk = Employee::whereNotNull('zkteco_id')->pluck('id', 'zkteco_id')->toArray();
+
         // Pre-load existing employee zkteco_id => id map for unmatched tracking
         if (empty($userMap)) {
-            $userMap = Employee::pluck('id', 'zkteco_id')->toArray();
+            $userMap = $knownZk;
         }
+
+        // Spec 012, decision 5: the dates are checked for the office agent and for held punches.
+        // A manual upload keeps its own date window, chosen on the preview, as before.
+        $range = in_array($stats['source'] ?? null, ['agent', 'held'], true) ? $this->acceptedRange() : null;
+        // A punch refused once stays refused: a device clock that ran a month ahead keeps
+        // sending that punch until the device is cleared, and when its date comes near it must
+        // still not be stored (spec 012, decision 5, "never stored").
+        $wasRefused = $range === null ? [] : DB::table('biometric_feed')->where('kind', BiometricFeed::REFUSED)
+            ->get(['key', 'value'])->mapWithKeys(fn ($row) => [$row->key . "\t" . $row->value => true])->all();
 
         // Pre-load the punches already stored for the employees and time span of this
         // file, so importing the same punches again does not store them twice:
         // employee_id => [timestamp, ...]
-        $existingPunches = $this->loadStoredPunches($handle, $userMap);
+        $existingPunches = $this->loadStoredPunches($handle, $userMap, $range);
         rewind($handle);
 
         $buffer = [];
         $chunkSize = 1000;
         $unmatchedIds = [];
+        $held = [];     // "zkteco_id<TAB>Y-m-d H:i:s" => true
+        $refused = [];  // the same
 
         while (($line = fgets($handle)) !== false) {
             $line = trim($line);
@@ -463,22 +493,44 @@ class ZktecoParserService
 
             $parsed = $this->parseAttlogLine($line);
             if (!$parsed || !$this->isRealTimestamp($parsed['punched_at'])) {
+                $stats['invalid_lines']++;
                 continue;
             }
 
             $zktecoId = $parsed['zkteco_id'];
             $punchedAt = $parsed['punched_at'];
-
-            // Map to employee
             $employeeId = $userMap[$zktecoId] ?? null;
-            if (!$employeeId) {
-                $unmatchedIds[$zktecoId] = true;
+
+            // An ID that matches no employee must look like a device user ID (1–9 digits) to
+            // be held; anything else is junk from the file or the network (spec 012, decision 4).
+            if (!$employeeId && !self::isDeviceUserId($zktecoId)) {
+                $stats['invalid_lines']++;
                 continue;
             }
 
             // Convert to Asia/Manila
             $punchCarbon = Carbon::parse($punchedAt, 'Asia/Manila');
             $punchKey = $punchCarbon->format('Y-m-d H:i:s');
+
+            // A device whose clock reset must not make days (spec 012, decision 5): refused,
+            // never stored or held, counted, and remembered once so the page can show it.
+            $refusedKey = mb_substr($zktecoId, 0, 64) . "\t" . $punchKey;
+            if (!$this->inAcceptedRange($punchKey, $range) || isset($wasRefused[$refusedKey])) {
+                $stats['refused_dates']++;
+                $refused[$refusedKey] = true;
+                continue;
+            }
+
+            if (!$employeeId) {
+                $unmatchedIds[$zktecoId] = true;
+                // Held until HR adds this employee, then applied through this same path. An ID
+                // that does belong to an employee who is only missing from the file's user list
+                // is skipped as before.
+                if (!isset($knownZk[$zktecoId])) {
+                    $held[$zktecoId . "\t" . $punchKey] = true;
+                }
+                continue;
+            }
 
             $punchDate = $punchCarbon->format('Y-m-d');
             $employeeDays[$employeeId][$punchDate] ??= false;
@@ -521,6 +573,55 @@ class ZktecoParserService
         fclose($handle);
 
         $stats['unmatched_zkteco_ids'] = count($unmatchedIds);
+        $stats['held_punches'] = $this->rememberFeedRows(BiometricFeed::HELD, array_keys($held));
+        $stats['refused_new'] = $this->rememberFeedRows(BiometricFeed::REFUSED, array_keys($refused));
+    }
+
+    /**
+     * Whether an ID has the shape of a device user ID: 1 to 9 digits.
+     */
+    public static function isDeviceUserId(string $zktecoId): bool
+    {
+        return preg_match('/^\d{1,9}$/', $zktecoId) === 1;
+    }
+
+    /**
+     * The punch times an import accepts (spec 012, decision 5): from 2020-01-01 up to one day
+     * after now, both inclusive, as "Y-m-d H:i:s" in Manila time.
+     *
+     * @return array{0:string, 1:string}
+     */
+    public function acceptedRange(): array
+    {
+        return [
+            (string) config('biometrics.earliest_punch', '2020-01-01 00:00:00'),
+            Carbon::now('Asia/Manila')->addHours((int) config('biometrics.future_hours', 24))->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    protected function inAcceptedRange(string $punchKey, ?array $range): bool
+    {
+        return $range === null || ($punchKey >= $range[0] && $punchKey <= $range[1]);
+    }
+
+    /**
+     * Store "key<TAB>value" pairs as rows of one kind, each at most once, and return how many
+     * were new. The unique index on kind, key and value does the de-duplication.
+     */
+    protected function rememberFeedRows(string $kind, array $pairs): int
+    {
+        $new = 0;
+        $now = now();
+        foreach (array_chunk($pairs, 500) as $chunk) {
+            $rows = array_map(function (string $pair) use ($kind, $now) {
+                [$key, $value] = explode("\t", $pair, 2);
+
+                return ['kind' => $kind, 'key' => $key, 'value' => $value, 'created_at' => $now, 'updated_at' => $now];
+            }, $chunk);
+            $new += DB::table('biometric_feed')->insertOrIgnore($rows);
+        }
+
+        return $new;
     }
 
     /**
@@ -533,7 +634,7 @@ class ZktecoParserService
      * @param resource $handle open attlog.dat; left at the end of the file
      * @return array<int, int[]> employee_id => stored punch timestamps
      */
-    protected function loadStoredPunches($handle, array $userMap): array
+    protected function loadStoredPunches($handle, array $userMap, ?array $range): array
     {
         $employeeIds = [];
         $minTs = null;
@@ -550,7 +651,14 @@ class ZktecoParserService
                 continue;
             }
 
-            $ts = Carbon::parse($parsed['punched_at'], 'Asia/Manila')->getTimestamp();
+            $punch = Carbon::parse($parsed['punched_at'], 'Asia/Manila');
+            // A refused punch (a reset device clock) is never compared, so it must not widen
+            // the span: a year-2000 line would otherwise load every stored punch.
+            if (!$this->inAcceptedRange($punch->format('Y-m-d H:i:s'), $range)) {
+                continue;
+            }
+
+            $ts = $punch->getTimestamp();
             $employeeIds[$employeeId] = true;
             $minTs = $minTs === null ? $ts : min($minTs, $ts);
             $maxTs = $maxTs === null ? $ts : max($maxTs, $ts);

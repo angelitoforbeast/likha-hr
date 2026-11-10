@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\BiometricFeedService;
 use App\Services\ScheduleResolver;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,20 @@ class Employee extends Model
         'night_differential_eligible' => 'boolean',
         'sil_eligible' => 'boolean',
     ];
+
+    /**
+     * Punches the office biometric sent for this ID before the employee existed were held
+     * (spec 012). When HR adds the employee, or gives one this ID, they are applied through
+     * the import path. It never fails the save; if it cannot run now, the next import does it.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Employee $employee) {
+            if ($employee->wasRecentlyCreated || $employee->wasChanged('zkteco_id')) {
+                app(BiometricFeedService::class)->applyHeldForEmployee($employee);
+            }
+        });
+    }
 
     /* ── Schedule Mode Constants ── */
     const MODE_DEPARTMENT = 'department';

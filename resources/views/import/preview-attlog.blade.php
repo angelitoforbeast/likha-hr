@@ -51,10 +51,10 @@
             </div>
 
             @if(count($unknownRows) > 0)
-                <div class="alert alert-danger small mt-3 mb-0">
+                <div class="alert alert-warning small mt-3 mb-0">
                     <i class="bi bi-exclamation-triangle-fill"></i>
-                    <strong>Cannot proceed —</strong> {{ count($unknownRows) }} ZKTeco ID(s) in the file don't match any employee.
-                    Add or sync them first:
+                    {{ count($unknownRows) }} ZKTeco ID(s) in the file don't match any employee yet.
+                    Their punches are held until HR adds the employee, then applied and computed:
                     <a href="{{ route('import.sync-users.form') }}" class="fw-semibold">Sync Users</a> ·
                     <a href="{{ route('employees.index') }}" class="fw-semibold">Manage Employees</a>
                 </div>
@@ -84,7 +84,7 @@
                     onclick="if (confirm('Discard the staged file?')) { document.getElementById('cancelForm').submit(); }">
                 <i class="bi bi-x-lg"></i> Cancel &amp; Discard
             </button>
-            <button type="submit" class="btn btn-primary btn-sm" @if(count($unknownRows) > 0) disabled title="Resolve unknown IDs first" @endif>
+            <button type="submit" class="btn btn-primary btn-sm">
                 <i class="bi bi-cloud-upload"></i> Proceed with Import
             </button>
         </div>
@@ -93,13 +93,15 @@
     @if(count($unknownRows) > 0)
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white text-danger">
-                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Unknown ZKTeco IDs — not in employees table</h6>
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Unknown ZKTeco IDs — not in employees table yet</h6>
+                <div class="small text-muted">Checked IDs are imported as held punches: held until HR adds that employee, then applied and computed.</div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th style="width:40px">Hold</th>
                                 <th style="width:120px">ZKTeco ID</th>
                                 <th style="width:120px">Punch days</th>
                                 @foreach($dates as $d)
@@ -111,7 +113,11 @@
                         </thead>
                         <tbody>
                             @foreach($unknownRows as $row)
-                                <tr class="table-danger">
+                                <tr class="table-warning">
+                                    <td class="text-center">
+                                        <input class="form-check-input emp-include" type="checkbox"
+                                               name="include_zkteco[]" value="{{ $row['zkteco_id'] }}" checked>
+                                    </td>
                                     <td class="font-monospace small">{{ $row['zkteco_id'] }}</td>
                                     <td class="small">{{ $row['punch_days'] }} / {{ count($dates) }}</td>
                                     @foreach($dates as $d)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ParseZktecoImport;
 use App\Models\AttendanceImportRun;
 use App\Models\Employee;
+use App\Services\BiometricFeedHealth;
 use App\Services\ZktecoParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,28 +14,36 @@ use Illuminate\Support\Str;
 
 class ImportController extends Controller
 {
-    public function index()
+    public function index(BiometricFeedHealth $health)
     {
         // Role-based visibility:
         //  - CEO sees ALL import runs (from anyone).
         //  - Admin sees imports uploaded by admins/hr_staff (i.e., NOT CEO's imports).
         //  - HR Staff sees imports uploaded by hr_staff only (i.e., NOT CEO's or admin's).
         // Rationale: prevent lower roles from seeing the CEO's private upload history.
+        //  - Runs of the office biometrics agent have no uploader and are shown to everyone
+        //    who may open this page (spec 012); its posts that changed nothing are not listed.
         $user = Auth::user();
-        $query = AttendanceImportRun::with('uploader')->orderByDesc('created_at');
+        $query = AttendanceImportRun::with('uploader')->orderByDesc('created_at')->orderByDesc('id')
+            ->where(function ($q) {
+                $q->whereNull('stats_json->quiet')->orWhere('stats_json->quiet', '!=', 'yes');
+            });
 
         if ($user && $user->role !== 'ceo') {
             $allowedRoles = $user->role === 'admin'
                 ? ['admin', 'hr_staff']
                 : ['hr_staff']; // default fallback for hr_staff / others
-            $query->whereHas('uploader', function ($q) use ($allowedRoles) {
-                $q->whereIn('role', $allowedRoles);
+            $query->where(function ($q) use ($allowedRoles) {
+                $q->whereNull('uploaded_by')->orWhereHas('uploader', function ($q) use ($allowedRoles) {
+                    $q->whereIn('role', $allowedRoles);
+                });
             });
         }
 
         $runs = $query->paginate(15);
+        $feed = $health->snapshot(true);
 
-        return view('import.index', compact('runs'));
+        return view('import.index', compact('runs', 'feed'));
     }
 
     /**
@@ -70,8 +79,8 @@ class ImportController extends Controller
 
     /**
      * Show a 30-day presence grid for a staged attlog.dat.
-     * Blocks the Proceed button when the file contains ZKTeco IDs that are
-     * not mapped to any employee (must be resolved first, per Q5=B).
+     * ZKTeco IDs that match no employee are listed apart; their punches are held by the
+     * import until HR adds the employee (spec 012, which replaces the Q5=B block).
      */
     public function preview(Request $request, ZktecoParserService $parser)
     {
@@ -141,7 +150,7 @@ class ImportController extends Controller
      * Filters the file to:
      *   - only lines within the chosen date_from..date_to window, and
      *   - only ZKTeco IDs the user kept checked (include_zkteco[]).
-     * Refuses when there are unmatched ZKTeco IDs (Q5=B).
+     * Unmatched ZKTeco IDs that stay checked are held by the import (spec 012).
      */
     public function previewCommit(Request $request, ZktecoParserService $parser)
     {
@@ -161,15 +170,8 @@ class ImportController extends Controller
         $from = $this->normaliseDate($request->input('date_from'), now()->subDays(29)->format('Y-m-d'));
         if ($from > $to) [$from, $to] = [$to, $from];
 
-        // Re-check for unknown IDs — a resolution could have happened between preview and commit.
-        $summary = $parser->extractAttlogSummary($path, $from, $to);
-        $knownZk = Employee::whereNotNull('zkteco_id')->pluck('zkteco_id')->flip();
-        foreach (array_keys($summary['presence']) as $zk) {
-            if (!isset($knownZk[$zk])) {
-                return redirect()->route('import.preview')
-                    ->with('error', 'One or more ZKTeco IDs are still unmatched. Resolve them before proceeding.');
-            }
-        }
+        // IDs that match no employee no longer block the import (spec 012, decision 4): the
+        // import holds their punches and applies them when HR adds that employee.
 
         // Determine which zkteco_ids the user included. When the form doesn't
         // send any (rare), we default to all known IDs in the summary.

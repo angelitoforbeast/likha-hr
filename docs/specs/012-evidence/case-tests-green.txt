@@ -1,0 +1,142 @@
+﻿PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\phpunit.xml
+
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.        58 / 58 (100%)
+
+Time: 00:10.903, Memory: 66.00 MB
+
+Device Users (Tests\Feature\Biometrics\DeviceUsers)
+ ✔ S-012.13 new device users are listed; known employees are never changed or created
+ ✔ S-012.13 a device user removed from the device leaves the list and never touches the employee
+ ✔ S-012.13 once HR adds the employee, the device user is no longer listed as missing
+ ✔ S-012.13 a name is shown escaped; a junk user id or an over-long list is refused
+
+Duplicates (Tests\Feature\Biometrics\Duplicates)
+ ✔ S-012.3 the same punch posted twice is stored once; the second run says 1 duplicate
+ ✔ S-012.3 the 60-second re-read of 200 known records stores nothing new and recomputes nothing
+ ✔ S-012.3 a post while another ingest holds the lock waits and stores nothing; it is refused with 503 and the retry stores the punch once
+ ✔ S-012.3 a retry after a timeout (the first post was stored, the agent never saw the reply) gives no double row
+ ✔ S-012.3 posts that change nothing leave one quiet run a day, hidden from the Import page
+
+Feed Key (Tests\Feature\Biometrics\FeedKey)
+ ✔ S-012.2 no key, a wrong key, other case, a trailing space, the key in the query or body: empty 401, nothing written
+ ✔ S-012.2 no key configured: every call gets an empty 401
+ ✔ S-012.2 the right key works on all four endpoints
+ ✔ S-012.2 the 301st call in an hour gets 429; wrong keys do not use the bucket; the next hour works again
+ ✔ S-012.2 the wrong method gets 405, never 500
+ ✔ S-012.2 the staff schedule key does not open the biometrics endpoints, and the biometrics key does not open the schedule feed
+
+Heartbeat And Status (Tests\Feature\Biometrics\HeartbeatAndStatus)
+ ✔ S-012.9 last contact is stored in the database and shown in Manila time
+ ✔ S-012.9 a wrong key does not update last contact
+ ✔ S-012.9 a warning after 10 minutes of silence between 08:00 and 20:00, gone when contact returns
+ ✔ S-012.9 no silence warning at night; it shows again at 08:00
+ ✔ S-012.9 the agent alive but the device unreachable: both facts are shown
+ ✔ S-012.11 at 40,000 records a warning, at 50,000 a louder one
+ ✔ S-012.6 PC 2 minutes off: the drift is stored, shown and warned; within 60 s no warning
+ ✔ S-012.9 the status endpoint is read-only and carries no names or punch lists
+ ✔ S-012.9 a malformed call (a bad agent id) is not a contact: a misconfigured agent never looks healthy
+ ✔ S-012.9 bad heartbeat values are refused with 422 and change nothing
+ ✔ S-012.9 the panel uses the Import page permission: a user without it cannot see it
+ ✔ S-012.9 agent runs that stored punches are listed for an admin too, as "Biometric agent"
+
+Held Punches (Tests\Feature\Biometrics\HeldPunches)
+ ✔ S-012.7 punches for zk 54 with no employee are held and shown, not dropped
+ ✔ S-012.7 creating employee 54 applies the held punches through the import path and computes the days
+ ✔ S-012.7 the HR Sync Users page creating employee 54 applies the held punches too
+ ✔ S-012.7 creating a different ID applies nothing
+ ✔ S-012.7 held punches respect date locks: saved, the locked date not computed
+ ✔ S-012.7 held punches are de-duplicated: posted every minute, they are held once and stored once
+ ✔ S-012.7 held punches that match punches stored since are not stored twice
+ ✔ S-012.7 a held punch whose employee was added while the ingest was busy is applied by the next post
+ ✔ S-012.7 a manual upload with an unmatched ID holds its punches too, and they apply when HR adds the employee
+ ✔ S-012.7 the upload preview lets an unmatched ID through and says its punches will be held
+
+Punch Arrives (Tests\Feature\Biometrics\PunchArrives)
+ ✔ S-012.1 one punch with the right key: one stored punch for zk 1, a run with source agent, the day computed
+ ✔ S-012.1 a four-punch day in one post gives 4 inserted and 1 day computed
+ ✔ S-012.1 bad lines are counted invalid, never stored and never echoed back
+ ✔ S-012.1 Windows line endings and extra device columns parse
+ ✔ S-012.1 the result equals a manual upload of the same file
+ ✔ S-012.1 times are Manila with no shift; a midnight edge stays on its own date
+ ✔ S-012.1 over 1,000 lines is refused with 422 and nothing is stored, never a silent partial
+ ✔ S-012.1 a post with no attlog text is refused with 422 and writes nothing
+
+Refused Dates (Tests\Feature\Biometrics\RefusedDates)
+ ✔ S-012.6 year 2000, before 2020-01-01, and more than one day ahead are refused: never stored, never computed, counted
+ ✔ S-012.6 a punch refused as too far ahead stays refused when its date comes near: never stored later
+ ✔ S-012.6 the same refused punch posted every minute is counted once
+ ✔ S-012.6 the Import page shows the refused-date count
+ ✔ S-012.6 a manual upload keeps its own date window from the preview: the date check is the agent's
+ ✔ S-012.6 held punches are checked too: a held punch is never applied on a refused date
+
+Same As Manual (Tests\Feature\Biometrics\SameAsManual)
+ ✔ S-012.8 a locked D1: punches saved, not computed, locked skipped 1
+ ✔ S-012.8 a manual override on time out stays
+ ✔ S-012.8 approved overtime stays
+ ✔ S-012.8 a pending request stays pending
+ ✔ S-012.8 an overnight time out at 02:10 joins the previous day (specs 009 and 011)
+ ✔ S-012.8 a compute error keeps the punch saved and the run done, with errors 1
+ ✔ S-012.8 an inactive employee: punches saved, no day, as for a file
+
+OK (58 tests, 776 assertions)

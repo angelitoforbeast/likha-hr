@@ -67,6 +67,45 @@ class AttendanceImportRun extends Model
         return $text;
     }
 
+    /**
+     * Who or what made the run, for the Import page: the uploader, the office biometrics
+     * agent, or held punches applied when an employee was added (spec 012).
+     */
+    public function originLabel(): string
+    {
+        $stats = $this->statsArray();
+        $source = is_string($stats['source'] ?? null) ? $stats['source'] : null;
+
+        if ($source === 'agent') {
+            $agent = is_string($stats['agent_id'] ?? null) ? $stats['agent_id'] : 'agent';
+
+            return "Biometric agent ({$agent})";
+        }
+        if ($source === 'held') {
+            return 'Held punches applied' . ($this->uploader ? ' · ' . $this->uploader->name : '');
+        }
+
+        return $this->uploader->name ?? '—';
+    }
+
+    /**
+     * The held, refused and invalid counts of a run, or null when all are zero or absent
+     * (runs from before spec 012 show exactly as before).
+     */
+    public function feedCountsText(): ?string
+    {
+        $stats = $this->statsArray();
+        $parts = [];
+        foreach (['held_punches' => 'Held', 'refused_dates' => 'Refused dates', 'invalid_lines' => 'Invalid lines'] as $key => $label) {
+            $n = is_scalar($stats[$key] ?? null) ? max(0, (int) $stats[$key]) : 0;
+            if ($n > 0) {
+                $parts[] = "{$label}: {$n}";
+            }
+        }
+
+        return $parts ? implode(', ', $parts) : null;
+    }
+
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');

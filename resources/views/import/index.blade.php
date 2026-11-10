@@ -4,6 +4,7 @@
 @section('page-title', 'Import Attendance')
 
 @section('content')
+@include('import._biometrics-feed', ['feed' => $feed])
 <div class="row g-4">
     {{-- Upload Form --}}
     <div class="col-lg-5">
@@ -71,7 +72,7 @@
                         @forelse($runs as $run)
                         <tr data-run-id="{{ $run->id }}" data-status="{{ $run->status }}">
                             <td>{{ $run->id }}</td>
-                            <td>{{ $run->uploader->name ?? '—' }}</td>
+                            <td>{{ $run->originLabel() }}</td>
                             <td>
                                 <span class="badge run-status-badge
                                     {{ $run->status === 'done' ? 'bg-success' : '' }}
@@ -93,6 +94,9 @@
                                     @endif
                                     @if($run->computeSummaryText())
                                         <br>{{ $run->computeSummaryText() }}
+                                    @endif
+                                    @if($run->feedCountsText())
+                                        <br>{{ $run->feedCountsText() }}
                                     @endif
                                 @else
                                     —

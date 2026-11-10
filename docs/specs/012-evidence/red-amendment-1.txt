@@ -1,0 +1,54 @@
+﻿PASS  A poll: the run ends cleanly  [exit 0]
+PASS  A post: the 4 punches of zk 1 are stored
+PASS  A post: the day of zk 1 is computed
+PASS  A post: the 2 punches of zk 54 (no employee) are held
+PASS  A users: device users not in HR are listed with UTF-8 names (S-13)  [54=Juan Peña; 55=ÑANDO]
+PASS  A users: no employee was created or renamed
+PASS  A heartbeat: last contact, device reachable, record count  [records 6]
+PASS  A state: the last acknowledged punch is kept  [2026-11-09 17:01:00]
+PASS  A outbox: empty after a good post
+PASS  A archive: the monthly CSV holds the 6 records once
+PASS  A protocol: connect, CMD_AUTH, sizes, buffered reads and exit were used
+PASS  A protocol: every packet the agent sent had a right checksum
+PASS  B re-read: stores nothing new (S-03)
+PASS  B re-read: no new visible run on the Import page
+PASS  B archive: still 6 records, no duplicates
+PASS  I garbled record: dropped and logged, never posted (S-10)
+PASS  S-10 garbled reply: the run fails cleanly, nothing is posted, the device shows unreachable  [exit 0]
+PASS  S-10 after garbled: the next poll reconnects, re-auths and posts
+PASS  S-10 half reply: the run fails cleanly, nothing is posted, the device shows unreachable  [exit 0]
+PASS  S-10 after half: the next poll reconnects, re-auths and posts
+PASS  S-10 busy reply: the run fails cleanly, nothing is posted, the device shows unreachable  [exit 0]
+PASS  S-10 after busy: the next poll reconnects, re-auths and posts
+PASS  S-10 drop reply: the run fails cleanly, nothing is posted, the device shows unreachable  [exit 0]
+PASS  S-10 after drop: the next poll reconnects, re-auths and posts
+PASS  S-10 a punch made during the poll: the read still succeeds and posts it
+PASS  S a bad agent id in the config: the run stops with an error and posts nothing
+PASS  S plain http without allow_http: refused, the key is not sent
+PASS  C after a manual clear: only what is there is posted, nothing is lost (S-11)
+PASS  D no internet: the posts wait in the outbox file (S-05)
+PASS  D no internet: one failure counted, a next try set
+PASS  D after the reboot: the outbox is sent once and emptied (S-05)
+PASS  E 5xx: six runs in six minutes call Likha HR only 3 times (backoff 1, 2, 4 min) (S-05)  [calls 3]
+PASS  E 5xx: the lines stay in the outbox
+PASS  Q 3 days off: the backlog is posted once and the touched days computed (S-05)  [dates 2026-11-07,2026-11-08,2026-11-09]
+PASS  Q 3 days off: the next poll stores nothing twice
+FAIL  Q5 5 days off: all 5 days are posted by themselves, no -Since, and computed (amendment 012-1)  [stored 2 of 5; dates 2026-11-05,2026-11-06,2026-11-07,2026-11-08,2026-11-09]
+FAIL  Q5 5 days off: the next poll stores nothing twice
+PASS  J clock within 60 s: the device clock is set to Manila time (S-06)
+PASS  J clock within 60 s: the drift is reported and logged, no warning  [drift 0]
+PASS  J clock: done once for today
+PASS  J clock: a second run the same day does not set it again
+PASS  K PC 2 minutes off: the device clock is untouched (S-06)
+PASS  K PC 2 minutes off: the drift and a warning are shown (S-06)  [drift 115]
+PASS  L server unreachable at clock time: not done, not set (S-06)
+PASS  L later that day: the clock check is retried and the device clock set (S-06)
+PASS  O the log rotates past 1 MB (S-14)
+PASS  P the CSV archive rolls over by month (S-14)  [attlog-2026-10.csv, attlog-2026-11.csv]
+PASS  M the device only ever received read and clock commands (S-11)  [commands 50,201,202,1000,1001,1102,1502,1503,1504]
+PASS  M the send function refuses every command outside the allow list (S-11)
+PASS  N the key appears in no log, CSV, state, outbox or server log (S-14)
+PASS  R the key file ACL is SYSTEM and Administrators only, not inherited (S-14)  [S-1-5-18:FullControl:Allow S-1-5-32-544:FullControl:Allow]
+PASS  R the task runs as SYSTEM at boot, every minute, one at a time, restarts on failure (S-14)
+
+Agent tests: 50 passed, 2 failed

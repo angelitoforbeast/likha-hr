@@ -1,0 +1,1251 @@
+﻿PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\phpunit.xml
+
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  63 / 412 ( 15%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+. 126 / 412 ( 30%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+. 189 / 412 ( 45%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+. 252 / 412 ( 61%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+. 315 / 412 ( 76%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+..  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+. 378 / 412 ( 91%)
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.                              412 / 412 (100%)
+
+Time: 01:01.501, Memory: 82.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\Approvals\ApprovalsPageTest::test_s_10_1_nav_count_and_list
+Failed asserting that '<!DOCTYPE html>\n
+<html lang="en">\n
+<head>\n
+    <meta charset="UTF-8">\n
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n
+    <meta name="csrf-token" content="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY">\n
+    <title>Approvals</title>\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">\n
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">\n
+    <style>\n
+        body { background-color: #f4f6f9; }\n
+        .sidebar {\n
+            height: 100vh;\n
+            background: #212529;\n
+            color: #fff;\n
+            width: 250px;\n
+            position: fixed;\n
+            top: 0; left: 0;\n
+            z-index: 100;\n
+            overflow-y: auto;\n
+            overflow-x: hidden;\n
+            scrollbar-width: thin;\n
+            scrollbar-color: rgba(255,255,255,.3) transparent;\n
+        }\n
+        .sidebar::-webkit-scrollbar { width: 6px; }\n
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 3px; }\n
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }\n
+        .sidebar .nav-link { color: rgba(255,255,255,.7); padding: .75rem 1.25rem; }\n
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,.1); }\n
+        .sidebar .nav-link i { margin-right: .5rem; width: 20px; text-align: center; }\n
+        .main-content { margin-left: 250px; padding: 1.5rem; }\n
+        .sidebar-brand { padding: 1rem 1.25rem; font-size: 1.1rem; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }\n
+        .top-bar { background: #fff; border-bottom: 1px solid #dee2e6; padding: .75rem 1.5rem; margin: -1.5rem -1.5rem 1.5rem; }\n
+        @media print {\n
+            .sidebar, .top-bar, .no-print { display: none !important; }\n
+            .main-content { margin-left: 0 !important; padding: 0 !important; }\n
+        }\n
+    </style>\n
+    <style>\n
+    /* Reasons and names are free text: wrap them instead of widening the page. */\n
+    .approval-entry { overflow-wrap: anywhere; }\n
+    .approval-entry .approval-field + .approval-field { border-top: 1px solid #eee; }\n
+    .approval-value { font-weight: 600; }\n
+    .approval-flag { font-size: .8rem; }\n
+    /* The preview: below the request on a phone, beside it (right) from a laptop width up. */\n
+    .approval-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }\n
+    @media (min-width: 992px) {\n
+        .approval-layout.has-preview {\n
+            grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);\n
+            grid-template-rows: auto 1fr;\n
+            grid-template-areas: "request preview" "actions preview";\n
+        }\n
+        .approval-layout.has-preview .approval-request { grid-area: request; }\n
+        .approval-layout.has-preview .approval-side { grid-area: preview; align-self: start; }\n
+        .approval-layout.has-preview .approval-actions { grid-area: actions; align-self: start; }\n
+    }\n
+    .approval-preview-grid { display: grid; grid-template-columns: minmax(0, 38fr) minmax(0, 31fr) minmax(0, 31fr); font-size: .85rem; }\n
+    .approval-preview-line { display: contents; }\n
+    .approval-preview-line > div { padding: .15rem .3rem; border-top: 1px solid #eee; }\n
+    .approval-preview-head > div { font-weight: 600; border-top: 0; }\n
+    .approval-preview-changed > div:last-child, .approval-preview-changed-note { background: #fff3cd; font-weight: 600; }\n
+    /* Device punches: several to a line, wrapping on a phone instead of widening the page. */\n
+    .approval-punch-list { display: flex; flex-wrap: wrap; gap: .1rem 1rem; font-size: .85rem; }\n
+</style>\n
+</head>\n
+<body>\n
+    \n
+    <div class="sidebar d-print-none">\n
+        <div class="sidebar-brand">\n
+            <i class="bi bi-clock-history"></i> HR Attendance\n
+        </div>\n
+                <nav class="nav flex-column mt-2">\n
+                        <a class="nav-link " href="http://localhost/dashboard">\n
+                <i class="bi bi-speedometer2"></i> Dashboard\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/import">\n
+                <i class="bi bi-upload"></i> Import Attendance\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance">\n
+                <i class="bi bi-calendar-check"></i> Attendance Viewer\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/attendance-calendar">\n
+                <i class="bi bi-calendar2-week"></i> Attendance Calendar\n
+            </a>\n
+                                                <a class="nav-link active" href="http://localhost/approvals">\n
+                <i class="bi bi-check2-square"></i> Approvals\n
+                                    <span class="badge bg-danger ms-1" id="navApprovalsCount">3</span>\n
+                            </a>\n
+                                    <a class="nav-link " href="http://localhost/payroll">\n
+                <i class="bi bi-cash-stack"></i> Payroll\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/employees">\n
+                <i class="bi bi-people"></i> Employees\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/shifts">\n
+                <i class="bi bi-clock"></i> Shifts\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/departments">\n
+                <i class="bi bi-diagram-3"></i> Departments\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/day-off-calendar">\n
+                <i class="bi bi-calendar-x"></i> Day Off Calendar\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/users">\n
+                <i class="bi bi-person-gear"></i> User Management\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/manus-edit-logs">\n
+                <i class="bi bi-journal-code"></i> Edit Logs\n
+            </a>\n
+                                    <a class="nav-link " href="http://localhost/audit-logs">\n
+                <i class="bi bi-shield-check"></i> Audit Logs\n
+            </a>\n
+                                                <div class="nav-item">\n
+                <a class="nav-link d-flex justify-content-between align-items-center " data-bs-toggle="collapse" href="#settingsMenu" role="button">\n
+                    <span><i class="bi bi-gear"></i> Settings</span>\n
+                    <i class="bi bi-chevron-down small"></i>\n
+                </a>\n
+                <div class="collapse " id="settingsMenu">\n
+                                        <a class="nav-link ps-4 py-2 " href="http://localhost/settings/employment-statuses">\n
+                        <i class="bi bi-tags"></i> Employment Statuses\n
+                    </a>\n
+                                                            <a class="nav-link ps-4 py-2 " href="http://localhost/settings/holidays">\n
+                        <i class="bi bi-calendar-heart"></i> Holiday Calendar\n
+                    </a>\n
+                                                            <a class="nav-link ps-4 py-2 " href="http://localhost/settings/feature-permissions">\n
+                        <i class="bi bi-shield-lock"></i> Feature Permissions\n
+                    </a>\n
+                                    </div>\n
+            </div>\n
+                    </nav>\n
+    </div>\n
+\n
+    \n
+    <div class="main-content">\n
+        <div class="top-bar d-flex justify-content-between align-items-center d-print-none">\n
+            <h5 class="mb-0">Approvals</h5>\n
+            <div class="d-flex align-items-center gap-3">\n
+                <span class="text-muted small">\n
+                    Ceo Tester\n
+                                            <span class="badge bg-secondary">CEO</span>\n
+                                    </span>\n
+                <form method="POST" action="http://localhost/logout" class="d-inline">\n
+                    <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                    <button type="submit" class="btn btn-sm btn-outline-secondary">\n
+                        <i class="bi bi-box-arrow-right"></i> Logout\n
+                    </button>\n
+                </form>\n
+            </div>\n
+        </div>\n
+\n
+        \n
+        \n
+        \n
+        \n
+        \n
+<div class="d-flex flex-wrap gap-2 mb-3">\n
+            <a href="http://localhost/approvals"\n
+           class="btn btn-sm btn-primary">Pending</a>\n
+            <a href="http://localhost/approvals?status=approved"\n
+           class="btn btn-sm btn-outline-secondary">Approved</a>\n
+            <a href="http://localhost/approvals?status=rejected"\n
+           class="btn btn-sm btn-outline-secondary">Rejected</a>\n
+            <a href="http://localhost/approvals?status=withdrawn"\n
+           class="btn btn-sm btn-outline-secondary">Withdrawn</a>\n
+            <a href="http://localhost/approvals?status=no_longer_needed"\n
+           class="btn btn-sm btn-outline-secondary">No longer needed</a>\n
+    </div>\n
+\n
+<form method="GET" action="http://localhost/approvals" class="card border-0 shadow-sm mb-3">\n
+    <div class="card-body py-2">\n
+        <div class="row g-2 align-items-end">\n
+                        <div class="col-6 col-md-3">\n
+                <label class="form-label small mb-0" for="fEmployee">Employee</label>\n
+                <select name="employee_id" id="fEmployee" class="form-select form-select-sm">\n
+                    <option value="">All</option>\n
+                                            <option value="1" >Employee One</option>\n
+                                            <option value="2" >Employee Two</option>\n
+                                    </select>\n
+            </div>\n
+            <div class="col-6 col-md-2">\n
+                <label class="form-label small mb-0" for="fRequester">Asked by</label>\n
+                <select name="requester_id" id="fRequester" class="form-select form-select-sm">\n
+                    <option value="">Anyone</option>\n
+                                            <option value="4" >Admin Tester</option>\n
+                                            <option value="2" >Hr One</option>\n
+                                    </select>\n
+            </div>\n
+            <div class="col-6 col-md-2">\n
+                <label class="form-label small mb-0" for="fKind">Kind</label>\n
+                <select name="kind" id="fKind" class="form-select form-select-sm">\n
+                    <option value="">Any</option>\n
+                                            <option value="times" >Times</option>\n
+                                            <option value="overtime" >Overtime</option>\n
+                                            <option value="shift" >Shift</option>\n
+                                            <option value="sil" >SIL</option>\n
+                                            <option value="rest_day" >Rest day</option>\n
+                                            <option value="assignment" >Shift assignment</option>\n
+                                    </select>\n
+            </div>\n
+            <div class="col-6 col-md-2">\n
+                <label class="form-label small mb-0" for="fFrom">Work date from</label>\n
+                <input type="date" name="date_from" id="fFrom" class="form-control form-control-sm" value="">\n
+            </div>\n
+            <div class="col-6 col-md-2">\n
+                <label class="form-label small mb-0" for="fTo">to</label>\n
+                <input type="date" name="date_to" id="fTo" class="form-control form-control-sm" value="">\n
+            </div>\n
+            <div class="col-6 col-md-1 d-flex gap-1">\n
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>\n
+            </div>\n
+        </div>\n
+    </div>\n
+</form>\n
+\n
+        <form method="POST" id="severalForm" class="card border-0 shadow-sm mb-3 approval-form" data-kind="several">\n
+        <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">\n
+            <div class="form-check me-2">\n
+                <input class="form-check-input" type="checkbox" id="selectAllEntries"\n
+                       onclick="document.querySelectorAll('.entry-select').forEach(cb => { cb.checked = this.checked; cb.dispatchEvent(new Event('change')); })">\n
+                <label class="form-check-label small" for="selectAllEntries">Select all on this page</label>\n
+            </div>\n
+            <button type="submit" formaction="http://localhost/approvals/approve-several" class="btn btn-sm btn-success"\n
+                    data-confirm="Approve the selected entries?" data-yes="Yes, approve">Approve selected</button>\n
+            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"\n
+                   maxlength="500" placeholder="Reason, to reject selected" aria-label="Reason, to reject selected">\n
+            <button type="submit" formaction="http://localhost/approvals/reject-several" class="btn btn-sm btn-outline-danger"\n
+                    data-confirm="Reject the selected entries with this reason?" data-yes="Yes, reject" data-needs-reason="1">Reject selected</button>\n
+        </div>\n
+    </form>\n
+    \n
+    \n
+    <div id="approvalMsg" class="alert d-none" role="status" aria-live="polite"></div>\n
+\n
+    <div id="approvalList">\n
+                                                <div class="approval-entry card border-0 shadow-sm mb-3" data-anchor="1" data-batch="">\n
+                    <div class="card-body">\n
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">\n
+                    <div>\n
+                                                    <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"\n
+                                   name="entries[0][id]" value="1" aria-label="Select this entry">\n
+                            <input type="hidden" form="severalForm" name="entries[0][seen]" value="1:1,2:1">\n
+                                                                        <span class="fw-bold">Employee One</span>\n
+                        <span class="text-muted">&middot; Oct 06, 2026</span>\n
+                                            </div>\n
+                    <div class="d-flex flex-wrap gap-1">\n
+                                                                                                                    </div>\n
+                </div>\n
+\n
+                <div class="approval-layout has-preview">\n
+                <div class="approval-request">\n
+                                    <div class="approval-field py-2">\n
+                        <div class="small text-muted text-uppercase">Time In</div>\n
+                        <div>\n
+                                                        <span class="approval-value">8:00 AM</span>\n
+                                                                                        <span class="text-muted small">\n
+                                    (official now: none)\n
+                                </span>\n
+                                                                                    </div>\n
+                        <div class="small">Reason: Nakalimutan mag-punch</div>\n
+                        <div class="small text-muted">Asked by Hr One on Nov 10, 2026 7:14 PM</div>\n
+                                            </div>\n
+                                    <div class="approval-field py-2">\n
+                        <div class="small text-muted text-uppercase">Time Out</div>\n
+                        <div>\n
+                                                        <span class="approval-value">5:00 PM</span>\n
+                                                                                        <span class="text-muted small">\n
+                                    (official now: none)\n
+                                </span>\n
+                                                                                    </div>\n
+                        <div class="small">Reason: Nakalimutan mag-punch</div>\n
+                        <div class="small text-muted">Asked by Hr One on Nov 10, 2026 7:14 PM</div>\n
+                                            </div>\n
+                \n
+                                                                    </div>\n
+\n
+                                                            <div class="approval-side">\n
+                                                            <div class="approval-punches border rounded p-2 mb-2">\n
+    <div class="small fw-semibold mb-1">Device punches</div>\n
+            <div class="small text-muted approval-punches-none">No punches from the device on this date.</div>\n
+        </div><!-- /approval-punches -->\n
+                                                        <div class="approval-preview border rounded p-2" data-preview="ok">\n
+    <div class="small fw-semibold mb-1">Preview</div>\n
+                        \n
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">\n
+            <div class="approval-preview-line approval-preview-head" role="row">\n
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>\n
+            </div>\n
+                            <div role="row" data-line="Time in" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Time in</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">8:00 AM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch out" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch out</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">none</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch in" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch in</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">none</div>\n
+                </div>\n
+                            <div role="row" data-line="Time out" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Time out</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">5:00 PM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">–</div>\n
+                </div>\n
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Worked</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Late" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Late</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Undertime</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Overtime worked</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Overtime approved</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">not set</div>\n
+                </div>\n
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Needs review</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">Yes</div>\n
+                </div>\n
+                    </div>\n
+                            <div class="small text-muted">Note now: none</div>\n
+            <div class="small approval-preview-changed-note">Note if approved: Lunch punches could not be inferred. Preserved overrides: time_in, time_out.</div>\n
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">\n
+                                    <li>Still missing: lunch out, lunch in.</li>\n
+                                    <li>Worked 0 m, under the shift&#039;s 8 h.</li>\n
+                            </ul>\n
+            </div>\n
+                        </div>\n
+                    \n
+                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">\n
+                        <form method="POST" action="http://localhost/approvals/1/approve" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="1:1,2:1">\n
+                                                        <button type="submit" class="btn btn-success approval-approve" >\n
+                                <i class="bi bi-check-lg"></i> Approve\n
+                            </button>\n
+                        </form>\n
+                        <form method="POST" action="http://localhost/approvals/1/reject" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="1:1,2:1">\n
+                            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"\n
+                                   required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">\n
+                            <button type="submit" class="btn btn-outline-danger approval-reject">\n
+                                <i class="bi bi-x-lg"></i> Reject\n
+                            </button>\n
+                        </form>\n
+                    </div>\n
+                                </div>\n
+            </div>\n
+        </div>\n
+                                            <div class="approval-entry card border-0 shadow-sm mb-3" data-anchor="3" data-batch="">\n
+                    <div class="card-body">\n
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">\n
+                    <div>\n
+                                                    <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"\n
+                                   name="entries[1][id]" value="3" aria-label="Select this entry">\n
+                            <input type="hidden" form="severalForm" name="entries[1][seen]" value="3:1">\n
+                                                                        <span class="fw-bold">Employee One</span>\n
+                        <span class="text-muted">&middot; Oct 05, 2026</span>\n
+                                            </div>\n
+                    <div class="d-flex flex-wrap gap-1">\n
+                                                                                                                    </div>\n
+                </div>\n
+\n
+                <div class="approval-layout has-preview">\n
+                <div class="approval-request">\n
+                                    <div class="approval-field py-2">\n
+                        <div class="small text-muted text-uppercase">Time In</div>\n
+                        <div>\n
+                                                        <span class="approval-value">8:00 AM</span>\n
+                                                                                        <span class="text-muted small">\n
+                                    (official now: 8:03 AM)\n
+                                </span>\n
+                                                                                    </div>\n
+                        <div class="small">Reason: Nakalimutan mag-punch</div>\n
+                        <div class="small text-muted">Asked by Hr One on Nov 10, 2026 7:14 PM</div>\n
+                                            </div>\n
+                \n
+                                                                    </div>\n
+\n
+                                                            <div class="approval-side">\n
+                                                            <div class="approval-punches border rounded p-2 mb-2">\n
+    <div class="small fw-semibold mb-1">Device punches</div>\n
+            <ul class="approval-punch-list list-unstyled mb-0">\n
+                            <li class="approval-punch">8:03 AM<span class="small text-muted"> · Time in</span></li>\n
+                            <li class="approval-punch">12:00 PM<span class="small text-muted"> · Lunch out</span></li>\n
+                            <li class="approval-punch">1:00 PM<span class="small text-muted"> · Lunch in</span></li>\n
+                            <li class="approval-punch">5:00 PM<span class="small text-muted"> · Time out</span></li>\n
+                    </ul>\n
+        </div><!-- /approval-punches -->\n
+                                                        <div class="approval-preview border rounded p-2" data-preview="ok">\n
+    <div class="small fw-semibold mb-1">Preview</div>\n
+                        \n
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">\n
+            <div class="approval-preview-line approval-preview-head" role="row">\n
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>\n
+            </div>\n
+                            <div role="row" data-line="Time in" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Time in</div>\n
+                    <div role="cell">8:03 AM</div>\n
+                    <div role="cell">8:00 AM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch out" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch out</div>\n
+                    <div role="cell">12:00 PM</div>\n
+                    <div role="cell">12:00 PM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch in" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch in</div>\n
+                    <div role="cell">1:00 PM</div>\n
+                    <div role="cell">1:00 PM</div>\n
+                </div>\n
+                            <div role="row" data-line="Time out" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Time out</div>\n
+                    <div role="cell">5:00 PM</div>\n
+                    <div role="cell">5:00 PM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch</div>\n
+                    <div role="cell">1 h</div>\n
+                    <div role="cell">1 h</div>\n
+                </div>\n
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Worked</div>\n
+                    <div role="cell">7 h 57 m</div>\n
+                    <div role="cell">8 h</div>\n
+                </div>\n
+                            <div role="row" data-line="Late" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Late</div>\n
+                    <div role="cell">3 m</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Undertime" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Undertime</div>\n
+                    <div role="cell">0 m</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Overtime worked</div>\n
+                    <div role="cell">0 m</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Overtime approved</div>\n
+                    <div role="cell">not set</div>\n
+                    <div role="cell">not set</div>\n
+                </div>\n
+                            <div role="row" data-line="Needs review" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Needs review</div>\n
+                    <div role="cell">No</div>\n
+                    <div role="cell">No</div>\n
+                </div>\n
+                    </div>\n
+                            <div class="small text-muted">Note now: none</div>\n
+            <div class="small approval-preview-changed-note">Note if approved: Preserved overrides: time_in.</div>\n
+                    </div>\n
+                        </div>\n
+                    \n
+                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">\n
+                        <form method="POST" action="http://localhost/approvals/3/approve" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="3:1">\n
+                                                        <button type="submit" class="btn btn-success approval-approve" >\n
+                                <i class="bi bi-check-lg"></i> Approve\n
+                            </button>\n
+                        </form>\n
+                        <form method="POST" action="http://localhost/approvals/3/reject" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="3:1">\n
+                            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"\n
+                                   required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">\n
+                            <button type="submit" class="btn btn-outline-danger approval-reject">\n
+                                <i class="bi bi-x-lg"></i> Reject\n
+                            </button>\n
+                        </form>\n
+                    </div>\n
+                                </div>\n
+            </div>\n
+        </div>\n
+                                            <div class="approval-entry card border-0 shadow-sm mb-3" data-anchor="4" data-batch="">\n
+                    <div class="card-body">\n
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">\n
+                    <div>\n
+                                                    <input type="checkbox" class="form-check-input entry-select me-1" form="severalForm"\n
+                                   name="entries[2][id]" value="4" aria-label="Select this entry">\n
+                            <input type="hidden" form="severalForm" name="entries[2][seen]" value="4:1">\n
+                                                                        <span class="fw-bold">Employee Two</span>\n
+                        <span class="text-muted">&middot; Oct 06, 2026</span>\n
+                                            </div>\n
+                    <div class="d-flex flex-wrap gap-1">\n
+                                                                                                                    </div>\n
+                </div>\n
+\n
+                <div class="approval-layout has-preview">\n
+                <div class="approval-request">\n
+                                    <div class="approval-field py-2">\n
+                        <div class="small text-muted text-uppercase">Time In</div>\n
+                        <div>\n
+                                                        <span class="approval-value">8:00 AM</span>\n
+                                                                                        <span class="text-muted small">\n
+                                    (official now: none)\n
+                                </span>\n
+                                                                                    </div>\n
+                        <div class="small">Reason: Nakalimutan mag-punch</div>\n
+                        <div class="small text-muted">Asked by Admin Tester on Nov 10, 2026 7:14 PM</div>\n
+                                            </div>\n
+                \n
+                                                                    </div>\n
+\n
+                                                            <div class="approval-side">\n
+                                                            <div class="approval-punches border rounded p-2 mb-2">\n
+    <div class="small fw-semibold mb-1">Device punches</div>\n
+            <div class="small text-muted approval-punches-none">No punches from the device on this date.</div>\n
+        </div><!-- /approval-punches -->\n
+                                                        <div class="approval-preview border rounded p-2" data-preview="ok">\n
+    <div class="small fw-semibold mb-1">Preview</div>\n
+                        \n
+        <div class="approval-preview-grid mb-1" role="table" aria-label="The day now and if approved">\n
+            <div class="approval-preview-line approval-preview-head" role="row">\n
+                <div role="columnheader"></div><div role="columnheader">Now</div><div role="columnheader">If approved</div>\n
+            </div>\n
+                            <div role="row" data-line="Time in" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Time in</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">8:00 AM</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch out" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch out</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">none</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch in" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch in</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">none</div>\n
+                </div>\n
+                            <div role="row" data-line="Time out" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Time out</div>\n
+                    <div role="cell">none</div>\n
+                    <div role="cell">none</div>\n
+                </div>\n
+                            <div role="row" data-line="Lunch" class="approval-preview-line">\n
+                    <div role="rowheader" class="text-muted">Lunch</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">–</div>\n
+                </div>\n
+                            <div role="row" data-line="Worked" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Worked</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Late" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Late</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Undertime" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Undertime</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime worked" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Overtime worked</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">0 m</div>\n
+                </div>\n
+                            <div role="row" data-line="Overtime approved" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Overtime approved</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">not set</div>\n
+                </div>\n
+                            <div role="row" data-line="Needs review" class="approval-preview-line approval-preview-changed">\n
+                    <div role="rowheader" class="text-muted">Needs review</div>\n
+                    <div role="cell">–</div>\n
+                    <div role="cell">Yes</div>\n
+                </div>\n
+                    </div>\n
+                            <div class="small text-muted">Note now: none</div>\n
+            <div class="small approval-preview-changed-note">Note if approved: Lunch punches could not be inferred. No Time Out recorded (missed timeout). Preserved overrides: time_in.</div>\n
+                            <ul class="small text-danger mb-0 mt-1 ps-3 approval-preview-warnings">\n
+                                    <li>Still missing: lunch out, lunch in, time out.</li>\n
+                                    <li>Worked 0 m, under the shift&#039;s 8 h.</li>\n
+                            </ul>\n
+            </div>\n
+                        </div>\n
+                    \n
+                    <div class="approval-actions d-flex flex-wrap align-items-start gap-2">\n
+                        <form method="POST" action="http://localhost/approvals/4/approve" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="4:1">\n
+                                                        <button type="submit" class="btn btn-success approval-approve" >\n
+                                <i class="bi bi-check-lg"></i> Approve\n
+                            </button>\n
+                        </form>\n
+                        <form method="POST" action="http://localhost/approvals/4/reject" class="d-flex flex-wrap align-items-center gap-2 approval-form" data-kind="one">\n
+                            <input type="hidden" name="_token" value="zpbJxA0olfS2MLBQNnRm1yNwodBkF4TyX74iMkKY" autocomplete="off">                            <input type="hidden" name="seen" value="4:1">\n
+                            <input type="text" name="reason" class="form-control form-control-sm" style="max-width: 16rem"\n
+                                   required minlength="3" maxlength="500" placeholder="Reason for rejecting" aria-label="Reason for rejecting">\n
+                            <button type="submit" class="btn btn-outline-danger approval-reject">\n
+                                <i class="bi bi-x-lg"></i> Reject\n
+                            </button>\n
+                        </form>\n
+                    </div>\n
+                                </div>\n
+            </div>\n
+        </div>\n
+        </div>\n
+    <div id="approvalListEnd"></div>\n
+\n
+                    </div>\n
+\n
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>\n
+    <script>\n
+// Decisions on this page are sent in the background and answered in the page: a decided entry\n
+// leaves the list and the count in the nav follows, a refusal is written beside the form that\n
+// was used. Questions ("Approve the selected entries?") are asked in the page as well.\n
+(function () {\n
+    const token = document.querySelector('meta[name="csrf-token"]').content;\n
+\n
+    function pageMessage(text, ok) {\n
+        const box = document.getElementById('approvalMsg');\n
+        if (!box) return;\n
+        box.textContent = text;\n
+        box.className = 'alert ' + (ok ? 'alert-success' : 'alert-warning');\n
+    }\n
+\n
+    // The message of one form, beside it.\n
+    function formMessage(form, text) {\n
+        let msg = form.parentNode.querySelector(':scope > .approval-form-msg[data-for="' + form.dataset.uid + '"]');\n
+        if (!msg) {\n
+            msg = document.createElement('div');\n
+            msg.className = 'approval-form-msg small text-danger fw-semibold w-100';\n
+            msg.dataset.for = form.dataset.uid;\n
+            form.insertAdjacentElement('afterend', msg);\n
+        }\n
+        msg.textContent = text || '';\n
+        msg.style.display = text ? '' : 'none';\n
+    }\n
+\n
+    function setNavCount(count) {\n
+        const badge = document.getElementById('navApprovalsCount');\n
+        if (!badge || typeof count !== 'number') return;\n
+        if (count > 0) badge.textContent = String(count); else badge.remove();\n
+    }\n
+\n
+    // A decided entry leaves the page, with what the batch headings still hold of it.\n
+    function removeEntry(id) {\n
+        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"], .approval-assignment[data-anchor="' + id + '"]');\n
+        const batch = card ? card.dataset.batch : '';\n
+        if (card) card.remove();\n
+        // A day of a shift change card: the day leaves the card, and the card's forms stop\n
+        // carrying it; the card leaves when its last day is decided.\n
+        const day = document.querySelector('.approval-group-day[data-day-anchor="' + id + '"]');\n
+        if (day) {\n
+            const group = day.closest('.approval-group');\n
+            day.remove();\n
+            group.querySelectorAll('input[name$="[id]"][value="' + id + '"]').forEach(function (input) {\n
+                const seen = input.nextElementSibling;\n
+                if (seen && /\[seen\]$/.test(seen.name || '')) seen.remove();\n
+                input.remove();\n
+            });\n
+            if (!group.querySelector('.approval-group-day')) group.remove();\n
+        }\n
+        document.querySelectorAll('input[data-batch-entry][name$="[id]"][value="' + id + '"]').forEach(function (input) {\n
+            const seen = input.nextElementSibling;\n
+            if (seen && seen.hasAttribute('data-batch-entry')) seen.remove();\n
+            input.remove();\n
+        });\n
+        if (batch && !document.querySelector('.approval-entry[data-batch="' + batch + '"]')) {\n
+            document.querySelectorAll('.approval-batch[data-batch="' + batch + '"]').forEach(el => el.remove());\n
+        }\n
+        if (!document.querySelector('.approval-entry, .approval-group, .approval-assignment')) {\n
+            const list = document.getElementById('approvalList');\n
+            const empty = document.createElement('div');\n
+            empty.className = 'text-center text-muted py-4';\n
+            empty.textContent = 'Nothing is left on this page.';\n
+            list.appendChild(empty);\n
+        }\n
+    }\n
+\n
+    function entryMessage(id, text) {\n
+        const card = document.querySelector('.approval-entry[data-anchor="' + id + '"], .approval-assignment[data-anchor="' + id + '"], .approval-group-day[data-day-anchor="' + id + '"]');\n
+        if (!card) return;\n
+        let msg = card.querySelector('.approval-entry-msg');\n
+        if (!msg) {\n
+            msg = document.createElement('div');\n
+            msg.className = 'approval-entry-msg small text-danger fw-semibold mt-2';\n
+            card.querySelector('.card-body').appendChild(msg);\n
+        }\n
+        msg.textContent = text;\n
+    }\n
+\n
+    function send(form, action) {\n
+        formMessage(form, '');\n
+        const buttons = form.querySelectorAll('button');\n
+        buttons.forEach(b => b.disabled = true);\n
+        fetch(action, {\n
+            method: 'POST',\n
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },\n
+            body: new FormData(form),\n
+        })\n
+        .then(r => r.json().then(data => ({ status: r.status, data: data })))\n
+        .then(function (reply) {\n
+            const data = reply.data || {};\n
+            buttons.forEach(function (b) { if (!b.hasAttribute('data-blocked')) b.disabled = false; });\n
+\n
+            if (reply.status >= 400 || !data.success) {\n
+                // Validation names the field; anything else carries one message.\n
+                let text = data.message || 'It failed and nothing was changed.';\n
+                if (data.errors) text = Object.values(data.errors)[0][0];\n
+                if (data.needs_confirm && !form.querySelector('[name="confirmed"]')) text += ' Reload the page to see what changed.';\n
+                formMessage(form, text);\n
+                return;\n
+            }\n
+\n
+            if (Array.isArray(data.results)) {\n
+                data.results.forEach(function (result) {\n
+                    if (result.ok) removeEntry(result.id); else entryMessage(result.id, result.message);\n
+                });\n
+                const reason = form.querySelector('[name="reason"]');\n
+                if (reason) reason.value = '';\n
+                pageMessage(data.message, !data.results.some(r => !r.ok));\n
+            } else {\n
+                const card = form.closest('.approval-group-day, .approval-entry, .approval-assignment');\n
+                if (card) removeEntry(card.dataset.dayAnchor || card.dataset.anchor);\n
+                pageMessage(data.message, true);\n
+            }\n
+            setNavCount(data.pending_entries);\n
+        })\n
+        .catch(function () {\n
+            buttons.forEach(function (b) { if (!b.hasAttribute('data-blocked')) b.disabled = false; });\n
+            formMessage(form, 'Network error. Nothing was changed.');\n
+        });\n
+    }\n
+\n
+    // The question of a form, asked in a row under it: "Yes, …" sends, "Cancel" takes the row away.\n
+    function ask(form, action, question, yesText) {\n
+        document.querySelectorAll('.approval-confirm').forEach(el => el.remove());\n
+        const row = document.createElement('div');\n
+        row.className = 'approval-confirm d-flex flex-wrap align-items-center gap-2 small fw-semibold w-100 mt-1';\n
+        const text = document.createElement('span');\n
+        text.textContent = question;\n
+        const yes = document.createElement('button');\n
+        yes.type = 'button';\n
+        yes.className = 'btn btn-sm btn-primary approval-confirm-yes';\n
+        yes.textContent = yesText || 'Yes';\n
+        const no = document.createElement('button');\n
+        no.type = 'button';\n
+        no.className = 'btn btn-sm btn-outline-secondary approval-confirm-no';\n
+        no.textContent = 'Cancel';\n
+        yes.addEventListener('click', function () { row.remove(); send(form, action); });\n
+        no.addEventListener('click', function () { row.remove(); });\n
+        row.append(text, yes, no);\n
+        form.insertAdjacentElement('afterend', row);\n
+    }\n
+\n
+    // Ticking a shift change card selects every day of it for "Approve/Reject selected".\n
+    document.querySelectorAll('.group-select').forEach(function (box) {\n
+        box.addEventListener('change', function () {\n
+            document.querySelectorAll('[data-group-of="' + box.dataset.group + '"]').forEach(input => input.disabled = !box.checked);\n
+        });\n
+    });\n
+\n
+    let uid = 0;\n
+    document.querySelectorAll('form.approval-form').forEach(function (form) {\n
+        form.dataset.uid = String(++uid);\n
+        form.querySelectorAll('button[disabled]').forEach(b => b.setAttribute('data-blocked', '1'));\n
+\n
+        form.addEventListener('submit', function (event) {\n
+            event.preventDefault();\n
+            const button = event.submitter;\n
+            const action = (button && button.getAttribute('formaction')) || form.getAttribute('action');\n
+            const question = (button && button.dataset.confirm) || form.dataset.confirm;\n
+            const yesText = (button && button.dataset.yes) || form.dataset.yes;\n
+            formMessage(form, '');\n
+\n
+            if (form.dataset.kind === 'several' && !document.querySelector('.entry-select:checked')) {\n
+                formMessage(form, 'Select at least one entry.');\n
+                return;\n
+            }\n
+            const reason = form.querySelector('[name="reason"]');\n
+            const needsReason = (button && button.dataset.needsReason) || (reason && reason.required);\n
+            if (needsReason && reason) {\n
+                const length = reason.value.trim().length;\n
+                if (length < 3 || length > 500) {\n
+                    formMessage(form, 'A reason of 3 to 500 characters is required to reject.');\n
+                    reason.focus();\n
+                    return;\n
+                }\n
+            }\n
+\n
+            if (question) ask(form, action, question, yesText); else send(form, action);\n
+        });\n
+    });\n
+})();\n
+</script>\n
+</body>\n
+</html>\n
+' matches PCRE pattern "/Asked[^<]*Oct \d{2}, 2026/".
+
+C:\Users\Forbeast\Desktop\Desktop\Laravel Project\Website 2025\likha-hr\.claude\worktrees\biometrics-012\tests\Feature\Approvals\ApprovalsPageTest.php:160
+
+FAILURES!
+Tests: 412, Assertions: 3965, Failures: 1.

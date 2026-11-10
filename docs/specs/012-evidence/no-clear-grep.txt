@@ -1,0 +1,7 @@
+$ git grep -n -E "Cmd 1[45] |CLEAR" -- tools/biometrics-agent
+(no output; git grep exit code 1)
+
+$ git grep -n "ZkAllowedCommands" -- tools/biometrics-agent
+tools/biometrics-agent/ZkProtocol.ps1:5:# The agent may send ONLY the read and clock commands in $ZkAllowedCommands. Anything else is
+tools/biometrics-agent/ZkProtocol.ps1:30:$ZkAllowedCommands = @(1000, 1001, 1102, 50, 201, 202, 1503, 1504, 1502)
+tools/biometrics-agent/agent.ps1:180:    if ($ZkAllowedCommands -notcontains $cmd) { throw "Refused to send device command ${cmd}: not a read or clock command." }

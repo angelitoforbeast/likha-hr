@@ -1,0 +1,10 @@
+﻿PASS  A poll: the run ends cleanly  [exit 0]
+FAIL  A post: the 4 punches of zk 1 are stored
+FAIL  A post: the day of zk 1 is computed
+FAIL  A post: the 2 punches of zk 54 (no employee) are held
+FAIL  A users: device users not in HR are listed with UTF-8 names (S-13)
+PASS  A users: no employee was created or renamed
+FAIL  A heartbeat: last contact, device reachable, record count  [records ]
+FAIL  the run of the checks went on to the end  [stopped: Exception calling "ReadAllText" with "1" argument(s): "Could not find file 'C:\Users\Forbeast\AppData\Local\Temp\likha-agent-tests-d546e244\a\state.json'."]
+
+Agent tests: 2 passed, 6 failed

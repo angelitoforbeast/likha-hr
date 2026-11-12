@@ -524,6 +524,33 @@ As HR and the owner, we want each punch on the office device to reach Likha HR b
 | S-012.14 | edge (P2) | The task is defined as SYSTEM, at boot and every minute, one instance, 3 restarts; the key file ACL is SYSTEM and Administrators only; the log rotates past 1 MB; the CSV archive rolls over by month; the key is in no log, CSV, state, outbox or server log; a bad agent id or plain http stops the run before anything is sent | agent checks O, P, N, R, S | Passed · 2026-11-10 · auto |
 | S-012.15 | negative | Given the existing suites, then they pass | full suite: see the result of spec 012 (354 tests before; the one failure is the date-bound S-10.1, failing at ad139cc too) | Passed · 2026-11-10 · auto |
 
+## Slice 013 – Staff rate changes wait for the owner, and a new rate shortens an open-dated one
+
+Slice 013: 24 passed, 0 failed, 0 blocked, 0 skipped (plus the full-suite row)
+
+Tests live in `tests/Feature/Rates/`, on the fixtures of Slice 002 (C the CEO, H and H2 HR staff, M an admin; E1 and E2 at 520.00 from Jan 01, 2026; a draft payroll run Oct 1–15, 2026) with E1's rate made "For Probi": 520.00 from Jan 01, 2026 until Jun 30, 2027. Every role may edit `daily_rates`, as the live HR accounts can. "Approved ranges" are the rows that count.
+
+### S-013 A rate counts only once the CEO has it, and a raise never fails on a rate with a future end (P1)
+As the owner, I want a daily rate saved by HR or an admin to wait for my approval, and a new rate to end the rate it starts in, so that pay changes only when I agree and staff can enter raises on "For Probi" rates.
+
+| Case | Type | Given / When / Then | Test | Last run |
+|---|---|---|---|---|
+| S-013.1 | happy | Given E1's "For Probi" rate until Jun 30, 2027, when the CEO adds 600.00 from Nov 16, 2026, then the Probi rate ends Nov 15, 2026, the new rate is saved ongoing, the message names Nov 15, and the audit log has the Probi rate's update with effective_until 2027-06-30 → 2026-11-15 by the CEO | `RateOverlapTest::test_s_013_1_*` (2 tests) | Passed · 2026-11-13 · auto |
+| S-013.2 | negative | An open-ended rate is still ended the day before the new one | `RateOverlapTest::test_s_013_2_open_ended_rate_is_still_shortened` | Passed · 2026-11-13 · auto |
+| S-013.3 | negative | Refused with "Rate overlaps with existing rate (effective …)" and nothing changed: a rate starting before an existing rate and running into it; a rate on the same start date; a rate that starts inside a closed rate and ends before it (it would cut that rate in two). Saved: a rate that ends on or after the closed rate it starts in | `RateOverlapTest::test_s_013_3_*` (4 tests) | Passed · 2026-11-13 · auto |
+| S-013.4 | edge | Editing a rate's start into the rate before it ends that rate the day before; editing a rate into a later rate is refused; editing the amount only shortens nothing | `RateOverlapTest::test_s_013_4_*` (2 tests) | Passed · 2026-11-13 · auto |
+| S-013.5 | happy | A rate added by HR or an admin is pending (requested_by set, not decided); the Probi rate is not shortened; the current rate, the rate of any date and the Employees list still say 520.00; a rate added by the CEO is approved at once | `RateApprovalTest::test_s_013_5_*` (2 tests) | Passed · 2026-11-13 · auto |
+| S-013.6 | negative | A pending new rate inside the payroll period, a pending change of the rate that counts, and a rejected rate leave PayrollService's result exactly at the baseline; once approved, payroll uses the new rate | `RateApprovalTest::test_s_013_6_pending_rates_never_reach_payroll` | Passed · 2026-11-13 · auto |
+| S-013.7 | happy | Rate Approvals (`/approvals/rates`) lists each pending change once: employee, old → new rate, dates, what approving will shorten, who asked and when; the nav shows the count; HR staff and admins get 403 on the list, approve and reject whatever the feature permissions say | `RateApprovalTest::test_s_013_7_*` (2 tests) | Passed · 2026-11-13 · auto |
+| S-013.8 | happy | Approving (with an optional note) makes the rate count and shortens the Probi rate then; a decided request cannot be decided again; a request is checked again at approval (a rate the CEO saved since on the same start: refused, still pending); a request that could not be saved is refused when asked | `RateApprovalTest::test_s_013_8_*` (3 tests) | Passed · 2026-11-13 · auto |
+| S-013.9 | negative | Rejecting with a note changes no rate; the requester sees "Waiting for approval" before and "Rejected: note" after on the employee's rate list | `RateApprovalTest::test_s_013_9_reject` | Passed · 2026-11-13 · auto |
+| S-013.10 | happy | HR editing a rate that counts asks for the change ("Change waiting for approval" on that rate); a second change of it while one waits is refused; approved, the rate itself changes and no second row is left | `RateApprovalTest::test_s_013_10_edit_by_hr` | Passed · 2026-11-13 · auto |
+| S-013.11 | negative | HR withdraws a pending or rejected request but cannot remove a rate that counts; the CEO still can; without the daily_rates edit permission add, edit and the bulk rate are 403 | `RateApprovalTest::test_s_013_11_*` (2 tests) | Passed · 2026-11-13 · auto |
+| S-013.12 | edge | The bulk "set daily rate": HR asks for each employee; the CEO saves with the shortening; employees that cannot be saved are skipped with the reason | `RateApprovalTest::test_s_013_12_bulk` | Passed · 2026-11-13 · auto |
+| S-013.13 | happy | The audit log keeps created/updated and adds submitted (requester, time), approved and rejected (CEO, time, note); the shortening at approval is an update by the CEO; the Audit Logs filter lists the new actions | `RateApprovalTest::test_s_013_13_audit` | Passed · 2026-11-13 · auto |
+| S-013.14 | negative | Approving a rate leaves a payroll already computed exactly as it was; only a recompute uses the rate | `RateApprovalTest::test_s_013_14_payroll_is_not_recomputed` | Passed · 2026-11-13 · auto |
+| S-013.15 | negative | Given the existing suites, then they pass | full suite: 436 tests (412 at c2883a4); the one failure is the date-bound S-10.1, failing at c2883a4 too | Passed · 2026-11-13 · auto |
+
 ## Owner checks
 
 - [ ] S-04.6 Import page: the Stats cell shows "Computed: …" when the badge turns DONE, without a reload (browser, after release)
@@ -538,3 +565,5 @@ As HR and the owner, we want each punch on the office device to reach Likha HR b
 - [ ] S-012.14 On the office PC after install: restart it, sign in to nobody, and within 2 minutes the Import page shows "Office PC: in contact" (office PC)
 - [ ] S-012.6 The first 06:00 clock check on the real device: the log says "device clock set" and the device shows the right time (office PC)
 - [ ] S-012.1 After deploy, one real punch on the device shows on the Attendance Calendar within about a minute (production)
+- [ ] S-013.7 Rate Approvals on the CEO's account: the nav count, one card per request, Approve and Reject (staging)
+- [ ] S-013.1 After deploy, the three raises of 2026-11-12 are entered again: each "For Probi" rate ends the day before the raise (production)

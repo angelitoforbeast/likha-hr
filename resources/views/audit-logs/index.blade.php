@@ -20,7 +20,7 @@
                 <label class="form-label small fw-semibold mb-1">Action</label>
                 <select name="action" class="form-select form-select-sm">
                     <option value="">All</option>
-                    @foreach(['created', 'updated', 'deleted'] as $a)
+                    @foreach(['created', 'updated', 'deleted', 'submitted', 'approved', 'rejected'] as $a)
                         <option value="{{ $a }}" {{ request('action') === $a ? 'selected' : '' }}>{{ ucfirst($a) }}</option>
                     @endforeach
                 </select>
@@ -91,6 +91,12 @@
                                 <span class="badge bg-primary"><i class="bi bi-pencil"></i> Updated</span>
                             @elseif($log->action === 'deleted')
                                 <span class="badge bg-danger"><i class="bi bi-trash"></i> Deleted</span>
+                            @elseif($log->action === 'submitted')
+                                <span class="badge bg-info text-dark"><i class="bi bi-send"></i> Submitted</span>
+                            @elseif($log->action === 'approved')
+                                <span class="badge bg-success"><i class="bi bi-check-lg"></i> Approved</span>
+                            @elseif($log->action === 'rejected')
+                                <span class="badge bg-warning text-dark"><i class="bi bi-x-lg"></i> Rejected</span>
                             @else
                                 <span class="badge bg-secondary">{{ $log->action }}</span>
                             @endif

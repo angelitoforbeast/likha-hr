@@ -1,0 +1,645 @@
+PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\mira\mira\projects\likha-hr\phpunit.xml
+
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+F  Backfilled 0 adjustment(s) into payroll_adjustments.
+.                                          24 / 24 (100%)
+
+Time: 00:03.064, Memory: 50.00 MB
+
+Rate Approval (Tests\Feature\Rates\RateApproval)
+ ✘ S-013.5 a rate added by HR is pending: the old rate is not shortened and the current rate stays 520.00
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:22
+   │
+ ✘ S-013.5 an admin's rate waits too; only the CEO saves directly
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:42
+   │
+ ✘ S-013.6 pending, rejected and pending-edit rates never reach PayrollService; the approved rate does
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:58
+   │
+ ✘ S-013.7 the CEO sees each pending rate change once: employee, old → new rate, dates, what will be shortened, who asked and when
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:80
+   │
+ ✘ S-013.7 only the CEO opens the list or decides, whatever the feature permissions say
+   │
+   │ Expected response status code [403] but received 404.
+   │ Failed asserting that 404 is identical to 403.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:106
+   │
+ ✘ S-013.8 approving makes the rate count and shortens the "For Probi" rate at that moment
+   │
+   │ Expected response status code [201, 301, 302, 303, 307, 308] but received 404.
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:173
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:120
+   │
+ ✘ S-013.8 approval checks the rates as they are then: a rate saved since on the same start date makes it refused, and it stays pending
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:143
+   │
+ ✔ S-013.8 a request that cannot be saved is refused when asked, with the same message as for the CEO
+ ✘ S-013.9 rejecting changes nothing, and the person who asked sees "Rejected: note" on the rate list
+   │
+   │ Failed asserting that '<!DOCTYPE html>\n
+   │ <html lang="en">\n
+   │ <head>\n
+   │     <meta charset="UTF-8">\n
+   │     <meta name="viewport" content="width=device-width, initial-scale=1.0">\n
+   │     <meta name="csrf-token" content="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN">\n
+   │     <title>Manage Employee</title>\n
+   │     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n
+   │     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">\n
+   │     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">\n
+   │     <style>\n
+   │         body { background-color: #f4f6f9; }\n
+   │         .sidebar {\n
+   │             height: 100vh;\n
+   │             background: #212529;\n
+   │             color: #fff;\n
+   │             width: 250px;\n
+   │             position: fixed;\n
+   │             top: 0; left: 0;\n
+   │             z-index: 100;\n
+   │             overflow-y: auto;\n
+   │             overflow-x: hidden;\n
+   │             scrollbar-width: thin;\n
+   │             scrollbar-color: rgba(255,255,255,.3) transparent;\n
+   │         }\n
+   │         .sidebar::-webkit-scrollbar { width: 6px; }\n
+   │         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 3px; }\n
+   │         .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }\n
+   │         .sidebar .nav-link { color: rgba(255,255,255,.7); padding: .75rem 1.25rem; }\n
+   │         .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,.1); }\n
+   │         .sidebar .nav-link i { margin-right: .5rem; width: 20px; text-align: center; }\n
+   │         .main-content { margin-left: 250px; padding: 1.5rem; }\n
+   │         .sidebar-brand { padding: 1rem 1.25rem; font-size: 1.1rem; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }\n
+   │         .top-bar { background: #fff; border-bottom: 1px solid #dee2e6; padding: .75rem 1.5rem; margin: -1.5rem -1.5rem 1.5rem; }\n
+   │         @media print {\n
+   │             .sidebar, .top-bar, .no-print { display: none !important; }\n
+   │             .main-content { margin-left: 0 !important; padding: 0 !important; }\n
+   │         }\n
+   │     </style>\n
+   │     </head>\n
+   │ <body>\n
+   │     \n
+   │     <div class="sidebar d-print-none">\n
+   │         <div class="sidebar-brand">\n
+   │             <i class="bi bi-clock-history"></i> HR Attendance\n
+   │         </div>\n
+   │                 <nav class="nav flex-column mt-2">\n
+   │                         <a class="nav-link " href="http://localhost/dashboard">\n
+   │                 <i class="bi bi-speedometer2"></i> Dashboard\n
+   │             </a>\n
+   │                                                 <a class="nav-link " href="http://localhost/attendance">\n
+   │                 <i class="bi bi-calendar-check"></i> Attendance Viewer\n
+   │             </a>\n
+   │                                     <a class="nav-link " href="http://localhost/attendance-calendar">\n
+   │                 <i class="bi bi-calendar2-week"></i> Attendance Calendar\n
+   │             </a>\n
+   │                                                 <a class="nav-link " href="http://localhost/payroll">\n
+   │                 <i class="bi bi-cash-stack"></i> Payroll\n
+   │             </a>\n
+   │                                     <a class="nav-link active" href="http://localhost/employees">\n
+   │                 <i class="bi bi-people"></i> Employees\n
+   │             </a>\n
+   │                                                                                                                     </nav>\n
+   │     </div>\n
+   │ \n
+   │     \n
+   │     <div class="main-content">\n
+   │         <div class="top-bar d-flex justify-content-between align-items-center d-print-none">\n
+   │             <h5 class="mb-0">Manage: Employee One</h5>\n
+   │             <div class="d-flex align-items-center gap-3">\n
+   │                 <span class="text-muted small">\n
+   │                     Hr One\n
+   │                                             <span class="badge bg-secondary">HR Staff</span>\n
+   │                                     </span>\n
+   │                 <form method="POST" action="http://localhost/logout" class="d-inline">\n
+   │                     <input type="hidden" name="_token" value="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN" autocomplete="off">                    <button type="submit" class="btn btn-sm btn-outline-secondary">\n
+   │                         <i class="bi bi-box-arrow-right"></i> Logout\n
+   │                     </button>\n
+   │                 </form>\n
+   │             </div>\n
+   │         </div>\n
+   │ \n
+   │         \n
+   │         \n
+   │                     <div class="alert alert-danger alert-dismissible fade show">\n
+   │                 Rate overlaps with existing rate (effective Jan 01, 2026).\n
+   │                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>\n
+   │             </div>\n
+   │         \n
+   │         \n
+   │         <div class="row">\n
+   │     \n
+   │         <div class="col-lg-4 mb-4">\n
+   │         <div class="card border-0 shadow-sm">\n
+   │             <div class="card-header bg-white">\n
+   │                 <h6 class="mb-0"><i class="bi bi-person"></i> Basic Information</h6>\n
+   │                                     <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>\n
+   │                             </div>\n
+   │             <div class="card-body">\n
+   │                 <form method="POST" action="http://localhost/employees/1">\n
+   │                     <input type="hidden" name="_token" value="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN" autocomplete="off">                    <input type="hidden" name="_method" value="PUT">\n
+   │                     <div class="mb-3">\n
+   │                         <label class="form-label fw-semibold">ZKTeco ID</label>\n
+   │                         <input type="text" class="form-control" value="901" disabled>\n
+   │                     </div>\n
+   │ \n
+   │                     <div class="mb-3">\n
+   │                         <label class="form-label fw-semibold">ZKTeco Name <small class="text-muted">(from device, read-only)</small></label>\n
+   │                         <input type="text" class="form-control bg-light" value="Employee One" disabled>\n
+   │                     </div>\n
+   │ \n
+   │                     <div class="mb-3">\n
+   │                         <label for="actual_name" class="form-label fw-semibold">Actual Name</label>\n
+   │                         <input type="text" name="actual_name" id="actual_name"\n
+   │                                class="form-control "\n
+   │                                value=""\n
+   │                                placeholder="Enter actual/formal name..."\n
+   │                                disabled>\n
+   │                         <div class="form-text">Primary display name. Leave blank to use ZKTeco name.</div>\n
+   │                                             </div>\n
+   │ \n
+   │                     <div class="mb-3">\n
+   │                         <label class="form-label fw-semibold">Current Status</label>\n
+   │                         <div>\n
+   │                             <span class="badge bg-success fs-6">\n
+   │                                 Active\n
+   │                             </span>\n
+   │                             <small class="text-muted ms-2">Managed via Active/Inactive Status section below</small>\n
+   │                         </div>\n
+   │                     </div>\n
+   │ \n
+   │                     <div class="mb-3">\n
+   │                         <label for="department_id" class="form-label fw-semibold">Department</label>\n
+   │                         <select name="department_id" id="department_id" class="form-select" disabled>\n
+   │                             <option value="">— None —</option>\n
+   │                                                     </select>\n
+   │                     </div>\n
+   │ \n
+   │                     \n
+   │                     <div class="mb-3">\n
+   │                         <label for="default_shift_id" class="form-label fw-semibold">Fallback Shift</label>\n
+   │                         <select name="default_shift_id" id="default_shift_id" class="form-select"\n
+   │                                 disabled>\n
+   │                             <option value="">— None —</option>\n
+   │                                                             <option value="1"\n
+   │                                         data-start="8:00 AM"\n
+   │                                         data-end="5:00 PM"\n
+   │                                         data-lunch-start="12:00 PM"\n
+   │                                         data-lunch-end="1:00 PM"\n
+   │                                         selected>\n
+   │                                     Day shift\n
+   │                                 </option>\n
+   │                                                             <option value="2"\n
+   │                                         data-start="9:00 AM"\n
+   │                                         data-end="6:00 PM"\n
+   │                                         data-lunch-start="1:00 PM"\n
+   │                                         data-lunch-end="2:00 PM"\n
+   │                                         >\n
+   │                                     Late shift\n
+   │                                 </option>\n
+   │                                                     </select>\n
+   │                         <div class="form-text">Used only when no shift assignment exists for a date.</div>\n
+   │                         <small class="text-muted" id="fallbackShiftPreview">\n
+   │                                                             Schedule: 8:00 AM\n
+   │                                 — 5:00 PM\n
+   │                                 | Lunch: 12:00 PM\n
+   │                                 — 1:00 PM\n
+   │                                                     </small>\n
+   │                     </div>\n
+   │ \n
+   │                     \n
+   │                                     </form>\n
+   │             </div>\n
+   │         </div>\n
+   │ \n
+   │         <div class="mt-3">\n
+   │             <a href="http://localhost/employees" class="btn btn-outline-secondary w-100">\n
+   │                 <i class="bi bi-arrow-left"></i> Back to Employees\n
+   │             </a>\n
+   │         </div>\n
+   │     </div>\n
+   │     \n
+   │     \n
+   │     <div class="col-lg-8">\n
+   │ \n
+   │         \n
+   │         <div class="card border-0 shadow-sm mb-4">\n
+   │             <div class="card-header bg-white d-flex justify-content-between align-items-center">\n
+   │                 <div>\n
+   │                     <h6 class="mb-0"><i class="bi bi-toggle-on"></i> Active / Inactive Status</h6>\n
+   │                 </div>\n
+   │                             </div>\n
+   │                         <div class="card-body p-0">\n
+   │                 <table class="table table-sm table-hover mb-0">\n
+   │                     <thead class="table-light">\n
+   │                         <tr>\n
+   │                             <th>Status</th><th>From</th><th>Until</th><th>Remarks</th>\n
+   │                                                     </tr>\n
+   │                     </thead>\n
+   │                     <tbody>\n
+   │                                                 <tr><td colspan="4" class="text-center text-muted py-3">No active/inactive status history. Employee defaults to Active.</td></tr>\n
+   │                                             </tbody>\n
+   │                 </table>\n
+   │             </div>\n
+   │         </div>\n
+   │ \n
+   │         \n
+   │         \n
+   │         \n
+   │                 <div class="card border-0 shadow-sm mb-4">\n
+   │             <div class="card-header bg-white d-flex justify-content-between align-items-center">\n
+   │                 <div>\n
+   │                     <h6 class="mb-0"><i class="bi bi-clock-history"></i> Shift Assignments</h6>\n
+   │                                             <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>\n
+   │                                     </div>\n
+   │                             </div>\n
+   │                         <div class="card-body p-0">\n
+   │                 <table class="table table-sm table-hover mb-0">\n
+   │                     <thead class="table-light">\n
+   │                         <tr>\n
+   │                             <th>From</th><th>Until</th><th>Shift</th><th>Schedule</th><th>Lunch Break</th><th>Remarks</th>\n
+   │                                                     </tr>\n
+   │                     </thead>\n
+   │                     <tbody>\n
+   │                         \n
+   │                                                                         <tr><td colspan="6" class="text-center text-muted py-3">No shift assignments. Will use fallback shift.</td></tr>\n
+   │                                             </tbody>\n
+   │                 </table>\n
+   │             </div>\n
+   │         </div>\n
+   │         \n
+   │         \n
+   │                 <div class="card border-0 shadow-sm mb-4">\n
+   │             <div class="card-header bg-white d-flex justify-content-between align-items-center">\n
+   │                 <div>\n
+   │                     <h6 class="mb-0"><i class="bi bi-currency-exchange"></i> Daily Rates</h6>\n
+   │                                     </div>\n
+   │                                 <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#addRateForm">\n
+   │                     <i class="bi bi-plus-lg"></i> Add Rate\n
+   │                 </button>\n
+   │                             </div>\n
+   │                         <div class="collapse" id="addRateForm">\n
+   │                 <div class="card-body border-bottom bg-light">\n
+   │                     <form method="POST" action="http://localhost/employees/1/add-rate">\n
+   │                         <input type="hidden" name="_token" value="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN" autocomplete="off">                        <div class="row g-2 align-items-end">\n
+   │                             <div class="col-md-2">\n
+   │                                 <label class="form-label small fw-semibold">Daily Rate</label>\n
+   │                                 <div class="input-group input-group-sm">\n
+   │                                     <span class="input-group-text">&#8369;</span>\n
+   │                                     <input type="number" name="daily_rate" step="0.01" min="0"\n
+   │                                            class="form-control" placeholder="0.00" required>\n
+   │                                 </div>\n
+   │                             </div>\n
+   │                             <div class="col-md-2">\n
+   │                                 <label class="form-label small fw-semibold">From</label>\n
+   │                                 <input type="date" name="effective_date" class="form-control form-control-sm"\n
+   │                                        value="2026-11-13" required>\n
+   │                             </div>\n
+   │                             <div class="col-md-2">\n
+   │                                 <label class="form-label small fw-semibold">Until <small class="text-muted">(opt)</small></label>\n
+   │                                 <input type="date" name="effective_until" class="form-control form-control-sm">\n
+   │                             </div>\n
+   │                             <div class="col-md-4">\n
+   │                                 <label class="form-label small fw-semibold">Remarks</label>\n
+   │                                 <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">\n
+   │                             </div>\n
+   │                             <div class="col-md-2">\n
+   │                                 <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>\n
+   │                             </div>\n
+   │                         </div>\n
+   │                     </form>\n
+   │                 </div>\n
+   │             </div>\n
+   │                         <div class="card-body p-0">\n
+   │                 <table class="table table-sm table-hover mb-0">\n
+   │                     <thead class="table-light">\n
+   │                         <tr>\n
+   │                             <th>From</th><th>Until</th><th>Daily Rate</th><th>Remarks</th>\n
+   │                             <th>Actions</th>                        </tr>\n
+   │                     </thead>\n
+   │                     <tbody>\n
+   │                                                 \n
+   │                         <tr id="rate-view-1">\n
+   │                             <td class="fw-semibold">Jan 01, 2026</td>\n
+   │                             <td>Jun 30, 2027</td>\n
+   │                             <td class="fw-semibold">&#8369; 520.00</td>\n
+   │                             <td class="small">For Probi</td>\n
+   │                                                         <td class="text-nowrap">\n
+   │                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('rate', 1)"><i class="bi bi-pencil"></i></button>\n
+   │                                 <form method="POST" action="http://localhost/employees/1/rate/1" onsubmit="return confirm('Remove?')" class="d-inline">\n
+   │                                     <input type="hidden" name="_token" value="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN" autocomplete="off"> <input type="hidden" name="_method" value="DELETE">                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>\n
+   │                                 </form>\n
+   │                             </td>\n
+   │                                                     </tr>\n
+   │                         \n
+   │                                                 <tr id="rate-edit-1" style="display:none;" class="table-warning">\n
+   │                             <td colspan="5">\n
+   │                                 <form method="POST" action="http://localhost/employees/1/rate/1">\n
+   │                                     <input type="hidden" name="_token" value="6VEMuCkZvO1qlYmPEinwkBMN0Oezq4Rob5TpO0zN" autocomplete="off"> <input type="hidden" name="_method" value="PUT">                                    <div class="row g-2 align-items-end">\n
+   │                                         <div class="col-md-2">\n
+   │                                             <label class="form-label small fw-semibold">Daily Rate</label>\n
+   │                                             <div class="input-group input-group-sm">\n
+   │                                                 <span class="input-group-text">&#8369;</span>\n
+   │                                                 <input type="number" name="daily_rate" step="0.01" min="0"\n
+   │                                                        class="form-control" value="520.00" required>\n
+   │                                             </div>\n
+   │                                         </div>\n
+   │                                         <div class="col-md-2">\n
+   │                                             <label class="form-label small fw-semibold">From</label>\n
+   │                                             <input type="date" name="effective_date" class="form-control form-control-sm"\n
+   │                                                    value="2026-01-01" required>\n
+   │                                         </div>\n
+   │                                         <div class="col-md-2">\n
+   │                                             <label class="form-label small fw-semibold">Until</label>\n
+   │                                             <input type="date" name="effective_until" class="form-control form-control-sm"\n
+   │                                                    value="2027-06-30">\n
+   │                                         </div>\n
+   │                                         <div class="col-md-4">\n
+   │                                             <label class="form-label small fw-semibold">Remarks</label>\n
+   │                                             <input type="text" name="remarks" class="form-control form-control-sm"\n
+   │                                                    value="For Probi">\n
+   │                                         </div>\n
+   │                                         <div class="col-md-2">\n
+   │                                             <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>\n
+   │                                             <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('rate', 1)"><i class="bi bi-x"></i></button>\n
+   │                                         </div>\n
+   │                                     </div>\n
+   │                                 </form>\n
+   │                             </td>\n
+   │                         </tr>\n
+   │                                                                     </tbody>\n
+   │                 </table>\n
+   │             </div>\n
+   │         </div>\n
+   │         \n
+   │         \n
+   │         \n
+   │         \n
+   │                 <div class="card border-0 shadow-sm mb-4">\n
+   │             <div class="card-header bg-white d-flex justify-content-between align-items-center">\n
+   │                 <div>\n
+   │                     <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Rest Day Pattern</h6>\n
+   │                                             <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>\n
+   │                                     </div>\n
+   │                             </div>\n
+   │                         <div class="card-body p-0">\n
+   │                 <table class="table table-sm table-hover mb-0">\n
+   │                     <thead class="table-light">\n
+   │                         <tr>\n
+   │                             <th>Day</th><th>From</th><th>Until</th><th>Remarks</th>\n
+   │                                                     </tr>\n
+   │                     </thead>\n
+   │                     <tbody>\n
+   │                                                 <tr><td colspan="4" class="text-center text-muted py-3">No rest day pattern set.</td></tr>\n
+   │                                             </tbody>\n
+   │                 </table>\n
+   │             </div>\n
+   │         </div>\n
+   │         \n
+   │         \n
+   │                 <div class="card border-0 shadow-sm mb-4">\n
+   │             <div class="card-header bg-white d-flex justify-content-between align-items-center">\n
+   │                 <div>\n
+   │                     <h6 class="mb-0"><i class="bi bi-calendar-x"></i> Day Off Overrides</h6>\n
+   │                                             <small class="text-muted"><i class="bi bi-lock"></i> View Only</small>\n
+   │                                     </div>\n
+   │                             </div>\n
+   │                         <div class="card-body p-0">\n
+   │                 <table class="table table-sm table-hover mb-0">\n
+   │                     <thead class="table-light">\n
+   │                         <tr>\n
+   │                             <th>Date</th><th>Type</th><th>Remarks</th>\n
+   │                                                     </tr>\n
+   │                     </thead>\n
+   │                     <tbody>\n
+   │                                                 <tr><td colspan="3" class="text-center text-muted py-3">No day off overrides.</td></tr>\n
+   │                                             </tbody>\n
+   │                 </table>\n
+   │             </div>\n
+   │         </div>\n
+   │         \n
+   │         \n
+   │         \n
+   │         \n
+   │         \n
+   │     </div>\n
+   │ </div>\n
+   │     </div>\n
+   │ \n
+   │     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n
+   │     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>\n
+   │     <script>\n
+   │     // Toggle edit row visibility\n
+   │     function toggleEdit(section, id) {\n
+   │         const viewRow = document.getElementById(section + '-view-' + id);\n
+   │         const editRow = document.getElementById(section + '-edit-' + id);\n
+   │         if (viewRow && editRow) {\n
+   │             if (editRow.style.display === 'none') {\n
+   │                 viewRow.style.display = 'none';\n
+   │                 editRow.style.display = '';\n
+   │             } else {\n
+   │                 viewRow.style.display = '';\n
+   │                 editRow.style.display = 'none';\n
+   │             }\n
+   │         }\n
+   │     }\n
+   │ \n
+   │     // Fallback shift preview\n
+   │     const fallbackSelect = document.getElementById('default_shift_id');\n
+   │     const fallbackPreview = document.getElementById('fallbackShiftPreview');\n
+   │     if (fallbackSelect) {\n
+   │         fallbackSelect.addEventListener('change', function() {\n
+   │             const opt = this.options[this.selectedIndex];\n
+   │             if (opt.value && opt.dataset.start) {\n
+   │                 fallbackPreview.innerHTML = 'Schedule: ' + opt.dataset.start + ' — ' + opt.dataset.end +\n
+   │                     ' | Lunch: ' + opt.dataset.lunchStart + ' — ' + opt.dataset.lunchEnd;\n
+   │             } else {\n
+   │                 fallbackPreview.innerHTML = '';\n
+   │             }\n
+   │         });\n
+   │     }\n
+   │ \n
+   │     // Schedule mode help text\n
+   │     const modeSelect = document.getElementById('schedule_mode');\n
+   │     const modeHelp = document.getElementById('scheduleModeHelp');\n
+   │     const deptSelect = document.getElementById('department_id');\n
+   │     if (modeSelect) {\n
+   │         modeSelect.addEventListener('change', function() {\n
+   │             if (this.value === 'department') {\n
+   │                 modeHelp.textContent = 'This employee follows department schedule changes automatically.';\n
+   │             } else {\n
+   │                 modeHelp.textContent = 'This employee has a custom schedule. Department changes will not affect them.';\n
+   │             }\n
+   │         });\n
+   │     }\n
+   │ \n
+   │     if (deptSelect) {\n
+   │         deptSelect.addEventListener('change', function() {\n
+   │             if (!this.value) {\n
+   │                 if (modeSelect) {\n
+   │                     modeSelect.value = 'manual';\n
+   │                     modeSelect.dispatchEvent(new Event('change'));\n
+   │                 }\n
+   │             }\n
+   │         });\n
+   │     }\n
+   │ </script>\n
+   │ </body>\n
+   │ </html>\n
+   │ ' [UTF-8](length: 23992) contains "Waiting for approval" [ASCII](length: 20).
+   │
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:169
+   │
+ ✘ S-013.10 HR editing a rate that counts asks for the change: the rate stays as it is until approved, then it changes in place
+   │
+   │ Failed asserting that two arrays are identical.
+   │ --- Expected
+   │ +++ Actual
+   │ @@ @@
+   │      0 => Array &1 [
+   │          0 => '2026-01-01',
+   │          1 => '2027-06-30',
+   │ -        2 => '520.00',
+   │ +        2 => '560.00',
+   │      ],
+   │  ]
+   │
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:190
+   │
+ ✘ S-013.11 HR can withdraw a pending or rejected rate of their own, but cannot remove a rate that counts
+   │
+   │ Session is missing expected key [error].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:218
+   │
+ ✘ S-013.11 without the daily_rates edit permission nothing can be asked or changed (403, as before)
+   │
+   │ Expected response status code [403] but received 302.
+   │ Failed asserting that 302 is identical to 403.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:148
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:236
+   │
+ ✘ S-013.12 the bulk "set daily rate" follows the same rules: HR asks for each employee, the CEO saves with the shortening
+   │
+   │ Failed asserting that 0 is identical to 2.
+   │
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:249
+   │
+ ✘ S-013.13 the audit log keeps created/updated and also records submitted, approved and rejected with who and when
+   │
+   │ Failed asserting that actual size 0 matches expected size 1.
+   │
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:277
+   │
+ ✘ S-013.14 approving a rate does not recompute a payroll already computed; only a recompute uses it
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateApprovalTest.php:307
+   │
+
+Rate Overlap (Tests\Feature\Rates\RateOverlap)
+ ✘ S-013.1 a raise from Nov 16 on a "For Probi" rate ending Jun 30, 2027 ends that rate on Nov 15 and is saved
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateOverlapTest.php:17
+   │
+ ✘ S-013.1 the audit log records the shortened rate's end date, old and new
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateOverlapTest.php:29
+   │
+ ✔ S-013.2 an open-ended rate is still ended the day before the new one (as before)
+ ✔ S-013.3 a rate that starts before an existing rate and runs into it is refused with a clear message; nothing changes
+ ✔ S-013.3 a rate on the same start date as an existing rate is refused; nothing changes
+ ✘ S-013.3 a rate that sits inside a closed rate and ends before it is refused (it would cut the rest of that rate off); nothing changes
+   │
+   │ Failed asserting that 'Rate overlaps with existing rate (effective Jan 01, 2026).' [ASCII](length: 58) contains "Jun 30, 2027" [ASCII](length: 12).
+   │
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateOverlapTest.php:83
+   │
+ ✘ S-013.3 a rate that ends on or after the closed rate it starts in is saved, and that rate is shortened
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateOverlapTest.php:90
+   │
+ ✘ S-013.4 editing a rate's start into the rate before it shortens that rate; editing a rate into a later one is refused
+   │
+   │ Session is missing expected key [success].
+   │ Failed asserting that false is true.
+   │
+   │ C:\mira\mira\projects\likha-hr\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:1263
+   │ C:\mira\mira\projects\likha-hr\tests\Feature\Rates\RateOverlapTest.php:106
+   │
+ ✔ S-013.4 editing a rate's amount only (same dates) is saved and shortens nothing
+
+FAILURES!
+Tests: 24, Assertions: 45, Failures: 19.

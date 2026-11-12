@@ -617,9 +617,12 @@
                                 <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Optional">
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> Save</button>
+                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check"></i> {{ $mustRequest ? 'Send for approval' : 'Save' }}</button>
                             </div>
                         </div>
+                        @if($mustRequest)
+                            <div class="small text-muted mt-2">The CEO approves every rate change. It does not count until then.</div>
+                        @endif
                     </form>
                 </div>
             </div>
@@ -633,20 +636,62 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Asked for and not approved: not in effect. --}}
+                        @foreach($rateRequests as $req)
+                        <tr class="{{ $req->isPending() ? 'table-info' : 'table-light' }} rate-request-row">
+                            <td class="fw-semibold">{{ $req->effective_date->format('M d, Y') }}</td>
+                            <td>{{ $req->effective_until ? $req->effective_until->format('M d, Y') : '— Ongoing' }}</td>
+                            <td class="fw-semibold">&#8369; {{ number_format($req->daily_rate, 2) }}</td>
+                            <td class="small">
+                                @if($req->isPending())
+                                    <span class="badge bg-info text-dark">Waiting for approval</span>
+                                @else
+                                    <span class="text-danger fw-semibold">Rejected: {{ $req->decision_note ?: 'no note' }}</span>
+                                @endif
+                                @if($req->replaces_rate_id)
+                                    @php $was = $rateById->get($req->replaces_rate_id); @endphp
+                                    Change to the rate from {{ $was ? $was->effective_date->format('M d, Y') . ' (₱' . number_format($was->daily_rate, 2) . ')' : 'a rate removed since' }}.
+                                @endif
+                                @if($req->isPending())
+                                    Not in effect until the CEO approves.
+                                @endif
+                                Asked by {{ $req->requester->name ?? 'Unknown' }} on {{ $req->created_at->format('M d, Y g:i A') }}@if($req->isRejected()), rejected by {{ $req->decider->name ?? 'Unknown' }} on {{ $req->decided_at?->format('M d, Y g:i A') }}@endif.
+                                @if($req->remarks)<div class="text-muted">{{ $req->remarks }}</div>@endif
+                            </td>
+                            @if($canEdit('daily_rates'))
+                            <td class="text-nowrap">
+                                <form method="POST" action="{{ route('employees.delete-rate', [$employee, $req]) }}" onsubmit="return confirm('{{ $req->isPending() ? 'Withdraw this request?' : 'Remove this rejected request?' }}')" class="d-inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ $req->isPending() ? 'Withdraw' : 'Remove' }}"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                            </td>
+                            @endif
+                        </tr>
+                        @endforeach
                         @forelse($employee->employeeRates as $rate)
                         {{-- Display Row --}}
                         <tr id="rate-view-{{ $rate->id }}">
                             <td class="fw-semibold">{{ $rate->effective_date->format('M d, Y') }}</td>
                             <td>{{ $rate->effective_until ? $rate->effective_until->format('M d, Y') : '— Ongoing' }}</td>
                             <td class="fw-semibold">&#8369; {{ number_format($rate->daily_rate, 2) }}</td>
-                            <td class="small">{{ $rate->remarks ?? '—' }}</td>
+                            <td class="small">
+                                {{ $rate->remarks ?? '—' }}
+                                @if($req = $pendingRateEdits->get($rate->id))
+                                    <div class="mt-1">
+                                        <span class="badge bg-info text-dark">Change waiting for approval</span>
+                                        to &#8369; {{ number_format($req->daily_rate, 2) }} from {{ $req->rangeText() }} (asked by {{ $req->requester->name ?? 'Unknown' }})
+                                    </div>
+                                @endif
+                            </td>
                             @if($canEdit('daily_rates'))
                             <td class="text-nowrap">
                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('rate', {{ $rate->id }})"><i class="bi bi-pencil"></i></button>
+                                @unless($mustRequest)
                                 <form method="POST" action="{{ route('employees.delete-rate', [$employee, $rate]) }}" onsubmit="return confirm('Remove?')" class="d-inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                                 </form>
+                                @endunless
                             </td>
                             @endif
                         </tr>

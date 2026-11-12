@@ -23,6 +23,8 @@ use App\Models\AttendanceChangeRequest;
 use App\Services\AttendanceChangeRefused;
 use App\Services\AttendanceChangeRequestService;
 use App\Services\AttendanceChangeService;
+use App\Services\RateChangeRefused;
+use App\Services\RateChangeService;
 
 class EmployeeController extends Controller
 {
@@ -121,11 +123,21 @@ class EmployeeController extends Controller
             ->keyBy(fn ($r) => (int) $r->details['assignment_id']);
         $mustRequest = AttendanceChangeRequestService::mustRequest(Auth::user());
 
+        // Rates asked for and not approved (spec 013): listed with their status, never as in effect.
+        $rateRequests = EmployeeRate::anyStatus()->with(['requester', 'decider'])
+            ->where('employee_id', $employee->id)
+            ->where('status', '!=', EmployeeRate::STATUS_APPROVED)
+            ->orderByDesc('id')
+            ->get();
+        $rateById = $employee->employeeRates->keyBy('id');
+        $pendingRateEdits = $rateRequests->filter(fn ($r) => $r->isPending() && $r->replaces_rate_id)->keyBy('replaces_rate_id');
+
         return view('employees.edit', compact(
             'employee', 'shifts', 'departments',
             'employmentStatuses', 'benefitTypes', 'permissions',
             'silBalance', 'silApplications', 'silUsed', 'silRemaining', 'currentYear',
-            'pendingAssignments', 'pendingByAssignment', 'mustRequest'
+            'pendingAssignments', 'pendingByAssignment', 'mustRequest',
+            'rateRequests', 'rateById', 'pendingRateEdits'
         ));
     }
 
@@ -232,38 +244,39 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        $newStart = $validated['effective_date'];
+        $rates = app(RateChangeService::class);
+        try {
+            // Anyone but the CEO asks: the rate waits on Rate Approvals and counts nowhere yet.
+            if (RateChangeService::mustRequest(Auth::user())) {
+                $rates->submit($employee, $validated, Auth::user());
 
-        // Auto-close any open-ended rate that starts before the new rate
-        $openRates = EmployeeRate::where('employee_id', $employee->id)
-            ->whereNull('effective_until')
-            ->where('effective_date', '<', $newStart)
-            ->get();
-
-        foreach ($openRates as $openRate) {
-            $openRate->effective_until = Carbon::parse($newStart)->subDay()->format('Y-m-d');
-            $openRate->save();
+                return redirect()->route('employees.edit', $employee)
+                    ->with('success', 'Rate sent for approval. It does not count until the CEO approves it.');
+            }
+            $done = $rates->saveDirect($employee, $validated, Auth::user());
+        } catch (RateChangeRefused $e) {
+            return redirect()->route('employees.edit', $employee)->with('error', $e->getMessage());
         }
-
-        // Check for remaining overlaps (with closed-end rates)
-        $overlap = $this->checkRateOverlap($employee->id, $newStart, $validated['effective_until'] ?? null);
-        if ($overlap) {
-            return redirect()->route('employees.edit', $employee)
-                ->with('error', "Rate overlaps with existing rate (effective {$overlap->effective_date->format('M d, Y')}).");
-        }
-
-        $employee->employeeRates()->create($validated);
 
         return redirect()->route('employees.edit', $employee)
-            ->with('success', "Rate added effective {$newStart}. Previous open rate auto-closed.");
+            ->with('success', trim("Rate added effective {$done['rate']->effective_date->format('M d, Y')}. " . $rates->shortenedText($done['shortened'])));
     }
 
     public function deleteRate(Employee $employee, EmployeeRate $rate)
     {
         $this->guardFeature('daily_rates');
         if ($rate->employee_id !== $employee->id) abort(403);
+
+        // A rate that counts is removed by the CEO only. A request (pending or rejected) may be
+        // removed by anyone who edits rates: removing it changes no pay.
+        if ($rate->isApproved() && RateChangeService::mustRequest(Auth::user())) {
+            return redirect()->route('employees.edit', $employee)->with('error',
+                'Only the CEO can remove a rate that counts. To change it, edit it or add the new rate: the change waits for the CEO.');
+        }
         $rate->delete();
-        return redirect()->route('employees.edit', $employee)->with('success', 'Rate entry removed.');
+
+        return redirect()->route('employees.edit', $employee)
+            ->with('success', $rate->isApproved() ? 'Rate entry removed.' : 'Rate request withdrawn.');
     }
 
     /* ── Employment Status ── */
@@ -542,20 +555,36 @@ class EmployeeController extends Controller
                 break;
 
             case 'set_daily_rate':
-                $request->validate([
-                    'daily_rate'      => 'required|numeric|min:0',
+                $this->guardFeature('daily_rates');
+                $fields = $request->validate([
+                    'daily_rate'      => 'required|numeric|min:0|max:999999.99',
                     'effective_date'  => 'required|date',
                     'effective_until' => 'nullable|date|after_or_equal:effective_date',
                 ]);
-                foreach ($employeeIds as $id) {
-                    EmployeeRate::create([
-                        'employee_id'    => $id,
-                        'daily_rate'     => $request->daily_rate,
-                        'effective_date'  => $request->effective_date,
-                        'effective_until' => $request->effective_until,
-                    ]);
+                // The same rules as one rate on the profile: the CEO saves with the shortening,
+                // anyone else asks for each employee. An employee whose rate cannot be saved is
+                // skipped, with the reason.
+                $rates = app(RateChangeService::class);
+                $asks = RateChangeService::mustRequest(Auth::user());
+                $done = 0;
+                $skipped = [];
+                foreach (Employee::whereIn('id', $employeeIds)->orderBy('full_name')->get() as $emp) {
+                    try {
+                        $asks ? $rates->submit($emp, $fields, Auth::user()) : $rates->saveDirect($emp, $fields, Auth::user());
+                        $done++;
+                    } catch (RateChangeRefused $e) {
+                        $skipped[] = $emp->display_name . ': ' . $e->getMessage();
+                    }
                 }
-                $msg = "Daily rate set for {$count} employees.";
+                $msg = $asks
+                    ? "Daily rate sent for approval for {$done} employees. It does not count until the CEO approves it."
+                    : "Daily rate set for {$done} employees.";
+                if ($skipped) {
+                    $msg .= ' Skipped ' . count($skipped) . ': ' . implode(' | ', $skipped);
+                    if ($done === 0) {
+                        return redirect()->route('employees.index')->with('error', $msg);
+                    }
+                }
                 break;
 
             case 'set_schedule_mode':
@@ -646,17 +675,21 @@ class EmployeeController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        // Check for overlapping rates (exclude current)
-        $overlap = $this->checkRateOverlap($employee->id, $validated['effective_date'], $validated['effective_until'] ?? null, $rate->id);
-        if ($overlap) {
-            return redirect()->route('employees.edit', $employee)
-                ->with('error', "Rate overlaps with existing rate (effective {$overlap->effective_date->format('M d, Y')}).");
+        $rates = app(RateChangeService::class);
+        try {
+            if (RateChangeService::mustRequest(Auth::user())) {
+                $rates->submit($employee, $validated, Auth::user(), $rate);
+
+                return redirect()->route('employees.edit', $employee)
+                    ->with('success', 'Rate change sent for approval. The rate stays as it is until the CEO approves it.');
+            }
+            $done = $rates->saveDirect($employee, $validated, Auth::user(), $rate);
+        } catch (RateChangeRefused $e) {
+            return redirect()->route('employees.edit', $employee)->with('error', $e->getMessage());
         }
 
-        $rate->update($validated);
-
         return redirect()->route('employees.edit', $employee)
-            ->with('success', 'Daily rate updated.');
+            ->with('success', trim('Daily rate updated. ' . $rates->shortenedText($done['shortened'])));
     }
 
     public function updateBenefit(Request $request, Employee $employee, EmployeeBenefit $benefit)
@@ -795,24 +828,6 @@ class EmployeeController extends Controller
         if (!FeaturePermission::canEdit($role, $featureKey)) {
             abort(403, 'You do not have permission to edit this section.');
         }
-    }
-
-    /* ── Overlap Validation Helpers ── */
-
-    protected function checkRateOverlap(int $employeeId, string $start, ?string $end, ?int $excludeId = null)
-    {
-        $query = EmployeeRate::where('employee_id', $employeeId);
-        if ($excludeId) $query->where('id', '!=', $excludeId);
-
-        return $query->where(function ($q) use ($start, $end) {
-            $q->where(function ($q2) use ($start, $end) {
-                $q2->where('effective_date', '<=', $end ?? '9999-12-31')
-                   ->where(function ($q3) use ($start) {
-                       $q3->whereNull('effective_until')
-                          ->orWhere('effective_until', '>=', $start);
-                   });
-            });
-        })->first();
     }
 
     /* ── SIL (Service Incentive Leave) Management ── */

@@ -1,0 +1,66 @@
+<tbody>
+                        
+                                                <tr class="table-light rate-request-row">
+                            <td class="fw-semibold">Nov 16, 2026</td>
+                            <td>— Ongoing</td>
+                            <td class="fw-semibold">&#8369; 600.00</td>
+                            <td class="small">
+                                                                    <span class="badge bg-danger">Rejected</span>
+                                    <span class="text-danger">Rejected: Hintayin ang evaluation</span>
+                                                                                                                                Asked by Hr One on Nov 13, 2026 3:10 PM, rejected by Ceo Tester on Nov 13, 2026 3:10 PM.
+                                <div class="text-muted">Regular na</div>                            </td>
+                                                        <td class="text-nowrap">
+                                <form method="POST" action="http://localhost/employees/1/rate/4" onsubmit="return confirm('Remove this rejected request?')" class="d-inline">
+                                    <input type="hidden" name="_token" value="…" autocomplete="off"> <input type="hidden" name="_method" value="DELETE">                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Remove"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                            </td>
+                                                    </tr>
+                                                                        
+                        <tr id="rate-view-1">
+                            <td class="fw-semibold">Jan 01, 2026</td>
+                            <td>Jun 30, 2027</td>
+                            <td class="fw-semibold">&#8369; 520.00</td>
+                            <td class="small">
+                                For Probi
+                                                            </td>
+                                                        <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="toggleEdit('rate', 1)"><i class="bi bi-pencil"></i></button>
+                                                            </td>
+                                                    </tr>
+                        
+                                                <tr id="rate-edit-1" style="display:none;" class="table-warning">
+                            <td colspan="5">
+                                <form method="POST" action="http://localhost/employees/1/rate/1">
+                                    <input type="hidden" name="_token" value="…" autocomplete="off"> <input type="hidden" name="_method" value="PUT">                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Daily Rate</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">&#8369;</span>
+                                                <input type="number" name="daily_rate" step="0.01" min="0"
+                                                       class="form-control" value="520.00" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">From</label>
+                                            <input type="date" name="effective_date" class="form-control form-control-sm"
+                                                   value="2026-01-01" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold">Until</label>
+                                            <input type="date" name="effective_until" class="form-control form-control-sm"
+                                                   value="2027-06-30">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Remarks</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm"
+                                                   value="For Probi">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('rate', 1)"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                                                                    </tbody>

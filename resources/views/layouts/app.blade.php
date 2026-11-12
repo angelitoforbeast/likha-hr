@@ -74,10 +74,17 @@
             @endif
             @if($userRole === 'ceo')
             @php $pendingApprovals = \App\Models\AttendanceChangeRequest::pendingCardCount(); @endphp
-            <a class="nav-link {{ request()->is('approvals*') ? 'active' : '' }}" href="{{ url('/approvals') }}">
+            <a class="nav-link {{ request()->is('approvals*') && !request()->is('approvals/rates*') ? 'active' : '' }}" href="{{ url('/approvals') }}">
                 <i class="bi bi-check2-square"></i> Approvals
                 @if($pendingApprovals > 0)
                     <span class="badge bg-danger ms-1" id="navApprovalsCount">{{ $pendingApprovals }}</span>
+                @endif
+            </a>
+            @php $pendingRateApprovals = \App\Models\EmployeeRate::anyStatus()->where('status', \App\Models\EmployeeRate::STATUS_PENDING)->count(); @endphp
+            <a class="nav-link {{ request()->is('approvals/rates*') ? 'active' : '' }}" href="{{ url('/approvals/rates') }}">
+                <i class="bi bi-cash-coin"></i> Rate Approvals
+                @if($pendingRateApprovals > 0)
+                    <span class="badge bg-danger ms-1" id="navRateApprovalsCount">{{ $pendingRateApprovals }}</span>
                 @endif
             </a>
             @endif

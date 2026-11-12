@@ -39,6 +39,12 @@ trait Auditable
             $originals = [];
             foreach (array_keys($changes) as $key) {
                 $originals[$key] = $model->getOriginal($key);
+                // A date read through its cast is written as UTC ("2027-06-29T16:00:00Z" for
+                // Jun 30 in Manila). A model that opts in keeps the stored value instead, the
+                // same form as the new value beside it (spec 013, for employee rates).
+                if ($originals[$key] instanceof \DateTimeInterface && property_exists($model, 'auditRawDates') && $model->auditRawDates) {
+                    $originals[$key] = $model->getRawOriginal($key);
+                }
             }
             self::writeAudit('updated', $model, $originals, $changes);
         });

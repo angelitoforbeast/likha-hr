@@ -35,6 +35,12 @@
                     <span class="badge bg-primary"><i class="bi bi-pencil"></i> Updated</span>
                 @elseif($log->action === 'deleted')
                     <span class="badge bg-danger"><i class="bi bi-trash"></i> Deleted</span>
+                @elseif($log->action === 'submitted')
+                    <span class="badge bg-info text-dark"><i class="bi bi-send"></i> Submitted</span>
+                @elseif($log->action === 'approved')
+                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Approved</span>
+                @elseif($log->action === 'rejected')
+                    <span class="badge bg-warning text-dark"><i class="bi bi-x-lg"></i> Rejected</span>
                 @endif
                 {{ class_basename($log->auditable_type) }} #{{ $log->auditable_id }}
             </h6>

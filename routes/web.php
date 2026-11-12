@@ -19,6 +19,7 @@ use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\ManusEditLogController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AttendanceApprovalController;
+use App\Http\Controllers\RateApprovalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -221,6 +222,11 @@ Route::middleware('auth')->group(function () {
     // Audit Logs (CEO only — enforced inside the controller)
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+
+    // Rate Approvals (spec 013; CEO only — enforced inside the controller on the role)
+    Route::get('/approvals/rates', [RateApprovalController::class, 'index'])->name('approvals.rates');
+    Route::post('/approvals/rates/{rate}/approve', [RateApprovalController::class, 'approve'])->whereNumber('rate')->name('approvals.rates.approve');
+    Route::post('/approvals/rates/{rate}/reject', [RateApprovalController::class, 'reject'])->whereNumber('rate')->name('approvals.rates.reject');
 
     // Approvals (CEO only — enforced inside the controller on the role, not a feature permission)
     Route::get('/approvals', [AttendanceApprovalController::class, 'index'])->name('approvals.index');

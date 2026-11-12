@@ -1,0 +1,81 @@
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="http://localhost/approvals/rates" class="btn btn-sm btn-primary">Pending</a>
+    <a href="http://localhost/approvals/rates?status=decided" class="btn btn-sm btn-outline-secondary">Decided</a>
+    <a href="http://localhost/approvals" class="btn btn-sm btn-outline-secondary ms-auto"><i class="bi bi-check2-square"></i> Attendance approvals</a>
+</div>
+
+    <p class="small text-muted">Daily rates saved by HR and admins. A rate here counts nowhere (payroll, current rate, reports) until you approve it. Approving checks the employee's rates again as they are now.</p>
+
+        <div class="rate-request card border-0 shadow-sm mb-3" data-rate-request="4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                    <span class="fw-bold">Employee One</span>
+                    <span class="text-muted">&middot;</span>
+                    <span class="badge bg-light text-dark border">New rate</span>
+                                    </div>
+                            </div>
+
+                            <div class="mb-1">
+                                            <span class="rate-value">₱520.00</span>
+                        <span class="text-muted small">(Jan 01, 2026 – Jun 30, 2027)</span>
+                                        <span class="mx-1">→</span>
+                    <span class="rate-value">₱600.00</span>
+                    <span class="small">from Nov 16, 2026 · ongoing</span>
+                </div>
+                                    <div class="small">Remarks: Regular na</div>
+                                <div class="small text-muted mb-2">Asked by Hr One on Nov 13, 2026 3:10 PM</div>
+
+                                                            <div class="small mb-1"><i class="bi bi-scissors"></i> When approved, the rate from Jan 01, 2026 (₱520.00, until Jun 30, 2027) ends Nov 15, 2026.</div>
+                                    
+                <div class="d-flex flex-wrap align-items-start gap-2 mt-2">
+                    <form method="POST" action="http://localhost/approvals/rates/4/approve" class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="hidden" name="_token" value="…" autocomplete="off">                        <input type="text" name="note" class="form-control form-control-sm" style="max-width: 14rem" maxlength="500" placeholder="Note (optional)" aria-label="Note for approving">
+                        <button type="submit" class="btn btn-success btn-sm" ><i class="bi bi-check-lg"></i> Approve</button>
+                    </form>
+                    <form method="POST" action="http://localhost/approvals/rates/4/reject" class="d-flex flex-wrap align-items-center gap-2" onsubmit="return confirm('Reject this rate change?')">
+                        <input type="hidden" name="_token" value="…" autocomplete="off">                        <input type="text" name="note" class="form-control form-control-sm" style="max-width: 16rem" maxlength="500" placeholder="Reason for rejecting (optional)" aria-label="Reason for rejecting">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i> Reject</button>
+                    </form>
+                </div>
+                    </div>
+    </div>
+        <div class="rate-request card border-0 shadow-sm mb-3" data-rate-request="5">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                    <span class="fw-bold">Employee Two</span>
+                    <span class="text-muted">&middot;</span>
+                    <span class="badge bg-light text-dark border">Change of a rate</span>
+                                    </div>
+                            </div>
+
+                            <div class="mb-1">
+                                            <span class="rate-value">₱520.00</span>
+                        <span class="text-muted small">(Jan 01, 2026 · ongoing)</span>
+                                        <span class="mx-1">→</span>
+                    <span class="rate-value">₱540.00</span>
+                    <span class="small">from Jan 01, 2026 · ongoing</span>
+                </div>
+                                    <div class="small">Remarks: Typo</div>
+                                <div class="small text-muted mb-2">Asked by Admin Tester on Nov 13, 2026 3:10 PM</div>
+
+                                                    
+                <div class="d-flex flex-wrap align-items-start gap-2 mt-2">
+                    <form method="POST" action="http://localhost/approvals/rates/5/approve" class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="hidden" name="_token" value="…" autocomplete="off">                        <input type="text" name="note" class="form-control form-control-sm" style="max-width: 14rem" maxlength="500" placeholder="Note (optional)" aria-label="Note for approving">
+                        <button type="submit" class="btn btn-success btn-sm" ><i class="bi bi-check-lg"></i> Approve</button>
+                    </form>
+                    <form method="POST" action="http://localhost/approvals/rates/5/reject" class="d-flex flex-wrap align-items-center gap-2" onsubmit="return confirm('Reject this rate change?')">
+                        <input type="hidden" name="_token" value="…" autocomplete="off">                        <input type="text" name="note" class="form-control form-control-sm" style="max-width: 16rem" maxlength="500" placeholder="Reason for rejecting (optional)" aria-label="Reason for rejecting">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i> Reject</button>
+                    </form>
+                </div>
+                    </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    </body>
+</html>

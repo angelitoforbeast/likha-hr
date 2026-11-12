@@ -1,0 +1,62 @@
+PHPUnit 10.5.63 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: C:\mira\mira\projects\likha-hr\phpunit.xml
+
+  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.  Backfilled 0 adjustment(s) into payroll_adjustments.
+.                                          24 / 24 (100%)
+
+Time: 00:02.946, Memory: 50.00 MB
+
+Rate Approval (Tests\Feature\Rates\RateApproval)
+ ✔ S-013.5 a rate added by HR is pending: the old rate is not shortened and the current rate stays 520.00
+ ✔ S-013.5 an admin's rate waits too; only the CEO saves directly
+ ✔ S-013.6 pending, rejected and pending-edit rates never reach PayrollService; the approved rate does
+ ✔ S-013.7 the CEO sees each pending rate change once: employee, old → new rate, dates, what will be shortened, who asked and when
+ ✔ S-013.7 only the CEO opens the list or decides, whatever the feature permissions say
+ ✔ S-013.8 approving makes the rate count and shortens the "For Probi" rate at that moment
+ ✔ S-013.8 approval checks the rates as they are then: a rate saved since on the same start date makes it refused, and it stays pending
+ ✔ S-013.8 a request that cannot be saved is refused when asked, with the same message as for the CEO
+ ✔ S-013.9 rejecting changes nothing, and the person who asked sees "Rejected: note" on the rate list
+ ✔ S-013.10 HR editing a rate that counts asks for the change: the rate stays as it is until approved, then it changes in place
+ ✔ S-013.11 HR can withdraw a pending or rejected rate of their own, but cannot remove a rate that counts
+ ✔ S-013.11 without the daily_rates edit permission nothing can be asked or changed (403, as before)
+ ✔ S-013.12 the bulk "set daily rate" follows the same rules: HR asks for each employee, the CEO saves with the shortening
+ ✔ S-013.13 the audit log keeps created/updated and also records submitted, approved and rejected with who and when
+ ✔ S-013.14 approving a rate does not recompute a payroll already computed; only a recompute uses it
+
+Rate Overlap (Tests\Feature\Rates\RateOverlap)
+ ✔ S-013.1 a raise from Nov 16 on a "For Probi" rate ending Jun 30, 2027 ends that rate on Nov 15 and is saved
+ ✔ S-013.1 the audit log records the shortened rate's end date, old and new
+ ✔ S-013.2 an open-ended rate is still ended the day before the new one (as before)
+ ✔ S-013.3 a rate that starts before an existing rate and runs into it is refused with a clear message; nothing changes
+ ✔ S-013.3 a rate on the same start date as an existing rate is refused; nothing changes
+ ✔ S-013.3 a rate that sits inside a closed rate and ends before it is refused (it would cut the rest of that rate off); nothing changes
+ ✔ S-013.3 a rate that ends on or after the closed rate it starts in is saved, and that rate is shortened
+ ✔ S-013.4 editing a rate's start into the rate before it shortens that rate; editing a rate into a later one is refused
+ ✔ S-013.4 editing a rate's amount only (same dates) is saved and shortens nothing
+
+OK (24 tests, 161 assertions)

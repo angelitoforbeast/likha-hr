@@ -756,6 +756,18 @@ class PayrollService
             return (float) $payRate->amount;
         }
 
+        // A first rate that starts after the midpoint (a new hire, spec 014): take the first
+        // one that starts inside the cutoff, so the employee is not left out. The days worked
+        // are still paid at each day's own rate.
+        $rate = EmployeeRate::where('employee_id', $employee->id)
+            ->where('effective_date', '>', $midDate)
+            ->where('effective_date', '<=', $endDate)
+            ->orderBy('effective_date')
+            ->value('daily_rate');
+        if ($rate !== null && (float) $rate > 0) {
+            return (float) $rate;
+        }
+
         return 0;
     }
 

@@ -84,8 +84,11 @@ class AttendanceApprovalService
         $official = $this->requests->officialValue($employee, $row->dateString(), $row->field);
 
         if ($row->field === AttendanceChangeRequest::FIELD_SIL) {
-            return ($row->new_value === 'apply' && $official === 'applied')
-                || ($row->new_value === 'remove' && $official === null);
+            // A half asked where a whole is applied (or the other way) is not "no longer
+            // needed": its approval is refused as already applied (spec 015).
+            return ($row->new_value === AttendanceChangeRequest::SIL_APPLY && $official === AttendanceChangeRequest::SIL_APPLIED)
+                || ($row->new_value === AttendanceChangeRequest::SIL_APPLY_HALF && $official === AttendanceChangeRequest::SIL_APPLIED_HALF)
+                || ($row->new_value === AttendanceChangeRequest::SIL_REMOVE && $official === null);
         }
 
         return $official === $row->new_value;
@@ -254,9 +257,9 @@ class AttendanceApprovalService
             }
 
             if ($row->field === AttendanceChangeRequest::FIELD_SIL) {
-                if ($row->new_value === 'apply') {
+                if ($row->isSilApply()) {
                     try {
-                        $this->changes->assertSilCanBeApplied($employee, $date);
+                        $this->changes->assertSilCanBeApplied($employee, $date, $row->silDays());
                     } catch (AttendanceChangeRefused $e) {
                         $blocks['sil_apply'] = $e->getMessage();
                     }
@@ -794,7 +797,8 @@ class AttendanceApprovalService
             'needs_review'      => $day ? (bool) $day->needs_review : null,
             'notes'             => $day?->notes,
             'rest_day'          => $employee->isDayOff($date),
-            'sil'               => $employee->isDateSil($date),
+            'sil'               => ($silDays = $employee->silDaysOn($date)) !== null,
+            'sil_days'          => $silDays,
         ];
     }
 
@@ -959,7 +963,7 @@ class AttendanceApprovalService
         }
 
         $sil = $byField->get(AttendanceChangeRequest::FIELD_SIL);
-        if ($sil && $sil->new_value === 'remove') {
+        if ($sil && $sil->new_value === AttendanceChangeRequest::SIL_REMOVE) {
             $this->changes->removeSil($employee, $date);
             $applied[$sil->id] = ['sil_removal', null];
         }
@@ -993,8 +997,8 @@ class AttendanceApprovalService
             $applied[$row->id] = ['attendance_override', $override->id];
         }
 
-        if ($sil && $sil->new_value === 'apply') {
-            $application = $this->changes->applySil($employee, $date, $sil->reason, $approver);
+        if ($sil && $sil->isSilApply()) {
+            $application = $this->changes->applySil($employee, $date, $sil->reason, $approver, $sil->silDays());
             $applied[$sil->id] = ['sil_application', $application->id];
         }
 

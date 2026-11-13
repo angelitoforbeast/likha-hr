@@ -267,6 +267,7 @@ class AttendanceCalendarController extends Controller
                         'shift_id' => $shiftIdForDay,
                         'sil' => [
                             'reason' => $silRecord->reason,
+                            'days' => $silRecord->daysValue(),
                             'applied_by' => $silRecord->applier?->name ?? 'Unknown',
                             'applied_at' => $silRecord->created_at->format('M d, Y g:i A'),
                         ],
@@ -381,7 +382,7 @@ class AttendanceCalendarController extends Controller
                             $req->field === AttendanceChangeRequest::FIELD_OVERTIME => $attDay?->approved_overtime_minutes === null
                                 ? null : (string) $attDay->approved_overtime_minutes,
                             $req->field === AttendanceChangeRequest::FIELD_SHIFT => $shiftIdForDay ? (string) $shiftIdForDay : null,
-                            $req->field === AttendanceChangeRequest::FIELD_SIL => $silRecord ? 'applied' : null,
+                            $req->field === AttendanceChangeRequest::FIELD_SIL => AttendanceChangeRequest::silOfficialValue($silRecord?->daysValue()),
                             default => $this->requests->officialValue($emp, $dateStr, $req->field),
                         };
                         $pendingList[] = $req->toDayItem($official, $shiftNames, $viewerId);
@@ -1018,6 +1019,8 @@ class AttendanceCalendarController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'date'        => 'required|date',
             'reason'      => 'required|string|min:3|max:500',
+            // Spec 015: a whole day (1, the default) or a half day (0.5).
+            'days'        => 'nullable|numeric|in:1,0.5',
         ]);
         $date = Carbon::parse($validated['date'])->toDateString();
         $this->assertDateNotLocked($date);
@@ -1025,24 +1028,26 @@ class AttendanceCalendarController extends Controller
         $employee = Employee::findOrFail($validated['employee_id']);
         $year     = Carbon::parse($date)->year;
         $user     = Auth::user();
+        $days     = SilApplication::parseDays($validated['days'] ?? null) ?? SilApplication::WHOLE_DAY;
 
         try {
             if (AttendanceChangeRequestService::mustRequest($user)) {
                 // The same three checks as the direct path, so that what cannot be applied is not asked for.
-                $this->changes->assertSilCanBeApplied($employee, $date);
+                $this->changes->assertSilCanBeApplied($employee, $date, $days);
 
                 return $this->pendingResponse($this->requests->submit(
-                    $employee, $date, [AttendanceChangeRequest::FIELD_SIL => 'apply'], $validated['reason'], $user, 'apply_sil'
+                    $employee, $date, [AttendanceChangeRequest::FIELD_SIL => AttendanceChangeRequest::silApplyValue($days)], $validated['reason'], $user, 'apply_sil'
                 ));
             }
-            $this->changes->applySil($employee, $date, $validated['reason'], $user);
+            $this->changes->applySil($employee, $date, $validated['reason'], $user, $days);
         } catch (AttendanceChangeRefused $e) {
             return $this->refusedResponse($e);
         }
 
         return response()->json([
             'success'   => true,
-            'message'   => 'SIL applied.',
+            'days'      => $days,
+            'message'   => $days < SilApplication::WHOLE_DAY ? 'Half-day SIL applied.' : 'SIL applied.',
             'remaining' => $employee->getSilRemainingDays($year),
             'total'     => (float) $employee->getSilBalance($year)->total_days,
         ]);

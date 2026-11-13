@@ -44,7 +44,7 @@ class PayrollItem extends Model
         'total_days_decimal' => 'decimal:4',
         'required_mandays' => 'integer',
         'days_worked' => 'integer',
-        'absent_days' => 'integer',
+        'absent_days' => 'float',
         'daily_rate' => 'decimal:2',
         'total_late_minutes' => 'integer',
         'total_early_minutes' => 'integer',

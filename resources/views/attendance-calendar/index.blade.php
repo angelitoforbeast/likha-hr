@@ -280,7 +280,7 @@
                                     break;
                                 case 'sil':
                                     $cellClass = 'cal-cell-sil';
-                                    $cellText = 'SIL';
+                                    $cellText = \App\Models\SilApplication::labelFor((float) ($dayInfo['sil']['days'] ?? 1));
                                     break;
                             }
 
@@ -320,6 +320,7 @@
                                 . ' data-sil-year="' . (int) $dayDate->year . '"';
                             if ($silInfo) {
                                 $dataAttrs .= ' data-sil-applied="1"'
+                                    . ' data-sil-days="' . ((float) ($silInfo['days'] ?? 1) < 1 ? '0.5' : '1') . '"'
                                     . ' data-sil-reason="' . e($silInfo['reason']) . '"'
                                     . ' data-sil-by="' . e($silInfo['applied_by']) . '"'
                                     . ' data-sil-at="' . e($silInfo['applied_at']) . '"';
@@ -603,9 +604,14 @@
                         <a href="#" id="dSilManageLink" target="_blank">the Employee edit page</a>.
                     </div>
                     <div id="dSilAppliedNote" class="alert alert-info py-1 px-2 small mb-2" style="display:none">
-                        <i class="bi bi-check-circle"></i> <strong>SIL is applied</strong> for this date.
+                        <i class="bi bi-check-circle"></i> <strong id="dSilAppliedTitle">SIL is applied</strong> for this date.
                         <div class="small text-muted mt-1"><span id="dSilAppliedDetails"></span></div>
                     </div>
+                    {{-- Spec 015: a whole day or half a day. To change one into the other, remove the SIL and apply it again. --}}
+                    <select class="form-select form-select-sm mb-1" id="dSilDays" aria-label="SIL length">
+                        <option value="1" selected>Whole day</option>
+                        <option value="0.5">Half day</option>
+                    </select>
                     <input type="text" class="form-control form-control-sm mb-1" id="dSilReason"
                            placeholder="Reason for applying SIL (required, min 3 chars)"
                            minlength="3" maxlength="500">
@@ -1732,7 +1738,9 @@
         document.getElementById('dDate').textContent = date;
 
         const statusEl = document.getElementById('dStatus');
-        statusEl.textContent = statusLabels[status] || status;
+        statusEl.textContent = status === 'sil' && td.dataset.silDays === '0.5'
+            ? 'SIL ½ (half-day Service Incentive Leave)'
+            : (statusLabels[status] || status);
         statusEl.style.color = statusColors[status] || '#000';
 
         // Shift is now a dropdown — select the current shift (if known) and refresh the
@@ -2132,12 +2140,19 @@
         if (manageLink && currentTd) {
             manageLink.href = '{{ url("/employees") }}/' + currentTd.dataset.employeeId + '/edit#sil-section';
         }
-        const applyBtn = document.getElementById('dApplySilBtn');
-        if (applyBtn) { applyBtn.disabled = !eligible || applied || remaining < 1; applyBtn.style.display = applied ? 'none' : ''; }
+        // Whole or half day (spec 015). A new date starts at "Whole day"; an applied SIL shows its own length.
+        const daysSel = document.getElementById('dSilDays');
+        if (daysSel) {
+            daysSel.value = applied && currentTd.dataset.silDays === '0.5' ? '0.5' : '1';
+            daysSel.style.display = applied ? 'none' : '';
+        }
+        updateSilApplyButton();
         const removeBtn = document.getElementById('dRemoveSilBtn');
         if (removeBtn) removeBtn.style.display = applied ? '' : 'none';
         const appliedNote = document.getElementById('dSilAppliedNote');
         if (appliedNote) appliedNote.style.display = applied ? '' : 'none';
+        const appliedTitle = document.getElementById('dSilAppliedTitle');
+        if (appliedTitle) appliedTitle.textContent = currentTd.dataset.silDays === '0.5' ? 'Half-day SIL (½) is applied' : 'SIL is applied';
         if (applied) {
             const d = document.getElementById('dSilAppliedDetails');
             if (d) d.textContent = 'By ' + (currentTd.dataset.silBy || 'Unknown')
@@ -2151,6 +2166,18 @@
         const editor = document.getElementById('dSilBalanceEditor');
         if (editor) editor.style.display = 'none';
     }
+    // Apply is open only when the remaining balance covers the days chosen.
+    function updateSilApplyButton() {
+        const applyBtn = document.getElementById('dApplySilBtn');
+        if (!applyBtn || !currentTd) return;
+        const eligible = currentTd.dataset.silEligible === '1';
+        const applied  = currentTd.dataset.silApplied === '1';
+        const remaining = parseFloat(currentTd.dataset.silRemaining || '0');
+        const days = parseFloat(document.getElementById('dSilDays')?.value || '1');
+        applyBtn.disabled = !eligible || applied || remaining < days;
+        applyBtn.style.display = applied ? 'none' : '';
+    }
+    document.getElementById('dSilDays')?.addEventListener('change', updateSilApplyButton);
     function silShowMessage(text, isSuccess) {
         const el = document.getElementById('dSilMsg');
         if (!el) return;
@@ -2163,20 +2190,22 @@
         if (!currentTd) return;
         const reason = (document.getElementById('dSilReason').value || '').trim();
         if (reason.length < 3) { silShowMessage('Reason is required (min 3 chars).', false); return; }
+        const days = document.getElementById('dSilDays')?.value === '0.5' ? 0.5 : 1;
         fetch('{{ url("/attendance-calendar/apply-sil") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
-            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date, reason: reason }),
+            body: JSON.stringify({ employee_id: currentTd.dataset.employeeId, date: currentTd.dataset.date, reason: reason, days: days }),
         })
         .then(r => r.json())
         .then(data => {
             if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
             if (data.pending) { silShowMessage(data.message || 'Sent for approval.', true); modalHasChanges = true; showRequestSaved(data); return; }
             currentTd.dataset.silApplied = '1';
+            currentTd.dataset.silDays    = days === 0.5 ? '0.5' : '1';
             currentTd.dataset.silReason  = reason;
             currentTd.dataset.silRemaining = String(data.remaining);
             refreshSilSectionFromCell();
-            silShowMessage('SIL applied. ' + data.remaining + ' remaining.', true);
+            silShowMessage((days === 0.5 ? 'Half-day SIL applied. ' : 'SIL applied. ') + data.remaining + ' remaining.', true);
             modalHasChanges = true;
         })
         .catch(() => silShowMessage('Network error.', false));
@@ -2200,6 +2229,7 @@
             if (!data.success) { silShowMessage(data.message || 'Error', false); return; }
             if (data.pending) { silShowMessage(data.message || 'Sent for approval.', true); modalHasChanges = true; showRequestSaved(data); return; }
             currentTd.dataset.silApplied = '0';
+            delete currentTd.dataset.silDays;
             currentTd.dataset.silRemaining = String(data.remaining);
             refreshSilSectionFromCell();
             silShowMessage('SIL removed.', true);

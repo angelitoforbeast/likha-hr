@@ -487,25 +487,30 @@ class AttendanceChangeService
     /**
      * Apply SIL for a date. The three checks and their messages are the ones the
      * calendar has always answered with; they run under the employee lock so two
-     * applications cannot both take the last remaining day.
+     * applications cannot both take the last remaining day. $days is 1.0 (whole day)
+     * or 0.5 (half day, spec 015).
      */
-    public function applySil(Employee $employee, string $date, string $reason, User $actor): SilApplication
+    public function applySil(Employee $employee, string $date, string $reason, User $actor, float $days = SilApplication::WHOLE_DAY): SilApplication
     {
-        return DB::transaction(function () use ($employee, $date, $reason, $actor) {
+        return DB::transaction(function () use ($employee, $date, $reason, $actor, $days) {
             $this->lockEmployee($employee);
-            $this->assertSilCanBeApplied($employee->fresh(), $date);
+            $this->assertSilCanBeApplied($employee->fresh(), $date, $days);
 
             return SilApplication::create([
                 'employee_id' => $employee->id,
                 'sil_date'    => $date,
+                'days'        => $days,
                 'reason'      => $reason,
                 'applied_by'  => $actor->id,
             ]);
         });
     }
 
-    public function assertSilCanBeApplied(Employee $employee, string $date): void
+    public function assertSilCanBeApplied(Employee $employee, string $date, float $days = SilApplication::WHOLE_DAY): void
     {
+        if (!in_array($days, SilApplication::ALLOWED_DAYS, true)) {
+            throw new AttendanceChangeRefused('SIL is a whole day or a half day.');
+        }
         $year = Carbon::parse($date)->year;
 
         if (!$employee->sil_eligible) {
@@ -515,7 +520,7 @@ class AttendanceChangeService
         // row: the Approvals page runs this check for every SIL entry it shows, and showing
         // a page must not write.
         $total = (float) (EmployeeSilBalance::where('employee_id', $employee->id)->where('year', $year)->value('total_days') ?? 0);
-        if ($total - $employee->getSilUsedDays($year) < 1) {
+        if (round($total - $employee->getSilUsedDays($year), 2) < $days) {
             throw new AttendanceChangeRefused('No remaining SIL days for ' . $year . '.');
         }
         if ($employee->isDateSil($date)) {

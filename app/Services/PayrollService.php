@@ -252,6 +252,23 @@ class PayrollService
 
             $isHolidayDay = ($holiday && $isHolidayEligibleForDay);
 
+            // Spec 015: half-day SIL on a regular working day with attendance. The worked part
+            // is paid as a normal day's work up to its share of the required minutes (4 h of
+            // an 8-hour shift), and only the minutes short of that share are deducted: late
+            // first, the rest as undertime; leaving early is expected. The SIL half is paid in
+            // 4b. The day is never paid above one day's rate; approved OT is as on any day.
+            // A whole SIL, and a half on a holiday or rest day, keep the code below unchanged.
+            $halfSil = $silDatesInPeriod->get($dateStr);
+            $halfSilWorkShare = null;
+            if ($halfSil && $halfSil->isHalfDay() && !$isHolidayDay) {
+                $halfSilWorkShare = 1 - $halfSil->daysValue();
+                $workRequired = (int) round($dayRequired * $halfSilWorkShare);
+                $shortfall = max(0, $workRequired - $dayPayable);
+                $dayLate = min($dayLate, $shortfall);
+                $dayEarly = 0;
+                $dayUndertime = $shortfall - $dayLate;
+            }
+
             // Separate holiday late/UT from regular late/UT
             if ($isHolidayDay) {
                 // Holiday late/UT — track separately, NOT deducted from basic pay
@@ -279,9 +296,41 @@ class PayrollService
                     // Pro-rated: only count what they actually worked
                     $proRatedAmount = $dayRequired > 0 ? round($dayRate * ($dayPayable / $dayRequired), 2) : 0;
                     $perDayGrossBasic += $proRatedAmount;
+                } elseif ($halfSilWorkShare !== null) {
+                    // The worked half only; the SIL half is added with the SIL pay.
+                    $perDayGrossBasic += $dayRate * $halfSilWorkShare;
                 } else {
                     $perDayGrossBasic += $dayRate;
                 }
+            }
+
+            if ($halfSilWorkShare !== null) {
+                // One breakdown row for the date: the punches, the minutes counted against the
+                // worked half, and the whole amount paid for the day (worked half + SIL half).
+                $dailyBreakdown[] = [
+                    'date'       => $dateStr,
+                    'type'       => 'sil',
+                    'status'     => $halfSil->label(),
+                    'sil_days'   => $halfSil->daysValue(),
+                    'time_in'    => $day->time_in ? $day->time_in->format('H:i') : null,
+                    'lunch_out'  => $day->lunch_out ? $day->lunch_out->format('H:i') : null,
+                    'lunch_in'   => $day->lunch_in ? $day->lunch_in->format('H:i') : null,
+                    'time_out'   => $day->time_out ? $day->time_out->format('H:i') : null,
+                    'work_mins'  => $dayPayable,
+                    'hours'      => round($dayPayable / 60, 2),
+                    'rate'       => $dayRate,
+                    'late'       => $dayLate,
+                    'early'      => 0,
+                    'undertime'  => $dayUndertime,
+                    'ot'         => $dayOtMinutes,
+                    'ot_rate'    => $dayOtRate,
+                    'ot_amount'  => $dayOtAmount,
+                    'amount'     => round($dayRate
+                        - $this->computeMinuteBasedAmount($dayLate, $dayRate)
+                        - $this->computeMinuteBasedAmount($dayUndertime, $dayRate), 2),
+                    'sil_reason' => $halfSil->reason,
+                ];
+                continue;
             }
 
             // Build daily breakdown entry
@@ -350,19 +399,27 @@ class PayrollService
             // Rewrite the breakdown for this date if it already exists.
             if ($isSil) {
                 $dayRate = EmployeeRate::getActiveRate($employee->id, $dStr) ?? $dailyRate;
+                $silApp = $silDatesInPeriod->get($dStr);
+                // Spec 015: SIL pay for a date = that day's rate x its days (1 or 0.5).
+                $silDays = $silApp->daysValue();
                 $silDaysCount++;
-                $silPay += $dayRate;
+                $silPay += $dayRate * $silDays;
                 // SIL is a PAID day but NOT counted as "days_worked" (which represents actual work).
                 // SIL pay is added separately below so users see the split clearly.
+                if ($silApp->isHalfDay() && collect($dailyBreakdown)->contains(fn ($b) => ($b['date'] ?? '') === $dStr && ($b['type'] ?? '') === 'sil')) {
+                    // A half day worked on a regular day: its row was built in step 4 with the punches.
+                    $breakdownDateSet[$dStr] = true;
+                    continue;
+                }
                 // Remove any prior entry for this date, then append the SIL row.
                 $dailyBreakdown = array_values(array_filter($dailyBreakdown, fn ($b) => ($b['date'] ?? '') !== $dStr));
-                $silApp = $silDatesInPeriod->get($dStr);
                 $dailyBreakdown[] = [
-                    'date'   => $dStr, 'type' => 'sil', 'status' => 'SIL',
+                    'date'   => $dStr, 'type' => 'sil', 'status' => $silApp->label(),
+                    'sil_days' => $silDays,
                     'time_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'time_out' => null,
                     'work_mins' => 0, 'hours' => 0, 'rate' => $dayRate,
                     'late' => 0, 'early' => 0, 'undertime' => 0, 'ot' => 0,
-                    'amount' => $dayRate,
+                    'amount' => round($dayRate * $silDays, 2),
                     'sil_reason' => $silApp?->reason,
                 ];
                 $breakdownDateSet[$dStr] = true;
@@ -432,10 +489,18 @@ class PayrollService
             $reqSet = array_flip($mandaysData['required_dates'] ?? []);
             foreach ($silDatesInPeriod as $key => $silApp) {
                 // key is 'Y-m-d'
-                if (isset($reqSet[$key])) $silRequiredCount++;
+                if (!isset($reqSet[$key])) continue;
+                if ($silApp->isHalfDay()) {
+                    // Spec 015: a half day covers half the day. With attendance the date already
+                    // counts as worked (its worked half is paid in step 4); without, the other
+                    // half is absent.
+                    if (!isset($attendanceDateSet[$key])) $silRequiredCount += $silApp->daysValue();
+                } else {
+                    $silRequiredCount++;
+                }
             }
         }
-        $absentDays = max(0, $requiredMandays - $daysWorked - $silRequiredCount);
+        $absentDays = max(0, round($requiredMandays - $daysWorked - $silRequiredCount, 1));
 
         // 7. Total days actually worked (regular + holiday) — for Rice Allowance etc.
         // Note: daysWorked already includes holidayDaysWorked (added in the loop above)
@@ -466,11 +531,14 @@ class PayrollService
                 // Get the required dates that were NOT worked AND not SIL (SIL is paid separately below)
                 $requiredDates = $mandaysData['required_dates'] ?? [];
                 foreach ($requiredDates as $reqDate) {
-                    if (!isset($attendanceDateSet[$reqDate]) && !$silDatesInPeriod->has($reqDate)) {
-                        $absentDayRate = EmployeeRate::getActiveRate($employee->id, $reqDate) ?? $dailyRate;
-                        $grossBasic += $absentDayRate; // Add to gross so we can deduct it
-                        $absenceDeduction += $absentDayRate;
-                    }
+                    if (isset($attendanceDateSet[$reqDate])) continue;
+                    $silOnDate = $silDatesInPeriod->get($reqDate);
+                    if ($silOnDate && !$silOnDate->isHalfDay()) continue;
+                    // A half-day SIL leaves the other half absent, at that day's rate (spec 015).
+                    $absentShare = $silOnDate ? 1 - $silOnDate->daysValue() : 1;
+                    $absentDayRate = (EmployeeRate::getActiveRate($employee->id, $reqDate) ?? $dailyRate) * $absentShare;
+                    $grossBasic += $absentDayRate; // Add to gross so we can deduct it
+                    $absenceDeduction += $absentDayRate;
                 }
                 $absenceDeduction = round($absenceDeduction, 2);
                 $grossBasic = round($grossBasic, 2);

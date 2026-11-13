@@ -68,7 +68,8 @@
         @php
             // Derive SIL day count from the stored daily_breakdown so we can display it
             // separately from actual "Days Worked" (which excludes paid leave).
-            $silDayCount = collect($item->daily_breakdown ?? [])->where('type', 'sil')->count();
+            // A half-day SIL row carries sil_days 0.5 (spec 015); older rows count as a whole day.
+            $silDayCount = (float) collect($item->daily_breakdown ?? [])->where('type', 'sil')->sum(fn ($bd) => $bd['sil_days'] ?? 1);
         @endphp
         <div class="row mb-3">
             <div class="col text-center">
@@ -287,7 +288,7 @@
                         'holiday' => '<i class="bi bi-star-fill text-warning"></i> Holiday',
                         'holiday_not_worked' => '<i class="bi bi-star text-warning"></i> Holiday (not worked)',
                         'absent' => 'Absent',
-                        'sil' => '<i class="bi bi-cup-hot text-info"></i> SIL',
+                        'sil' => '<i class="bi bi-cup-hot text-info"></i> ' . ((float) ($bd['sil_days'] ?? 1) < 1 ? 'SIL ½' : 'SIL'),
                         default => 'Regular',
                     };
 

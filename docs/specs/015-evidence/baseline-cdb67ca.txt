@@ -1,0 +1,4 @@
+php vendor/bin/phpunit at cdb67ca (before any change), 2026-11-14:
+1) Tests\Feature\Approvals\ApprovalsPageTest::test_s_10_1_nav_count_and_list (date-bound)
+FAILURES!
+Tests: 439, Assertions: 4131, Failures: 1.

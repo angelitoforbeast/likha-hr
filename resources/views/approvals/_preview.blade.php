@@ -35,8 +35,9 @@
             if ($asked->contains('rest_day') || $now['rest_day'] !== $after['rest_day']) {
                 $lines[] = ['Rest day', $yesNo($now['rest_day']), $yesNo($after['rest_day'])];
             }
-            if ($asked->contains('sil') || $now['sil'] !== $after['sil']) {
-                $lines[] = ['SIL', $yesNo($now['sil']), $yesNo($after['sil'])];
+            if ($asked->contains('sil') || $now['sil'] !== $after['sil'] || ($now['sil_days'] ?? null) !== ($after['sil_days'] ?? null)) {
+                $silText = fn ($day) => $day['sil'] && ($day['sil_days'] ?? 1) < 1 ? 'Yes (half day)' : $yesNo($day['sil']);
+                $lines[] = ['SIL', $silText($now), $silText($after)];
             }
             $lines[] = ['Needs review', $yesNo($now['needs_review']), $yesNo($after['needs_review'])];
         @endphp

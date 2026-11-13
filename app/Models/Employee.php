@@ -351,13 +351,14 @@ class Employee extends Model
     }
 
     /**
-     * Count SIL days already applied for the given year.
+     * SIL days already applied for the given year: the sum of their days, so a half
+     * day counts 0.5 (spec 015).
      */
-    public function getSilUsedDays(int $year): int
+    public function getSilUsedDays(int $year): float
     {
-        return SilApplication::where('employee_id', $this->id)
+        return (float) SilApplication::where('employee_id', $this->id)
             ->whereYear('sil_date', $year)
-            ->count();
+            ->sum('days');
     }
 
     /**
@@ -377,6 +378,16 @@ class Employee extends Model
         return SilApplication::where('employee_id', $this->id)
             ->whereDate('sil_date', $date)
             ->exists();
+    }
+
+    /** The days of the SIL applied on the date (1.0 or 0.5), or null when none is. */
+    public function silDaysOn(string $date): ?float
+    {
+        $days = SilApplication::where('employee_id', $this->id)
+            ->whereDate('sil_date', $date)
+            ->value('days');
+
+        return $days === null ? null : (float) $days;
     }
 
     /* ── Cash Advance Helpers ── */

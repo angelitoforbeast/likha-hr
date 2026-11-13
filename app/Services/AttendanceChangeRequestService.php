@@ -46,7 +46,7 @@ class AttendanceChangeRequestService
                 return $minutes === null ? null : (string) $minutes;
             })(),
             AttendanceChangeRequest::FIELD_SHIFT => ($shift = $employee->getShiftForDate($date)) ? (string) $shift->id : null,
-            AttendanceChangeRequest::FIELD_SIL => $employee->isDateSil($date) ? 'applied' : null,
+            AttendanceChangeRequest::FIELD_SIL => AttendanceChangeRequest::silOfficialValue($employee->silDaysOn($date)),
             AttendanceChangeRequest::FIELD_REST_DAY => DayOff::where('employee_id', $employee->id)->whereDate('off_date', $date)->value('type'),
             default => null,
         };

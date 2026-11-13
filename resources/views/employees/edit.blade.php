@@ -1188,7 +1188,14 @@
                                 <label class="form-label small fw-semibold mb-1">Add SIL Date</label>
                                 <input type="date" name="sil_date" class="form-control form-control-sm" required>
                             </div>
-                            <div class="col-md-7">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold mb-1">Length</label>
+                                <select name="days" class="form-select form-select-sm">
+                                    <option value="1" selected>Whole day</option>
+                                    <option value="0.5">Half day</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
                                 <label class="form-label small fw-semibold mb-1">Reason (required)</label>
                                 <input type="text" name="reason" class="form-control form-control-sm" minlength="3" maxlength="500" required>
                             </div>
@@ -1214,7 +1221,7 @@
                             <tbody>
                                 @forelse($silApplications as $sa)
                                 <tr>
-                                    <td class="fw-semibold">{{ $sa->sil_date->format('M d, Y') }}</td>
+                                    <td class="fw-semibold">{{ $sa->sil_date->format('M d, Y') }}@if($sa->isHalfDay()) <span class="badge bg-info text-dark" title="Half-day SIL">½ day</span>@endif</td>
                                     <td>{{ $sa->reason }}</td>
                                     <td>{{ $sa->applier->name ?? 'Unknown' }}</td>
                                     <td class="small text-muted">{{ $sa->created_at->format('M d, Y g:i A') }}</td>

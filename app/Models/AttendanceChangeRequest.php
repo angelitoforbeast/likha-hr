@@ -26,6 +26,44 @@ class AttendanceChangeRequest extends Model
     public const FIELD_SHIFT    = 'shift_id';
     public const FIELD_SIL      = 'sil';
     public const FIELD_REST_DAY = 'rest_day';
+
+    /**
+     * What a SIL request asks for (new_value) and the official value it is compared with.
+     * Spec 015 adds the half day: a request carries it in its value, so it reaches the approval.
+     */
+    public const SIL_APPLY        = 'apply';
+    public const SIL_APPLY_HALF   = 'apply_half';
+    public const SIL_REMOVE       = 'remove';
+    public const SIL_APPLIED      = 'applied';
+    public const SIL_APPLIED_HALF = 'applied_half';
+
+    /** The request value that applies SIL for these days (1.0 or 0.5). */
+    public static function silApplyValue(float $days): string
+    {
+        return $days < 1.0 ? self::SIL_APPLY_HALF : self::SIL_APPLY;
+    }
+
+    /** The official value of a date with SIL of these days; null without SIL. */
+    public static function silOfficialValue(?float $days): ?string
+    {
+        if ($days === null) {
+            return null;
+        }
+
+        return $days < 1.0 ? self::SIL_APPLIED_HALF : self::SIL_APPLIED;
+    }
+
+    /** True when this request applies SIL (whole or half). */
+    public function isSilApply(): bool
+    {
+        return $this->field === self::FIELD_SIL && in_array($this->new_value, [self::SIL_APPLY, self::SIL_APPLY_HALF], true);
+    }
+
+    /** The days a SIL apply request asks for: 0.5 for a half, else 1.0. */
+    public function silDays(): float
+    {
+        return $this->new_value === self::SIL_APPLY_HALF ? 0.5 : 1.0;
+    }
     /**
      * A shift assignment of the employee profile, for a range of dates. Kept on the row of its
      * first date (work_date) with the range in `details`; it is never part of a day's entry.
@@ -168,9 +206,11 @@ class AttendanceChangeRequest extends Model
                 : rtrim(rtrim(number_format(((int) $value) / 60, 2, '.', ''), '0'), '.') . ' h',
             self::FIELD_SHIFT => $value === null ? 'none' : ($shiftNames[(int) $value] ?? ('Shift #' . $value)),
             self::FIELD_SIL => match ($value) {
-                'apply'   => 'Apply SIL',
-                'remove'  => 'Remove SIL',
-                'applied' => 'SIL applied',
+                self::SIL_APPLY        => 'Apply SIL',
+                self::SIL_APPLY_HALF   => 'Apply SIL (half day)',
+                self::SIL_REMOVE       => 'Remove SIL',
+                self::SIL_APPLIED      => 'SIL applied',
+                self::SIL_APPLIED_HALF => 'SIL applied (half day)',
                 default   => 'No SIL',
             },
             self::FIELD_REST_DAY => match ($value) {

@@ -109,7 +109,8 @@ class EmployeeController extends Controller
             ->whereYear('sil_date', $currentYear)
             ->orderByDesc('sil_date')
             ->get();
-        $silUsed = $silApplications->count();
+        // Spec 015: used days are the sum of each application's days (a half day is 0.5).
+        $silUsed = (float) $silApplications->sum(fn ($s) => $s->daysValue());
         $silRemaining = (float) $silBalance->total_days - $silUsed;
 
         // Shift assignments asked for and waiting for the CEO: shown as pending, never as in effect.
@@ -879,9 +880,12 @@ class EmployeeController extends Controller
         $validated = $request->validate([
             'sil_date' => 'required|date',
             'reason'   => 'required|string|min:3|max:500',
+            // Spec 015: a whole day (1, the default) or a half day (0.5).
+            'days'     => 'nullable|numeric|in:1,0.5',
         ]);
+        $days = \App\Models\SilApplication::parseDays($validated['days'] ?? null) ?? \App\Models\SilApplication::WHOLE_DAY;
         $year = Carbon::parse($validated['sil_date'])->year;
-        if ($employee->getSilRemainingDays($year) < 1) {
+        if (round($employee->getSilRemainingDays($year), 2) < $days) {
             return back()->with('error', 'No remaining SIL days for ' . $year . '.');
         }
         $exists = \App\Models\SilApplication::where('employee_id', $employee->id)
@@ -893,10 +897,11 @@ class EmployeeController extends Controller
         \App\Models\SilApplication::create([
             'employee_id' => $employee->id,
             'sil_date'    => $validated['sil_date'],
+            'days'        => $days,
             'reason'      => $validated['reason'],
             'applied_by'  => Auth::id(),
         ]);
-        return back()->with('success', 'SIL application added.');
+        return back()->with('success', $days < \App\Models\SilApplication::WHOLE_DAY ? 'Half-day SIL application added.' : 'SIL application added.');
     }
 
     /**

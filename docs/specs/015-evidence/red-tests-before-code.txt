@@ -1,0 +1,20 @@
+ ✘ S-015.1 the migration gives a SIL row without days 1.0, and a new SIL is a whole day unless asked otherwise
+ ✘ S-015.2 the balance sums halves: used 1.5 shows remaining 3.5, and used days is a float
+ ✘ S-015.3 a half is refused when 0 remain and allowed when 0.5 remain; a whole day is refused when 0.5 remain
+ ✘ S-015.4 only a whole or a half day can be filed
+ ✘ S-015.5 half SIL on a required day without punches: half paid, half absent and deducted, balance -0.5
+ ✘ S-015.6 Xander: half SIL on a special non-working holiday not worked pays rate x 0.5, no absence, no deduction
+ ✘ S-015.7 half SIL plus 4 hours of punches is a full day: no undertime, no deduction
+ ✘ S-015.8 half SIL plus 3 hours of punches: 1 hour of undertime only
+ ✘ S-015.9 half SIL with 30 minutes late on a 4-hour morning counts 30 minutes late
+ ✘ S-015.10 half SIL on a fully worked day is never paid above one day
+ ✘ S-015.11 half SIL with several rates in the period deducts the absent half at that day's rate
+ ✘ S-015.12 a whole SIL keeps today's pay exactly
+ ✘ S-015.13 HR asks for a half SIL, the card says "Apply SIL (half day)", the CEO approves, the row has 0.5
+ ✔ S-015.14 a half SIL request is blocked at approval when less than half a day remains
+ ✘ S-015.15 asking for a whole day where a half is already applied is refused as already applied
+ ✘ S-015.16 the calendar cell shows SIL ½ and carries the days for the modal
+ ✘ S-015.17 the profile adds a half SIL, shows used 0.5 and remaining 4.5, and marks the row ½
+ ✘ S-015.18 the payslip labels a half SIL day SIL ½ and counts it as 0.5 SIL day and 14.5 absences
+ERRORS!
+Tests: 18, Assertions: 47, Errors: 2, Failures: 15.

@@ -352,12 +352,13 @@ class Employee extends Model
 
     /**
      * SIL days already applied for the given year: the sum of their days, so a half
-     * day counts 0.5 (spec 015).
+     * day counts 0.5 (spec 015). A whole day on a date worked is not used (spec 016).
      */
     public function getSilUsedDays(int $year): float
     {
         return (float) SilApplication::where('employee_id', $this->id)
             ->whereYear('sil_date', $year)
+            ->used()
             ->sum('days');
     }
 

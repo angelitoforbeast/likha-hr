@@ -110,7 +110,8 @@ class EmployeeController extends Controller
             ->orderByDesc('sil_date')
             ->get();
         // Spec 015: used days are the sum of each application's days (a half day is 0.5).
-        $silUsed = (float) $silApplications->sum(fn ($s) => $s->daysValue());
+        // Spec 016: a whole day on a date worked is not used, so read it the balance's way.
+        $silUsed = $employee->getSilUsedDays($currentYear);
         $silRemaining = (float) $silBalance->total_days - $silUsed;
 
         // Shift assignments asked for and waiting for the CEO: shown as pending, never as in effect.

@@ -130,6 +130,16 @@ class PayrollService
             $attendanceDateSet[$dateStr] = true;
         }
 
+        // Spec 016: a whole-day SIL on a date actually worked is not used. The work is paid
+        // as on any day, and the SIL adds nothing (it was paid twice before).
+        $silDatesInPeriod = $silDatesInPeriod->reject(function ($sil, $date) use ($attendanceDays) {
+            return !$sil->isHalfDay() && $attendanceDays->contains(function ($day) use ($date) {
+                $d = $day->work_date instanceof Carbon ? $day->work_date->format('Y-m-d') : substr((string) $day->work_date, 0, 10);
+
+                return $d === $date && (int) $day->payable_work_minutes > 0;
+            });
+        });
+
         // 4. Count days worked on REQUIRED days + track holiday work
         $daysWorked = 0;              // Regular working days with attendance
         $holidayDaysWorked = 0;       // Holiday days with attendance (for eligible)

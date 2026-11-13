@@ -71,6 +71,24 @@ class SilApplication extends Model
         return in_array($days, self::ALLOWED_DAYS, true) ? $days : null;
     }
 
+    /**
+     * Spec 016: a whole-day SIL on a date the employee worked (an attendance day with
+     * payable minutes) is not used: the work is paid and the balance is not reduced.
+     * A half day is not affected: its other half is the work (spec 015).
+     */
+    public function scopeUsed($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('days', '<', self::WHOLE_DAY)
+              ->orWhereNotExists(function ($sub) {
+                  $sub->selectRaw('1')->from('attendance_days')
+                      ->whereColumn('attendance_days.employee_id', 'sil_applications.employee_id')
+                      ->whereRaw('date(attendance_days.work_date) = date(sil_applications.sil_date)')
+                      ->where('attendance_days.payable_work_minutes', '>', 0);
+              });
+        });
+    }
+
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
